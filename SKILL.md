@@ -21,7 +21,16 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
 - **고정 문구**(기본값, 사용자가 바꾸면 `tools/build.py`(스킬에서는 `scripts/build.py`)의 `CONTACT`·`DISCLAIMER` 수정. 기술이전 형태는 표기하지 않는다):
   기술이전 문의 "한국농업기술진흥원",
   면책 "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."
-- **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 공개 스킬에는 음악이 없으므로 사용자에게 라이선스가 있는 곡을 받아 넣는다(없으면 무음으로 빌드). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
+- **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
+  공개 스킬에는 음악이 없다. 사용자에게 라이선스가 있는 곡이 있으면 그걸 넣고, 없으면 **음악 준비 단계**를 거친다:
+  1. `python -I tools/music.py --check` 로 쓸 수 있는 경로를 본다(아무것도 바꾸지 않음).
+  2. 사용자에게 고르게 한다(media-use 규칙: 말없이 생성하지 않는다):
+     - HeyGen 음악 라이브러리 검색 — `heygen auth login --oauth`(무료 한도) 또는 API 키(크레딧), 기성곡이라 품질 안정
+     - Google Lyria 생성 — `GEMINI_API_KEY`, 품질 좋음, 구글 약관 확인
+     - MusicGen 로컬 생성 — 첫 실행에 transformers+torch(모델 포함 약 2GB) 설치, CPU에선 곡당 수 분, **CC-BY-NC(비상업)** 이라 기관 홍보 영상엔 부적합할 수 있음
+     - 음악 없이 진행(효과음만)
+  3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m1-…mp3` 4곡(60.5초, 페이드·루프 처리)과
+     `assets/music/SOURCES.json`(제공처·프롬프트·라이선스 메모). 곡을 들려주고 확인받은 뒤 렌더링한다. 4곡을 모든 영상이 돌려 쓴다.
 - **보안**: KIPRIS 키는 `.env`에만 두고 출력·커밋하지 않는다. 콘텐츠 JSON은 `validate.py`가 `<br />` 외 태그와 이상한 도면 파일명을 거부한다(명세서 속 문구가 HTML로 들어가는 것을 막기 위해). 다운로드한 공보·엑셀은 신뢰하지 않는 데이터로 다룬다.
 - **나레이션**(선택): 원하면 `--narrate`. 음성은 edge-tts `ko-KR-SunHiNeural`(여, 기본)·`ko-KR-InJoonNeural`(남)·`ko-KR-HyunsuMultilingualNeural`(남). 샘플을 들려주고 고르게 한다.
   edge-tts는 마이크로소프트 Edge 온라인 읽기 서비스를 비공식으로 쓰므로 네트워크가 필요하고, 공공 배포 전 이용 조건을 사용자가 확인하도록 한 줄 알린다.

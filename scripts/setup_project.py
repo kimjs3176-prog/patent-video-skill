@@ -36,7 +36,7 @@ def main(dst):
             shutil.copytree(src, os.path.join(dst, "assets", sub), dirs_exist_ok=True)
         else:
             os.makedirs(os.path.join(dst, "assets", sub), exist_ok=True)
-            print(f"note: assets/{sub} is empty - " + ("add your licensed background music (mp3)" if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
+            print(f"note: assets/{sub} is empty - " + ("add licensed mp3s, or run: python -I tools/music.py --check" if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
     shutil.copytree(os.path.join(SKILL, "assets", "template"), os.path.join(dst, "template"), dirs_exist_ok=True)
     for d in ("data/content", "data/patents", "data/raw", "videos", "renders"):
         os.makedirs(os.path.join(dst, d), exist_ok=True)

@@ -23,7 +23,7 @@ git clone https://github.com/kimjs3176-prog/patent-video-skill.git ~/.claude/ski
 | 항목 | 이유 | 대신 |
 |---|---|---|
 | KIPRIS Plus 서비스키 | 비밀 정보 | 프로젝트 `.env`에 `KIPRIS_API_KEY=...` (커밋 금지, `.gitignore` 포함) |
-| 배경음악 | 저작권이 사용자에게 있음 | 직접 라이선스를 가진 mp3를 `<프로젝트>/assets/music`에 넣기(없으면 무음으로 빌드) |
+| 배경음악 | 저작권이 사용자에게 있음 | 라이선스를 가진 mp3를 `<프로젝트>/assets/music`에 넣거나, `tools/music.py`로 준비(HeyGen 라이브러리 / Google Lyria / MusicGen, media-use 스킬 필요). 없으면 무음으로 빌드 |
 | 효과음 | Pixabay 콘텐츠를 단독 재배포하지 않음 | HyperFrames `media-use` 스킬이 설치돼 있으면 `setup_project.py`가 자동 복사(없으면 생략) |
 
 ## 보안 메모
