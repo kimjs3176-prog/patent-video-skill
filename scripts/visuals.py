@@ -96,10 +96,10 @@ def pick_figures(c, n=4):
     return [out[i] for i in idx]
 
 
-def copy_figures(c, out, n=4):
-    """Copy the figures pick_figures() chooses into <out>/assets/fig and return them."""
+def copy_figures(c, out):
+    """Copy every usable figure into <out>/assets/fig (templates pick 2, 3 or 4 of them, and the picks differ)."""
     import shutil
-    figs = pick_figures(c, n)
+    figs = pick_figures(c, 99)
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for f in figs:
         shutil.copy(os.path.join(ROOT, "data", "patents", c["appno"], f["file"]), os.path.join(out, "assets", "fig", f["file"]))

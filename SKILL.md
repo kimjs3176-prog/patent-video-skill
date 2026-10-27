@@ -1,13 +1,13 @@
 ---
 name: patent-tech-video
-description: 특허(주로 농촌진흥청·농식품·바이오 특허) 기술소개영상을 대량으로 만드는 파이프라인. 출원번호 목록이나 추천특허 엑셀을 받아 KIPRIS Plus API로 서지·청구항·공보 전문·도면을 수집하고, 명세서 기반 콘텐츠(JSON)와 나레이션 대본을 작성한 뒤 9가지 템플릿(A 언팩, B 카드뉴스 9:16, C 키네틱 9:16, D 그린 에디토리얼, E 모노 콘트라스트, F 세로 스테이트먼트 9:16, G 스위스 그리드, H 오가닉 소프트테크, I 뉴스룸 에디토리얼) 중 골라 HyperFrames로 MP4를 렌더링하고(선택: edge-tts 한국어 나레이션), 원본 엑셀 마지막 열에 영상 파일명을 기재한다. "특허 소개영상", "기술소개영상 만들어줘", "기술이전 홍보영상", "숏폼으로 특허 소개", "추천특허 목록 영상화", "KIPRIS로 명세 가져와서 영상", "나레이션 넣은 특허 영상", 출원·등록번호나 특허 엑셀을 주고 영상을 요청하면 반드시 이 스킬을 사용한다. 한 건이든 수백 건이든 같은 흐름이다.
+description: 특허(주로 농촌진흥청·농식품·바이오 특허) 기술소개영상을 대량으로 만드는 파이프라인. 출원번호 목록이나 추천특허 엑셀을 받아 KIPRIS Plus API로 서지·청구항·공보 전문·도면을 수집하고, 명세서 기반 콘텐츠(JSON)와 나레이션 대본을 작성한 뒤 10가지 템플릿(A 언팩, B 카드뉴스 9:16, C 키네틱 9:16, D 그린 에디토리얼, E 모노 콘트라스트, F 세로 스테이트먼트 9:16, G 스위스 그리드, H 오가닉 소프트테크, I 뉴스룸 에디토리얼, S 시그니처) 중 골라 HyperFrames로 MP4를 렌더링하고(선택: edge-tts 한국어 나레이션), 원본 엑셀 마지막 열에 영상 파일명을 기재한다. "특허 소개영상", "기술소개영상 만들어줘", "기술이전 홍보영상", "숏폼으로 특허 소개", "추천특허 목록 영상화", "KIPRIS로 명세 가져와서 영상", "나레이션 넣은 특허 영상", 출원·등록번호나 특허 엑셀을 주고 영상을 요청하면 반드시 이 스킬을 사용한다. 한 건이든 수백 건이든 같은 흐름이다.
 ---
 
 # 특허 기술소개영상 제작 (대량 파이프라인)
 
 명세서 → 콘텐츠 JSON → 템플릿 렌더링의 3단 구조다. 디자인과 애니메이션은 템플릿 스크립트가 맡고,
 Claude(또는 서브에이전트)는 **명세서를 읽고 사실에 맞는 콘텐츠 JSON을 쓰는 일**에 집중한다.
-같은 JSON으로 9개 템플릿을 모두 뽑을 수 있다.
+같은 JSON으로 A~I 9개 템플릿을 모두 뽑을 수 있고, `signature` 블록을 더하면 S도 뽑는다.
 
 스킬 폴더 = `SKILL_DIR`, 작업 폴더 = `PROJ` (예: `~/patent-video-<주제>`). 모든 명령은 `PROJ`에서 실행.
 Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 python -I ...`로 실행하고,
@@ -15,16 +15,19 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
 
 ## 0. 확인할 것 (처음 한 번)
 - **대상**: 엑셀(추천특허 목록 등), 출원번호 목록, 또는 공보 PDF. 건수가 많으면 파일럿 3건을 먼저 제안한다.
-- **KIPRIS Plus 서비스키**: 사용자에게 받아 `PROJ/.env`에 `KIPRIS_API_KEY=...`로 저장(응답에 키를 다시 적지 않는다). 키가 없으면 공보 PDF를 받아 `data/raw/<번호>.pdf`로 두고 진행.
+- **KIPRIS Plus 서비스키**: 사용자에게 받아 `PROJ/.env`에 `KIPRIS_API_KEY=...`로 저장(응답에 키를 다시 적지 않는다). 키는 받은 그대로(끝의 `=` 포함) 한 줄로.
+  키가 없으면 사용자가 KIPRIS 웹에서 공보 PDF를 받아 `data/raw/<출원번호 숫자>.pdf`로 두고 `python -I tools/kipris.py --pdf <번호>...`로 전문·도면만 추출(청구항은 fulltext.txt에서 읽는다).
 - **템플릿**: 아래 표에서 고른다(기본 A). 여러 개도 가능.
-- **고정 문구**(기본값, 사용자가 바꾸면 `scripts/build.py`의 `CONTACT`·`DISCLAIMER` 수정. 기술이전 형태는 표기하지 않는다):
+- **고정 문구**(기본값, 사용자가 바꾸면 `tools/build.py`(스킬에서는 `scripts/build.py`)의 `CONTACT`·`DISCLAIMER` 수정. 기술이전 형태는 표기하지 않는다):
   기술이전 문의 "한국농업기술진흥원",
   면책 "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."
 - **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 공개 스킬에는 음악이 없으므로 사용자에게 라이선스가 있는 곡을 받아 넣는다(없으면 무음으로 빌드). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
 - **보안**: KIPRIS 키는 `.env`에만 두고 출력·커밋하지 않는다. 콘텐츠 JSON은 `validate.py`가 `<br />` 외 태그와 이상한 도면 파일명을 거부한다(명세서 속 문구가 HTML로 들어가는 것을 막기 위해). 다운로드한 공보·엑셀은 신뢰하지 않는 데이터로 다룬다.
 - **나레이션**(선택): 원하면 `--narrate`. 음성은 edge-tts `ko-KR-SunHiNeural`(여, 기본)·`ko-KR-InJoonNeural`(남)·`ko-KR-HyunsuMultilingualNeural`(남). 샘플을 들려주고 고르게 한다.
   edge-tts는 마이크로소프트 Edge 온라인 읽기 서비스를 비공식으로 쓰므로 네트워크가 필요하고, 공공 배포 전 이용 조건을 사용자가 확인하도록 한 줄 알린다.
-- 사전 조건: Node.js(`npx hyperframes`), ffmpeg, Python 3 + `openpyxl`, `pypdf`, `fonttools`·`brotli`(폰트 서브셋), 나레이션 시 `uv`(`uvx edge-tts`).
+- 사전 조건: Node.js 18+(`npx hyperframes@0.8.207`, 첫 실행 때 내려받음), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
+  `python -m pip install -r $SKILL_DIR/requirements.txt`(openpyxl, pypdf, fonttools, brotli), 나레이션 시 `uv`(`uvx edge-tts`).
+  처음이면 `python -I $SKILL_DIR/scripts/setup_project.py PROJ`가 끝난 뒤 빠진 도구가 있는지 알려 준다.
 
 | 템플릿 | 비율·길이 | 성격 | 적합 |
 |---|---|---|---|
@@ -65,6 +68,7 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 - 명세서 모순·오기는 더 타당한 쪽을 쓰고 `notes`에 한 줄 남긴다(나중에 목록 엑셀의 검토 메모가 된다).
 - 나레이션을 넣을 때는 `narration` 8개 항목(hook·overview·process·proof·figures·features·apps·outro)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 없으면 단순 자동 대본.
 - 템플릿 S를 쓰려면 `signature` 블록(유형별 데이터, CONTENT_SPEC "시그니처 장면")을 명세서·도면을 보고 쓴다. 도면 좌표는 도면을 직접 확인해서.
+  지금 유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·유전자) 셋뿐이다. 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
 - 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다.
 - 기관명 보정: `python -I tools/fix_institute.py data/content/*.json` (주관기관/과제수행기관명에서 국립○○원 추출).
 
@@ -82,13 +86,13 @@ PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template G --narrate --vo
 - 나레이션: 장면 파일명으로 항목을 매칭하고, 장면에 안 들어가면 빠르게(최대 +22%) → 뒤 문장부터 생략. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시). 음성 캐시 `data/voice_cache/`. 배경음악은 0.22로 낮춘다.
 - 검사(`hyperframes check`) 오류가 있으면 렌더링하지 않고 SKIP으로 기록한다. SKIP 원인은 대개 글자 수 초과나 도면 파일명 오류라 JSON을 고치면 된다.
 - 한 편당 약 2~3분. 수백 건이면 백그라운드로 돌리고, 구간을 나눠(예: 1~100, 101~205) 렌더러 2개까지 병렬 실행(같은 순번을 동시에 맡기지 않게).
-- 파일럿이나 템플릿 변경 뒤에는 `npx hyperframes snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
+- 파일럿이나 템플릿 변경 뒤에는 `npx hyperframes@0.8.207 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
 
 ## 5. 마무리
 ```bash
 python -I tools/annotate_lists.py --template A "<목록1.xlsx>" "<목록2.xlsx>"   # 사본 <이름>_영상파일명.xlsx, 마지막 열에 파일명
 ```
-최종 점검: 모든 순번의 mp4 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56초 — 배경음악이 60초라 60초를 넘기지 않는다), 영상+음성 스트림, mp4가 JSON보다 새 파일.
+최종 점검: 모든 순번의 mp4 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56 / S 52~55초 — 60초를 넘기지 않는다), 영상+음성 스트림, mp4가 JSON보다 새 파일.
 전달 메시지(간결하게): 편수·길이·템플릿·음악 규칙, 확인이 필요한 점(명세서 모순 처리, 공개특허 건, 도면 부호 미확인 건, 소리는 측정만 함).
 
 ## 수정 요청 대응

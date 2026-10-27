@@ -1,6 +1,6 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I] [--narrate [--voice ko-KR-SunHiNeural]] [--no-render] [order ...]
+Usage: python -I -u tools/produce.py [--template A..I|S] [--narrate [--voice ko-KR-SunHiNeural]] [--no-render] [order ...]
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... ; --narrate adds a voice-over and the suffix _nar.
 One log line per video in renders*/produce.log.
 """
@@ -87,6 +87,9 @@ def one(path, render, want):
     mp4 = os.path.join(render_dir(), slug + ("" if TEMPLATE == "A" else "_" + TEMPLATE.lower()) + ("_nar" if NARRATE else "") + ".mp4")
     # skip only if the render is newer than its content (edited content gets re-rendered)
     if render and os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path):
+        return
+    if TEMPLATE == "S" and "signature" not in json.load(open(path, encoding="utf-8")):
+        log(f"{slug} SKIP template S needs a signature block (CONTENT_SPEC: 시그니처 장면)")
         return
     v = validate(path)
     if v:

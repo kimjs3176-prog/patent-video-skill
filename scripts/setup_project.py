@@ -44,6 +44,21 @@ def main(dst):
     if not os.path.exists(gi):
         open(gi, "w", encoding="utf-8").write(".env\nrenders*/\nvideos*/\n.hyperframes/\ndata/raw/\ndata/voice_cache/\ndata/font_cache/\n")
     print("project ready:", dst)
+    doctor()
+
+
+def doctor():
+    """Report missing prerequisites (nothing is installed automatically)."""
+    import importlib.util
+    missing = [t for t in ("node", "npx", "ffmpeg", "ffprobe") if not shutil.which(t)]
+    missing += [f"python package {m}" for m in ("openpyxl", "pypdf", "fontTools", "brotli") if importlib.util.find_spec(m) is None]
+    if sys.version_info < (3, 10):
+        missing.append("Python 3.10+")
+    if missing:
+        print("missing:", ", ".join(missing))
+        print("  python -m pip install -r", os.path.join(SKILL, "requirements.txt"), " / Node.js 18+ / ffmpeg")
+    if not shutil.which("uvx"):
+        print("optional: uv (uvx) for narration (--narrate) is not installed")
 
 
 if __name__ == "__main__":

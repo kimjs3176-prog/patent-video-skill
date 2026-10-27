@@ -1,7 +1,8 @@
 """Fetch patent specifications from the KIPRIS Plus Open API.
 
-Usage: python -I tools/kipris.py <application-number> [...]
-Writes data/raw/<appno>.xml and data/patents/<appno>.json.
+Usage: python -I tools/kipris.py <application-number> [...] | --all
+       python -I tools/kipris.py --pdf <application-number> [...]   (no key: uses data/raw/<appno>.pdf downloaded by hand)
+Writes data/raw/<appno>.xml and data/patents/<appno>/biblio.json, fulltext.txt and fig-*.jpg.
 The service key is read from the KIPRIS_API_KEY env var or the project's .env file.
 """
 import json
@@ -84,6 +85,11 @@ def fulltext(num, outdir):
     pdf = os.path.join(ROOT, "data", "raw", num + ".pdf")
     with urllib.request.urlopen(path, timeout=60) as r, open(pdf, "wb") as f:
         f.write(r.read())
+    return parse_pdf(pdf, outdir)
+
+
+def parse_pdf(pdf, outdir):
+    """Extract the text and the JPEG figures of a gazette PDF into outdir."""
     import pypdf
     reader = pypdf.PdfReader(pdf)
     with open(os.path.join(outdir, "fulltext.txt"), "w", encoding="utf-8") as f:
@@ -107,6 +113,20 @@ if __name__ == "__main__":
     import time
     os.makedirs(os.path.join(ROOT, "data", "patents"), exist_ok=True)
     args = sys.argv[1:]
+    if args[:1] == ["--pdf"]:
+        for a in args[1:]:
+            num = re.sub(r"\D", "", a)
+            pdf = os.path.join(ROOT, "data", "raw", num + ".pdf")
+            if not os.path.exists(pdf):
+                print(num, "missing", os.path.relpath(pdf, ROOT))
+                continue
+            outdir = os.path.join(ROOT, "data", "patents", num)
+            os.makedirs(outdir, exist_ok=True)
+            ft = parse_pdf(pdf, outdir)
+            with open(os.path.join(outdir, "biblio.json"), "w", encoding="utf-8") as f:
+                json.dump({"applicationNumber": num, "claims": [], "source": "pdf", "fulltext": ft}, f, ensure_ascii=False, indent=2)
+            print(num, "ok from PDF:", ft["pages"], "pages,", len(ft["figures"]), "figures (claims: read them in fulltext.txt)")
+        sys.exit(0)
     if args == ["--all"]:
         master = json.load(open(os.path.join(ROOT, "data", "master.json"), encoding="utf-8"))
         args = [m["appno"] for m in master
