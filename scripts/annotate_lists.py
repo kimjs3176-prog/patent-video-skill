@@ -1,6 +1,8 @@
 """Write copies of the source Excel lists with a last column naming each row's video file(s).
 
-Usage: python -I tools/annotate_lists.py [--template A..F] <list.xlsx> [...]
+Usage: python -I tools/annotate_lists.py [--template A..I|S] <list.xlsx> [...]
+The column lists the deliverable patents/{출원번호}.mp4 (see tools/export.py); --template X lists that template's
+renders_* file name instead.
 Copies are saved next to the originals as <name>_영상파일명.xlsx; originals are never modified.
 The header row of each sheet is the row just above the first row that mentions a patent;
 the new column goes right after the sheet's last used column and copies its style.
@@ -18,13 +20,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAT = re.compile(r"(?<![0-9])(10-\d{4}-\d{7})(?![0-9])")
 
 args = sys.argv[1:]
-tpl = "A"
+tpl = None
 if "--template" in args:
     tpl = args[args.index("--template") + 1].upper()
     args = [a for i, a in enumerate(args) if a != "--template" and (i == 0 or args[i - 1] != "--template")]
-suffix = "" if tpl == "A" else f"_{tpl.lower()}"
 master = json.load(open(os.path.join(ROOT, "data", "master.json"), encoding="utf-8"))
-SLUG = {m["appno"]: f'{m["order"]:03d}-{m["appno"]}{suffix}.mp4' for m in master}
+if tpl:
+    suffix = "" if tpl == "A" else f"_{tpl.lower()}"
+    SLUG = {m["appno"]: f'{m["order"]:03d}-{m["appno"]}{suffix}.mp4' for m in master}
+else:
+    SLUG = {m["appno"]: f'patents/{m["appno"]}.mp4' for m in master}
 
 
 def files_in(texts):

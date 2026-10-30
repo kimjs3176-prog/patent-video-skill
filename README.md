@@ -5,7 +5,8 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
 
 - 템플릿 10종: A 언팩 · B 카드뉴스(9:16) · C 키네틱(9:16) · D 그린 에디토리얼 · E 모노 콘트라스트 · F 스테이트먼트(9:16) ·
   G 스위스 그리드 · H 오가닉 소프트테크 · I 뉴스룸 에디토리얼 · S 시그니처(기술 유형별 구성)
-- 선택: edge-tts 한국어 나레이션, 원본 엑셀에 영상 파일명 기재
+- 한국어 나레이션(edge-tts 선희, 엔딩 제외) 기본 포함, 원본 엑셀에 영상 파일명 기재
+- 산출물: 동영상 `patents/{출원번호}.mp4`, 썸네일 `patents/{출원번호}.jpg` (예: `patents/1020240012345.mp4`)
 
 자세한 사용법은 [`SKILL.md`](SKILL.md), 템플릿 구성은 [`references/templates.md`](references/templates.md),
 콘텐츠 작성 규칙은 [`references/CONTENT_SPEC.md`](references/CONTENT_SPEC.md)를 보세요.
@@ -50,7 +51,7 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
 신문 지면처럼 세리프 제목, 이중 괘선, 공정 표, 도면 포토 에세이.
 ![템플릿 I](docs/previews/template-i.jpg)
 
-### S 시그니처 · 16:9 · 52~55초
+### S 시그니처 · 16:9 · 46~55초
 기술 자체가 움직이는 템플릿. 왼쪽부터 공정형(재료 여정 + 온도 그래프), 장치형(도면 위 작동 흐름 + 제어 루프),
 서열형(프라이머 염기 서열이 표적 부위를 짚음). 콘텐츠에 `signature` 블록이 필요합니다.
 ![템플릿 S](docs/previews/template-s.jpg)

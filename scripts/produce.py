@@ -1,7 +1,9 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I|S] [--narrate [--voice ko-KR-SunHiNeural]] [--no-render] [order ...]
-Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... ; --narrate adds a voice-over and the suffix _nar.
+Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-SunHiNeural] [--no-narrate] [--no-render] [order ...]
+Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
+unless --no-narrate.
+Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
 One log line per video in renders*/produce.log.
 """
 import glob
@@ -19,6 +21,7 @@ import build_def  # noqa: E402
 import build_ghi  # noqa: E402
 import build_sig  # noqa: E402
 from validate import check as validate  # noqa: E402
+from export import export  # noqa: E402
 import narration  # noqa: E402
 import postprocess  # noqa: E402
 
@@ -28,7 +31,7 @@ ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 
 
 TEMPLATE = "A"
-NARRATE = False
+NARRATE = True
 VOICE = narration.VOICE
 BUILDERS = {"A": build_a, "B": build_b.build, "C": build_c.build,
             "D": lambda p: build_def.build("D", p), "E": lambda p: build_def.build("E", p), "F": lambda p: build_def.build("F", p),
@@ -62,7 +65,7 @@ def main():
     if "--voice" in args:
         VOICE = args[args.index("--voice") + 1]
         args = [a for i, a in enumerate(args) if a != "--voice" and (i == 0 or args[i - 1] != "--voice")]
-    NARRATE = "--narrate" in args
+    NARRATE = "--no-narrate" not in args  # --narrate is the default (still accepted)
     if "--template" in args:
         TEMPLATE = args[args.index("--template") + 1].upper()
         args = [a for i, a in enumerate(args) if a != "--template" and (i == 0 or args[i - 1] != "--template")]
@@ -116,6 +119,9 @@ def one(path, render, want):
                        encoding="utf-8", errors="replace", timeout=1800)
     ok = r.returncode == 0 and os.path.exists(mp4)
     log(f"{slug} {'RENDERED' if ok else 'RENDER FAIL'} {time.time() - t:.0f}s warnings={len(warns)}" + ("" if ok else " " + r.stdout[-300:]))
+    if ok:
+        dst, jpg = export(mp4, slug.split("-", 1)[1])  # deliverable: patents/{출원번호}.mp4 + .jpg
+        log(f"{slug} exported {os.path.relpath(dst, ROOT)} {os.path.relpath(jpg, ROOT)}")
 
 
 if __name__ == "__main__":

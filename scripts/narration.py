@@ -4,7 +4,8 @@ Script source: content["narration"] = {"hook", "overview", "process", "proof", "
 (1–2 spoken sentences each; see CONTENT_SPEC "narration"). Without it, a plain script is assembled from the content fields.
 
 Each scene of the built project is matched to a section by its composition file name. Sections a template has no scene for
-are merged into the previous scene (figures is dropped instead). A line that does not fit its scene is re-voiced faster
+are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
+The voice is 선희 (ko-KR-SunHiNeural) unless --voice says otherwise. A line that does not fit its scene is re-voiced faster
 (+6 % by default, up to +22 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
 Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-SunHiNeural]
@@ -20,7 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, ROOT  # noqa: E402
 from visuals import pick_figures  # noqa: E402
 
-VOICE = "ko-KR-SunHiNeural"
+VOICE = "ko-KR-SunHiNeural"  # house voice: 선희 (SunHi) for every video
+SILENT = {"outro"}  # the ending is never voiced (music only)
 ORDER = ["hook", "overview", "process", "proof", "figures", "features", "apps", "outro"]
 KEYS = {
     "hook": ("teaser", "cover", "hook", "hero", "open", "front"),
@@ -37,8 +39,17 @@ UVX = "uvx.exe" if os.name == "nt" else "uvx"
 EDGE_TTS = "edge-tts==7.3.1"  # pinned: the package is fetched from PyPI at run time
 
 
+# template S: the signature scenes are voiced one by one (scene key → line), the frame scenes keep the section lines
+SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel")
+SIG_FRAME = {"teaser": "hook", "proof": "proof", "features": "features", "apps": "apps", "outro": "outro"}
+
+
+def scene_key(fname):
+    return re.sub(r"^[a-z]+\d*-", "", os.path.basename(fname)[:-5])
+
+
 def section_of(fname):
-    key = re.sub(r"^[a-z]+\d*-", "", os.path.basename(fname)[:-5])
+    key = scene_key(fname)
     return next((s for s, ks in KEYS.items() if key in ks), None)
 
 
@@ -69,6 +80,45 @@ def auto_script(c):
         "apps": f'{", ".join(a["n"] for a in c["apps"][:3])} 등에 활용할 수 있습니다.',
         "outro": f"기술이전 문의는 {CONTACT}입니다.",
     }
+
+
+def auto_sig_script(c):
+    """Per-scene lines for template S when the signature block has no authored narration."""
+    def clean(s):
+        return re.sub(r"<[^>]+>", " ", s.replace("|", "")).strip()
+    sg = c["signature"]
+    out = {}
+    if sg.get("removed"):
+        out["route"] = f'기존 공정에서 {sg["removed"]} 단계가 빠집니다.'
+    if sg.get("stages"):
+        out["journey"] = " ".join(f'{s["n"]}, {s["cond"]}.' for s in sg["stages"])
+    if sg.get("callouts"):
+        out["parts"] = f'{", ".join(p["n"] for p in sg["callouts"][:4])}로 이루어집니다.'
+    run = sg.get("run") or {}
+    if run:
+        out["run"] = clean(run.get("title", "")) + ". " + " ".join(f'{q["n"]}, {q.get("d", "")}.' for q in run.get("steps", [])[:3])
+    if sg.get("path"):
+        out["path"] = clean(sg["path"].get("title", "")) + "."
+    if sg.get("problem"):
+        out["problem"] = clean(sg["problem"].get("title", "")) + "."
+    if sg.get("primers"):
+        out["primers"] = f'{len(sg["primers"])}개 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 인식합니다.'
+    if sg.get("probe"):
+        out["probe"] = "프로브를 더하면 비특이 신호가 사라지고 표적만 남습니다."
+    rs = sg.get("result") or {}
+    if rs:
+        out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = clean(rs.get("title", "")) + ". " + clean(rs.get("note", ""))
+    return out
+
+
+def sig_script(c):
+    """Scene key → line for template S: signature.narration first, then the content's section lines, then generated."""
+    base = auto_script(c)
+    sec = dict(c.get("narration") or {})
+    out = {k: sec.get(v) or base[v] for k, v in SIG_FRAME.items()}
+    out.update(auto_sig_script(c))
+    out.update(c["signature"].get("narration") or {})
+    return {k: v for k, v in out.items() if v and k not in SILENT}
 
 
 def duration(path):
@@ -130,15 +180,18 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
     html = open(ip, encoding="utf-8").read()
     html = re.sub(r'\s*<audio id="nar-[^>]*></audio>', "", html)
     slots = scenes(html)
-    script = dict(c.get("narration") or auto_script(c))
-    if not pick_figures(c):  # the figures scene falls back to step pictograms: no line about drawings
-        script.pop("figures", None)
-    texts = assign(slots, script)
+    if c.get("signature") and any(scene_key(f) in SIG_SCENES for _, f, _, _ in slots):
+        texts, keyof = sig_script(c), scene_key
+    else:
+        script = {k: v for k, v in dict(c.get("narration") or auto_script(c)).items() if k not in SILENT}
+        if not pick_figures(c):  # the figures scene falls back to step pictograms: no line about drawings
+            script.pop("figures", None)
+        texts, keyof = assign(slots, script), section_of
     vdir = os.path.join(out, "assets", "voice")
     os.makedirs(vdir, exist_ok=True)
     clips, report = [], []
     for i, (sid, f, st, du) in enumerate(slots):
-        sec = section_of(f)
+        sec = keyof(f)
         if sec not in texts:
             continue
         nxt = slots[i + 1][2] if i + 1 < len(slots) else st + du

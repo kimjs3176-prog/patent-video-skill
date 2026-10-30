@@ -63,13 +63,14 @@
 - bars: 하이라이트(이 기술) 항목에 `"hi": true`, max는 막대 최대값보다 약간 크게. bars가 없으면 item에 icon 지정.
 - stats item은 각 4초 이상 보이므로 1~3개.
 
-## 나레이션 대본 (narration, 선택 — `--narrate` 렌더링 때 사용)
+## 나레이션 대본 (narration, 권장 — 모든 렌더링에 기본으로 들어감, 끄려면 `--no-narrate`)
 화면 글자(개조식)를 그대로 읽지 말고, 같은 사실을 **말하는 문장**으로 쓴다. 장면마다 1~2문장.
+엔딩(outro)은 항상 음성 없이 음악만 — `outro`를 써도 읽지 않는다. 음성은 선희(ko-KR-SunHiNeural) 고정.
 - 음절 한도(공백 제외): hook 30 · overview 30 · process 45 · proof 50 · figures 25 · features 30 · apps 30 · outro 25.
   넘치면 템플릿별로 빨리 읽히거나 뒤 문장부터 잘리므로, **문장 하나만 남아도 말이 되게** 핵심을 앞 문장에 둔다.
 - 수치는 명세서 그대로, 읽기 쉽게: `0.6–1.1 MPa` → "0.6에서 1.1 메가파스칼", `%` → "퍼센트", `℃` → "도". 계산한 배수 금지.
 - figures: 실제 도면 종류를 확인했을 때만 구체적으로("공정도와 사진"), 아니면 "명세서 도면으로 구조를 살펴봅니다." 정도.
-- outro: "기술이전 문의는 한국농업기술진흥원입니다."(고정 문구 유지, 기술이전 형태는 말하지 않는다). 면책 문구는 읽지 않는다(화면 표기).
+- outro: 읽지 않는다(엔딩은 음악만). 면책 문구도 읽지 않는다(화면 표기).
 - 기관명·코드네임은 화면에 있으므로 반복하지 않아도 된다. 과장·광고성 표현("획기적", "최고") 금지.
 - 없으면 내용 필드로 단순 대본을 자동 생성한다(품질 낮음 → 대량 제작 때도 작성 권장).
 
@@ -77,15 +78,26 @@
 기술 자체가 움직이는 장면. `type`에 따라 이야기 순서와 핵심 장면이 바뀐다. **모든 값은 명세서·청구항·도면에서 확인한 것만.**
 도면 위 위치(x, y)는 그 도면 이미지의 가로·세로 비율(0~1)로, 도면을 직접 보고 부호가 가리키는 부품 위에 찍는다.
 
-- `journey` (식품·공정): `conventional`(기존 공정 단계 이름들) · `removed`(빠지는 단계) · `removed_note` · `route_note` ·
-  `stages[{key, n, cond, t:[최저,최고]℃ 또는 label}]` · `product` · `title`("쌀이 |쌀맥주가 되기까지" 형식).
-  key(그림): puff(팽화) · mash(당화·혼합) · boil(가열) · ferment(발효) · cold(숙성·저온 → 마지막엔 완제품 잔).
-- `loop` (장치): `figure` · `figcap` · `callouts[{ref, n, d, x, y}]` · `air_in`/`air_in2`/`heat_out`(도면 비율 좌표 경로) ·
-  `drip`(응축·배출 지점) · `logic`(제어 루프 4단계) · `rules`(청구항의 제어 조건 2줄) ·
-  `path_figure` · `path_figcap` · `path[{ref, n, d, x, y}]`(물·물질이 제품 안을 지나는 순서).
-- `sequence` (프라이머·유전자): `problem[{v, l, s}]`(배경기술 수치 3개) · `target` · `primers[{id, seq, regions}]`(서열번호의 실제 염기) ·
-  `layout`(표적 위 부위 순서) · `probe{seq, dye}` · `sybr_ntc`(프로브 없이 NTC의 Ct) · `sensitivity`/`specificity[{l, ct}]`
-  (도면 Ct 표의 평균, 미검출은 null) · `cycles` · `cutoff` · `field`(현장 조건 3개).
+- `journey` (식품·공정): `product` · `title`("쌀이 |쌀맥주가 되기까지" 형식, 생략 시 자동) ·
+  `stages[{n, key, cond, t:[최저,최고]℃ 또는 label}]` 4~6개(온도는 음수 가능, 축 범위는 자동).
+  key(그림): soak(침지·당침) · cut(절단) · steam(증숙) · heat(가열·데침·효소처리) · boil(끓임+홉) · dry(건조) · roast(로스팅) ·
+  fry(유탕) · freeze(동결·냉각) · ferment(발효) · mix(혼합·배합) · extract/filter(추출·여과·농축) · puff(팽화) · mash(당화) ·
+  cold(저온 숙성 → 완제품 잔). 없으면 단계 이름으로 아이콘을 고른다.
+  선택: 명세서가 기존 공정의 한 단계를 없앤다고 **명시**할 때만 `conventional` · `removed` · `removed_note` · `route_note` · `route_label`
+  (공정 비교 장면이 추가되고, 없으면 강점 장면이 들어간다).
+- `loop` (장치): `figure` · `figcap` · `parts_title`(선택) · `callouts[{ref, n, d, x, y}]` 3~5개 ·
+  `run{figure?, eyebrow, title, flows[{label, color, pts}], glows[{x, y | ref | at_flow, color}], logic+rules 또는 steps[{n, d}], drip?}` ·
+  `path{figure, figcap, eyebrow, title, color, points[{ref, n, d, x, y}]}`(선택, 두 번째 도면 위 이동 경로).
+  color: air · water · heat · cold · gas · uv · light · solid · power. `logic`(4단계 제어 루프)은 청구항에 센서→제어→구동이 있을 때만, 아니면 `steps`.
+- `sequence` (프라이머·진단): `problem{title, cards[{v, l, s}] 2~3개, src}` · `target` · `target_note` · `layout`(표적 부위 순서) ·
+  `primers[{id, seq, regions}]`(서열번호의 실제 염기, 8개 이하) · `primers_title`/`primers_cap`(선택) · `field`(칩 2~4개) ·
+  `result` 중 하나: `{kind: "tubes", tubes[{l, pos}], pos_color, neg_color, note, cap}`(육안 색 판독) ·
+  `{kind: "gel", ladder[bp], lanes[{l, bands[bp]}], note, cap}`(전기영동) ·
+  `{kind: "ct", sensitivity/specificity[{l, ct}], *_title, *_note}` + 최상위 `cycles` · `cutoff`(실시간 PCR).
+  선택: `probe{seq, dye, sybr_pos{l, ct}, sybr_ntc[], pos[{l, ct}], ntc_n, left_title, right_title}`(프로브 비교 장면).
+- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel ·
+  proof · features · apps 중 그 영상에 있는 장면(엔딩 outro는 읽지 않음). 장면 길이(초) × 약 7음절 이내(예: journey 18.8초 → 110음절, teaser 6초 → 30음절).
+  숫자·단위는 읽히는 대로(“100에서 105도”, “퍼센트”). 없으면 시그니처 데이터로 자동 대본.
 - 모식도인 부분(부위 배치, 물방울 경로)은 화면에 "모식"이라고 표기된다. 곡선은 Ct 값에서 문턱선을 지나도록 그린다.
 
 ## 작성 후 자체 점검

@@ -1,6 +1,6 @@
 ---
 name: patent-tech-video
-description: 특허(주로 농촌진흥청·농식품·바이오 특허) 기술소개영상을 대량으로 만드는 파이프라인. 출원번호 목록이나 추천특허 엑셀을 받아 KIPRIS Plus API로 서지·청구항·공보 전문·도면을 수집하고, 명세서 기반 콘텐츠(JSON)와 나레이션 대본을 작성한 뒤 10가지 템플릿(A 언팩, B 카드뉴스 9:16, C 키네틱 9:16, D 그린 에디토리얼, E 모노 콘트라스트, F 세로 스테이트먼트 9:16, G 스위스 그리드, H 오가닉 소프트테크, I 뉴스룸 에디토리얼, S 시그니처) 중 골라 HyperFrames로 MP4를 렌더링하고(선택: edge-tts 한국어 나레이션), 원본 엑셀 마지막 열에 영상 파일명을 기재한다. "특허 소개영상", "기술소개영상 만들어줘", "기술이전 홍보영상", "숏폼으로 특허 소개", "추천특허 목록 영상화", "KIPRIS로 명세 가져와서 영상", "나레이션 넣은 특허 영상", 출원·등록번호나 특허 엑셀을 주고 영상을 요청하면 반드시 이 스킬을 사용한다. 한 건이든 수백 건이든 같은 흐름이다.
+description: 특허(주로 농촌진흥청·농식품·바이오 특허) 기술소개영상을 대량으로 만드는 파이프라인. 출원번호 목록이나 추천특허 엑셀을 받아 KIPRIS Plus API로 서지·청구항·공보 전문·도면을 수집하고, 명세서 기반 콘텐츠(JSON)와 나레이션 대본을 작성한 뒤 10가지 템플릿(A 언팩, B 카드뉴스 9:16, C 키네틱 9:16, D 그린 에디토리얼, E 모노 콘트라스트, F 세로 스테이트먼트 9:16, G 스위스 그리드, H 오가닉 소프트테크, I 뉴스룸 에디토리얼, S 시그니처) 중 골라 HyperFrames로 MP4를 렌더링해(edge-tts 한국어 나레이션 포함) `patents/{출원번호}.mp4`와 썸네일 `patents/{출원번호}.jpg`로 내보내고, 원본 엑셀 마지막 열에 영상 파일명을 기재한다. "특허 소개영상", "기술소개영상 만들어줘", "기술이전 홍보영상", "숏폼으로 특허 소개", "추천특허 목록 영상화", "KIPRIS로 명세 가져와서 영상", "나레이션 넣은 특허 영상", 출원·등록번호나 특허 엑셀을 주고 영상을 요청하면 반드시 이 스킬을 사용한다. 한 건이든 수백 건이든 같은 흐름이다.
 ---
 
 # 특허 기술소개영상 제작 (대량 파이프라인)
@@ -32,7 +32,7 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
   3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m1-…mp3` 4곡(60.5초, 페이드·루프 처리)과
      `assets/music/SOURCES.json`(제공처·프롬프트·라이선스 메모). 곡을 들려주고 확인받은 뒤 렌더링한다. 4곡을 모든 영상이 돌려 쓴다.
 - **보안**: KIPRIS 키는 `.env`에만 두고 출력·커밋하지 않는다. 콘텐츠 JSON은 `validate.py`가 `<br />` 외 태그와 이상한 도면 파일명을 거부한다(명세서 속 문구가 HTML로 들어가는 것을 막기 위해). 다운로드한 공보·엑셀은 신뢰하지 않는 데이터로 다룬다.
-- **나레이션**(선택): 원하면 `--narrate`. 음성은 edge-tts `ko-KR-SunHiNeural`(여, 기본)·`ko-KR-InJoonNeural`(남)·`ko-KR-HyunsuMultilingualNeural`(남). 샘플을 들려주고 고르게 한다.
+- **나레이션**(기본 포함, 끄려면 `--no-narrate`): 음성은 edge-tts 선희 `ko-KR-SunHiNeural` 고정. 엔딩(outro) 장면은 항상 음성 없이 음악만.
   edge-tts는 마이크로소프트 Edge 온라인 읽기 서비스를 비공식으로 쓰므로 네트워크가 필요하고, 공공 배포 전 이용 조건을 사용자가 확인하도록 한 줄 알린다.
 - 사전 조건: Node.js 18+(`npx hyperframes@0.8.207`, 첫 실행 때 내려받음), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
   `python -m pip install -r $SKILL_DIR/requirements.txt`(openpyxl, pypdf, fonttools, brotli), 나레이션 시 `uv`(`uvx edge-tts`).
@@ -49,7 +49,7 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
 | G 스위스 그리드 | 16:9 · 60초 | 종이색 그리드, 거대 숫자, 빨강 강조, 명세서 도면 그리드 | 보고·심사형 |
 | H 오가닉 소프트테크 | 16:9 · 57.5초 | 베이지, 둥근 카드, 방사형 노드, 도면 카드 부채꼴 | 부드러운 홍보 |
 | I 뉴스룸 에디토리얼 | 16:9 · 56초 | 신문 지면, 세리프, 축 차트, 도면 포토 에세이 | 보도자료·기사형 |
-| S 시그니처 | 16:9 · 52~55초 | 기술 유형별 구성(공정 여정·장치 작동·서열 설계), 콘텐츠 `signature` 필요 | 기술마다 다른 소개 |
+| S 시그니처 | 16:9 · 46~55초 | 기술 유형별 구성(공정 여정·장치 작동·서열 설계), 콘텐츠 `signature` 필요 | 기술마다 다른 소개 |
 자세한 장면 구성은 `references/templates.md`.
 
 ## 1. 프로젝트 준비
@@ -75,9 +75,10 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 - 수치는 명세서 그대로. 계산한 배수·감소율을 새로 만들지 않는다. 그래프만 있는 결과는 막대 없이 아이콘 항목으로.
 - 수치가 없는 장치·시스템 특허는 `proof.kind = "anatomy"`로, 부호가 보이는 도면을 고르고 부품마다 도면 부호를 `ref`로 넣는다(확인된 것만).
 - 명세서 모순·오기는 더 타당한 쪽을 쓰고 `notes`에 한 줄 남긴다(나중에 목록 엑셀의 검토 메모가 된다).
-- 나레이션을 넣을 때는 `narration` 8개 항목(hook·overview·process·proof·figures·features·apps·outro)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 없으면 단순 자동 대본.
+- 나레이션 대본 `narration`(hook·overview·process·proof·figures·features·apps)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 없으면 단순 자동 대본. 엔딩은 읽지 않으므로 outro는 쓰지 않아도 된다.
 - 템플릿 S를 쓰려면 `signature` 블록(유형별 데이터, CONTENT_SPEC "시그니처 장면")을 명세서·도면을 보고 쓴다. 도면 좌표는 도면을 직접 확인해서.
-  지금 유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·유전자) 셋뿐이다. 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
+  유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단) 셋. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
+  판독은 Ct 곡선/튜브 색 변화/전기영동 중 하나). S의 나레이션은 장면별 한 줄 `signature.narration`(CONTENT_SPEC). 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
 - 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다.
 - 기관명 보정: `python -I tools/fix_institute.py data/content/*.json` (주관기관/과제수행기관명에서 국립○○원 추출).
 
@@ -89,19 +90,21 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template A            # 전체 (재실행하면 이어서, 내용이 바뀐 것만 다시)
 PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template B 7 137 146  # 특정 순번만
 PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template C --no-render  # 빌드+검사만
-PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template G --narrate --voice ko-KR-InJoonNeural 137  # 나레이션 포함(_nar.mp4)
+PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template G --no-narrate 137  # 나레이션 없이
 ```
-- 출력: A는 `renders/<순번>-<출원번호>.mp4`, 나머지는 `renders_<t>/<순번>-<출원번호>_<t>.mp4`(나레이션은 `_nar` 추가). 로그는 각 폴더 `produce.log`.
-- 나레이션: 장면 파일명으로 항목을 매칭하고, 장면에 안 들어가면 빠르게(최대 +22%) → 뒤 문장부터 생략. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시). 음성 캐시 `data/voice_cache/`. 배경음악은 0.22로 낮춘다.
+- **산출물 파일 규칙**: 렌더링이 끝날 때마다 `patents/{출원번호}.mp4`(예: `patents/1020240012345.mp4`)와 썸네일 `patents/{출원번호}.jpg`(3초 지점 표지 프레임)로 내보낸다(`tools/export.py`).
+  템플릿별 작업 사본은 A `renders/<순번>-<출원번호>_nar.mp4`, 나머지 `renders_<t>/<순번>-<출원번호>_<t>_nar.mp4`로 남고, 같은 특허를 다른 템플릿으로 다시 렌더링하면 `patents/`의 파일은 최신 것으로 바뀐다.
+  예전에 렌더링한 파일만 내보낼 때: `python -I tools/export.py renders_s/<파일>.mp4`. 로그는 각 폴더 `produce.log`.
+- 나레이션: 장면 파일명으로 항목을 매칭하고(엔딩 제외), 장면에 안 들어가면 빠르게(최대 +22%) → 뒤 문장부터 생략. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시). 음성 캐시 `data/voice_cache/`. 배경음악은 0.22로 낮춘다.
 - 검사(`hyperframes check`) 오류가 있으면 렌더링하지 않고 SKIP으로 기록한다. SKIP 원인은 대개 글자 수 초과나 도면 파일명 오류라 JSON을 고치면 된다.
 - 한 편당 약 2~3분. 수백 건이면 백그라운드로 돌리고, 구간을 나눠(예: 1~100, 101~205) 렌더러 2개까지 병렬 실행(같은 순번을 동시에 맡기지 않게).
 - 파일럿이나 템플릿 변경 뒤에는 `npx hyperframes@0.8.207 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
 
 ## 5. 마무리
 ```bash
-python -I tools/annotate_lists.py --template A "<목록1.xlsx>" "<목록2.xlsx>"   # 사본 <이름>_영상파일명.xlsx, 마지막 열에 파일명
+python -I tools/annotate_lists.py "<목록1.xlsx>" "<목록2.xlsx>"   # 사본 <이름>_영상파일명.xlsx, 마지막 열에 patents/{출원번호}.mp4
 ```
-최종 점검: 모든 순번의 mp4 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56 / S 52~55초 — 60초를 넘기지 않는다), 영상+음성 스트림, mp4가 JSON보다 새 파일.
+최종 점검: 모든 출원번호의 `patents/{출원번호}.mp4`·`.jpg` 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56 / S 46~55초 — 60초를 넘기지 않는다), 영상+음성 스트림, mp4가 JSON보다 새 파일.
 전달 메시지(간결하게): 편수·길이·템플릿·음악 규칙, 확인이 필요한 점(명세서 모순 처리, 공개특허 건, 도면 부호 미확인 건, 소리는 측정만 함).
 
 ## 수정 요청 대응
