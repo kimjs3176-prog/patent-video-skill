@@ -40,7 +40,8 @@ def sc(sid, pal, css, body, js, d):
     """One scene on A's stage: head + css + body + timeline (js lines)."""
     return A.head(sid, pal) + f"""
     #{sid}-eyebrow {{ left: 140px; top: 96px; }}
-    #{sid}-title {{ position: absolute; left: 136px; top: 136px; font-size: 66px; font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; }}
+    #{sid}-title {{ position: absolute; left: 136px; top: 136px; font-size: 66px; font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; padding-bottom: 0.12em; }}
+    #{sid}-title .tm {{ display: inline-block; }}
 {css}
   </style>
   <div id="root" data-composition-id="{sid}" data-width="1920" data-height="1080">
@@ -50,11 +51,14 @@ def sc(sid, pal, css, body, js, d):
     </div>
   </div>
   <script>
-    const tl = gsap.timeline({{ paused: true }});
+    const tl = gsap.timeline({{ paused: true, defaults: {{ ease: "power3.out" }} }});
     {A.enter(sid)}
-    tl.fromTo(["#{sid}-eyebrow", "#{sid}-title"], {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.1 }}, 0.2);
+    tl.fromTo("#{sid}-eyebrow", {{ opacity: 0, x: -16 }}, {{ opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }}, 0.15);
+    tl.fromTo("#{sid}-title .tm", {{ yPercent: 105 }}, {{ yPercent: 0, duration: 0.8, ease: "expo.out" }}, 0.25);
+    tl.fromTo("#{sid}-glow", {{ x: -80, y: -20 }}, {{ x: 100, y: 30, duration: {d}, ease: "sine.inOut" }}, 0);
 {chr(10).join(js)}
-    tl.to("#{sid}-in", {{ scale: 1.018, duration: {max(1.0, d - 1.0):.1f}, ease: "none" }}, 0.8);
+    tl.to("#{sid}-in", {{ scale: 1.018, duration: {max(1.0, d - 1.4):.1f}, ease: "none" }}, 0.9);
+    tl.to("#{sid}-in", {{ scale: 0.985, duration: 0.5, ease: "power2.in" }}, {d - 0.5:.2f});
     tl.set({{}}, {{}}, {d});
     window.__timelines["{sid}"] = tl;
   </script>
@@ -64,7 +68,7 @@ def sc(sid, pal, css, body, js, d):
 
 def heading(sid, eyebrow, title, glow_css=""):
     return (f'      <div class="glow" id="{sid}-glow" style="{glow_css}" data-layout-ignore></div>\n'
-            f'      <div id="{sid}-eyebrow" class="eyebrow">{E(eyebrow)}</div>\n      <div id="{sid}-title">{gtext(title)}</div>')
+            f'      <div id="{sid}-eyebrow" class="eyebrow">{E(eyebrow)}</div>\n      <div id="{sid}-title"><span class="tm">{gtext(title)}</span></div>')
 
 
 def along(var, pts):
@@ -127,20 +131,24 @@ def j_route(c, pal, d):
     js = [f'    tl.fromTo(".rp", {{ opacity: 0, y: 30 }}, {{ opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.14 }}, 0.6);',
           f'    tl.fromTo(".ra", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, stagger: 0.14 }}, 0.8);',
           '    tl.fromTo("#jr-lab", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.5);',
-          f'    tl.to("#jr-p{rm}", {{ scale: 1.12, boxShadow: "0 0 40px rgba(255,90,90,0.55)", duration: 0.4, ease: "back.out(2)" }}, 2.4);',
+          f'    tl.to("#jr-p{rm}", {{ scale: 1.12, boxShadow: "0 0 40px rgba(255,90,90,0.55)", duration: 0.4, ease: "back.out(1.7)" }}, 2.4);',
           '    tl.to("#jr-strike line", { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, 2.9);',
           '    tl.fromTo("#jr-note", { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.5 }, 3.0);',
-          f'    tl.to(["#jr-p{rm}", "#jr-strike", "#jr-note"], {{ y: 160, opacity: 0, rotation: 4, duration: 0.7, ease: "power3.in" }}, 4.1);',
+          f'    tl.to(["#jr-p{rm}", "#jr-strike", "#jr-note"], {{ y: -14, duration: 0.18, ease: "power2.out" }}, 3.92);',
+          f'    tl.to(["#jr-p{rm}", "#jr-strike", "#jr-note"], {{ y: 180, rotation: 6, duration: 0.6, ease: "power3.in" }}, 4.1);',
+          f'    tl.to(["#jr-p{rm}", "#jr-strike", "#jr-note"], {{ opacity: 0, duration: 0.35, ease: "none" }}, 4.35);',
           f'    tl.to("#jr-a{rm}", {{ opacity: 0, duration: 0.3 }}, 4.1);']
     for i in range(len(conv)):
         if i == rm:
             continue
         dx = after[i] - before[i]
-        js.append(f'    tl.to("#jr-p{i}", {{ x: {dx:.0f}, duration: 0.8, ease: "expo.inOut" }}, 4.6);')
+        tc = 4.45 + 0.05 * (abs(i - rm) - 1)  # neighbours close in first, the rest follow
+        js.append(f'    tl.to("#jr-p{i}", {{ x: {dx:.0f}, duration: 0.8, ease: "expo.out" }}, {tc:.2f});')
         if i < len(conv) - 1:
-            js.append(f'    tl.to("#jr-a{i}", {{ x: {dx:.0f}, duration: 0.8, ease: "expo.inOut" }}, 4.6);')
-    js += ['    tl.to("#jr-lab", { opacity: 0, duration: 0.3 }, 4.7);', '    tl.to("#jr-lab2", { opacity: 1, duration: 0.5 }, 5.0);',
-           f'    tl.to(".rp:not(.rm)", {{ borderColor: "{rgba(b, 0.8)}", background: "{rgba(b, 0.14)}", duration: 0.5, stagger: 0.06 }}, 5.2);']
+            js.append(f'    tl.to("#jr-a{i}", {{ x: {dx:.0f}, duration: 0.8, ease: "expo.out" }}, {tc:.2f});')
+    js += ['    tl.to("#jr-lab", { y: -24, opacity: 0, duration: 0.3, ease: "power3.in" }, 4.6);',
+           '    tl.fromTo("#jr-lab2", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out" }, 4.9);',
+           f'    tl.to(".rp:not(.rm)", {{ borderColor: "{rgba(b, 0.8)}", background: "{rgba(b, 0.14)}", duration: 0.5, stagger: {{ each: 0.06, from: "center" }} }}, 5.2);']
     return sc("jr", pal, css, body, js, d)
 
 
@@ -261,18 +269,18 @@ def j_journey(c, pal, d):
     def ty(t):  # the stated range of this process onto the strip
         return yb - (yb - yt) * (t - lo_t + pad_t) / (hi_t - lo_t + 2 * pad_t)
     lw = min(260, (x1 - x0) / n - 12)
-    bands, mids, labels = "", [], ""
+    bands, pts, labels = "", [], ""  # pts: (stage, x, y) for the stages that state a temperature
     for i, s in enumerate(st):
         if s.get("t"):
             lo, hi = s["t"]
-            bands += f'<rect class="tb" id="jj-b{i}" x="{cx[i] - 70:.0f}" y="{ty(hi):.0f}" width="140" height="{ty(lo) - ty(hi):.0f}" rx="10" fill="{rgba(b, 0.28)}" stroke="{rgba(b, 0.7)}" stroke-width="2" />'
-            mids.append((cx[i], ty((lo + hi) / 2)))
+            bands += f'<rect class="tb" id="jj-b{i}" x="{cx[i] - 70:.0f}" y="{ty(hi):.0f}" width="140" height="{max(8, ty(lo) - ty(hi)):.0f}" rx="10" fill="{rgba(b, 0.28)}" stroke="{rgba(b, 0.7)}" stroke-width="2" />'
+            pts.append((i, cx[i], ty((lo + hi) / 2)))
             lab = trange(s["t"])
         else:
-            mids.append((cx[i], ty(max(lo_t, min(hi_t, 25)))))
             lab = s.get("label", "")
         labels += f'<div class="tl" id="jj-l{i}" style="left: {cx[i] - lw / 2:.0f}px; width: {lw:.0f}px; top: {yb + 8:.0f}px">{E(s["n"])}<b>{E(lab)}</b></div>'
-    path = "M" + " L".join(f"{x:.0f} {y:.0f}" for x, y in mids)
+    segs = "".join(f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1]:.0f} {pts[k - 1][2]:.0f} L{pts[k][1]:.0f} {pts[k][2]:.0f}" fill="none" stroke="url(#jj-lg)" '
+                   f'stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />' for k in range(1, len(pts)))
     vals = [trange(s["t"]) if s.get("t") else s.get("label", "") for s in st]
     cards = "".join(f'<div class="jc" id="jj-c{i}"><div class="k">STAGE {i + 1:02d} / {n:02d}</div><div class="n" style="font-size: {fit(s["n"], 60, 720)}px">{E(s["n"])}</div>'
                     f'<div class="v grad" style="font-size: {fit(vals[i], 120, 680)}px">{E(vals[i])}</div><div class="s">{E(s["cond"])}</div></div>'
@@ -285,7 +293,7 @@ def j_journey(c, pal, d):
       <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>
         <line x1="{x0 - 40}" y1="{yb}" x2="{x1 + 40}" y2="{yb}" stroke="rgba(255,255,255,0.2)" stroke-width="2" />
         {bands}
-        <path id="jj-line" d="{path}" fill="none" stroke="url(#jj-lg)" stroke-width="5" stroke-linecap="butt" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />
+        {segs}
       </svg>
       <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
       {labels}
@@ -297,77 +305,93 @@ def j_journey(c, pal, d):
     .jc .s {{ font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }}
     .tl {{ position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }}
     .tl b {{ display: block; color: #e8e8f0; font-weight: 700; }}"""
-    js = [along("dot", mids), '    const dot = document.querySelector("#jj-dot"); const o = { p: 0 };',
-          f'    const put = () => {{ const q = at_dot(o.p); dot.style.transform = "translate(" + q[0] + "px," + q[1] + "px)"; }}; put();',
-          f'    tl.to("#jj-line", {{ strokeDashoffset: 0, duration: {T[-1] - T[0] + 0.6:.2f}, ease: "none" }}, {T[0]:.2f});',
-          f'    tl.to(o, {{ p: 1, duration: {T[-1] - T[0] + 0.6:.2f}, ease: "none", onUpdate: put }}, {T[0]:.2f});',
-          '    tl.fromTo("#jj-dot", { opacity: 0 }, { opacity: 1, duration: 0.3 }, ' + f'{T[0]:.2f});',
-          '    tl.fromTo(".tl", { opacity: 0 }, { opacity: 0.45, duration: 0.4 }, 0.3);']
+    js = ['    tl.fromTo(".tl", { opacity: 0 }, { opacity: 0.45, duration: 0.4 }, 0.3);']
+    # the pen moves only when a stage with a temperature comes up: the segment and the dot travel together on one ease,
+    # then the stated range opens around the point and earlier ranges step back
+    glide = min(0.9, span * 0.35)
+    for k, (i, x, y) in enumerate(pts):
+        t = T[i]
+        if k == 0:
+            js += [f'    tl.set("#jj-dot", {{ x: {x:.0f}, y: {y:.0f} }}, 0);',
+                   f'    tl.fromTo("#jj-dot", {{ opacity: 0, scale: 0.2 }}, {{ opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t + 0.1:.2f});']
+            arrive = t + 0.35
+        else:
+            tp = t + 0.15  # the value shows on the card first, then the pen carries it onto the graph
+            js += [f'    tl.to("#jj-s{k}", {{ strokeDashoffset: 0, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});',
+                   f'    tl.to("#jj-dot", {{ x: {x:.0f}, y: {y:.0f}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});']
+            arrive = tp + glide * 0.8
+        js.append(f'    tl.fromTo("#jj-b{i}", {{ scaleY: 0, opacity: 0, transformOrigin: "50% 50%" }}, {{ scaleY: 1, opacity: 1, duration: 0.7, ease: "power3.out" }}, {arrive:.2f});')
+        if k:
+            js.append(f'    tl.to("#jj-b{pts[k - 1][0]}", {{ opacity: 0.5, duration: 0.5 }}, {arrive:.2f});')
     for i, s in enumerate(st):
         t = T[i]
-        js += [f'    tl.fromTo("#jj-m{i}", {{ opacity: 0, scale: 0.9 }}, {{ opacity: 1, scale: 1, duration: 0.6, ease: "expo.out" }}, {t:.2f});',
-               f'    tl.fromTo("#jj-c{i}", {{ opacity: 0, x: 40 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }}, {t:.2f});',
+        js += [f'    tl.fromTo("#jj-m{i}", {{ opacity: 0, x: 80 }}, {{ opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }}, {t:.2f});',
+               f'    tl.set("#jj-c{i}", {{ opacity: 1 }}, {t:.2f});',
+               f'    tl.fromTo("#jj-c{i} > *", {{ opacity: 0, y: 24 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.07 }}, {t + 0.12:.2f});',
                f'    tl.to("#jj-l{i}", {{ opacity: 1, duration: 0.3 }}, {t:.2f});']
-        if s.get("t"):
-            js.append(f'    tl.fromTo("#jj-b{i}", {{ scaleY: 0, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 0.6, ease: "expo.out" }}, {t:.2f});')
         if i < n - 1:
-            js += [f'    tl.to("#jj-m{i}", {{ opacity: 0, scale: 1.08, duration: 0.45, ease: "power2.in" }}, {t + span - 0.35:.2f});',
-                   f'    tl.to("#jj-c{i}", {{ opacity: 0, x: -30, duration: 0.35, ease: "power2.in" }}, {t + span - 0.3:.2f});',
+            js += [f'    tl.to("#jj-m{i}", {{ opacity: 0, x: -80, duration: 0.4, ease: "power3.in" }}, {t + span - 0.45:.2f});',
+                   f'    tl.to("#jj-c{i}", {{ opacity: 0, x: -30, duration: 0.3, ease: "power3.in" }}, {t + span - 0.35:.2f});',
                    f'    tl.to("#jj-l{i}", {{ opacity: 0.45, duration: 0.3 }}, {t + span - 0.1:.2f});']
         k = s.get("key", "")
         if k == "puff":
             js += [f'    tl.to("#jj-m{i} .gr0", {{ opacity: 0, scale: 0.4, transformOrigin: "50% 50%", duration: 0.4, stagger: 0.03 }}, {t + 1.0:.2f});',
-                   f'    tl.fromTo("#jj-m{i} .gr1", {{ opacity: 0, scale: 0.3, transformOrigin: "50% 50%" }}, {{ opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2.4)", stagger: 0.03 }}, {t + 1.05:.2f});',
+                   f'    tl.fromTo("#jj-m{i} .gr1", {{ opacity: 0, scale: 0.3, transformOrigin: "50% 50%" }}, {{ opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)", stagger: 0.03 }}, {t + 1.05:.2f});',
                    f'    tl.to("#jj-needle", {{ rotation: 60, svgOrigin: "0 0", duration: 1.0, ease: "power2.out" }}, {t + 0.4:.2f});']
         elif k == "mash":
-            js += [f'    tl.fromTo("#jj-m{i} .ml", {{ y: 0, opacity: 1 }}, {{ y: 220, opacity: 0, duration: 1.0, ease: "power1.in", stagger: 0.12 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .ml", {{ y: 0, opacity: 1 }}, {{ y: 220, opacity: 0, duration: 1.0, ease: "power1.in", stagger: 0.12 }}, {t + 0.45:.2f});',
                    f'    tl.fromTo("#jj-m{i} .bb", {{ y: 0, opacity: 0 }}, {{ y: -120, opacity: 1, duration: 1.2, ease: "none", stagger: {{ each: 0.18, repeat: 1 }} }}, {t + 0.8:.2f});']
         elif k == "boil":
-            js += [f'    tl.fromTo("#jj-hop", {{ y: -60, opacity: 0 }}, {{ y: 130, opacity: 1, duration: 1.0, ease: "bounce.out" }}, {t + 0.4:.2f});',
-                   f'    tl.fromTo("#jj-m{i} .st", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: -10, duration: 0.9, ease: "sine.out", stagger: {{ each: 0.2, repeat: 2, yoyo: true }} }}, {t + 0.3:.2f});']
+            js += [f'    tl.fromTo("#jj-hop", {{ y: -60, opacity: 0 }}, {{ y: 130, opacity: 1, duration: 0.55, ease: "power2.in" }}, {t + 0.45:.2f});',
+                   f'    tl.to("#jj-hop", {{ y: 112, duration: 0.9, ease: "sine.inOut", yoyo: true, repeat: 1 }}, {t + 1.0:.2f});',
+                   f'    tl.fromTo("#jj-m{i} .st", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: -10, duration: 0.9, ease: "sine.out", stagger: {{ each: 0.2, repeat: 2, yoyo: true }} }}, {t + 0.45:.2f});']
         elif k == "ferment":
-            js += [f'    tl.fromTo("#jj-m{i} .co", {{ y: 0, opacity: 0 }}, {{ y: -200, opacity: 1, duration: 1.4, ease: "none", stagger: {{ each: 0.08, repeat: 1 }} }}, {t + 0.3:.2f});',
-                   f'    tl.to("#jj-m{i} .ys", {{ x: 6, duration: 0.4, ease: "sine.inOut", yoyo: true, repeat: 5, stagger: 0.05 }}, {t + 0.3:.2f});']
+            js += [f'    tl.fromTo("#jj-m{i} .co", {{ y: 0, opacity: 0 }}, {{ y: -200, opacity: 1, duration: 1.4, ease: "none", stagger: {{ each: 0.08, repeat: 1 }} }}, {t + 0.45:.2f});',
+                   f'    tl.to("#jj-m{i} .ys", {{ x: 6, duration: 0.4, ease: "sine.inOut", yoyo: true, repeat: 5, stagger: 0.05 }}, {t + 0.45:.2f});']
         elif k == "cold":
-            js += [f'    tl.fromTo("#jj-m{i} .fl", {{ opacity: 0, y: -30 }}, {{ opacity: 1, y: 0, duration: 0.6, stagger: 0.15 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .fl", {{ opacity: 0, y: -30 }}, {{ opacity: 1, y: 0, duration: 0.6, stagger: 0.15 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-glass", {{ opacity: 1, duration: 0.5 }}, {t + 1.3:.2f});',
                    f'    tl.fromTo("#jj-beer", {{ scaleY: 0, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 1.0, ease: "power2.out" }}, {t + 1.4:.2f});',
                    f'    tl.fromTo("#jj-foam", {{ y: 180, opacity: 0 }}, {{ y: 0, opacity: 1, duration: 1.0, ease: "power2.out" }}, {t + 1.5:.2f});',
 ]
         elif k == "soak":
-            js += [f'    tl.fromTo("#jj-m{i} .sk", {{ y: -170, opacity: 0 }}, {{ y: 0, opacity: 1, duration: 0.7, ease: "bounce.out", stagger: 0.18 }}, {t + 0.3:.2f});',
-                   f'    tl.fromTo("#jj-m{i} .rq", {{ opacity: 0.8, scale: 0.4, transformOrigin: "50% 50%" }}, {{ opacity: 0, scale: 1.6, duration: 1.0, ease: "power1.out", stagger: {{ each: 0.35, repeat: 2 }} }}, {t + 0.6:.2f});']
+            js += [f'    tl.fromTo("#jj-m{i} .sk", {{ y: -170, opacity: 0 }}, {{ y: 0, opacity: 1, duration: 0.5, ease: "power2.in", stagger: 0.18 }}, {t + 0.45:.2f});',
+                   f'    tl.to("#jj-m{i} .sk", {{ y: 10, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 1, stagger: 0.18 }}, {t + 0.95:.2f});',
+                   f'    tl.fromTo("#jj-m{i} .rq", {{ opacity: 0.8, scale: 0.4, transformOrigin: "50% 50%" }}, {{ opacity: 0, scale: 1.6, duration: 1.0, ease: "power1.out", stagger: 0.18 }}, {t + 0.95:.2f});']
         elif k == "cut":
-            js += [f'    tl.fromTo("#jj-m{i} .kn", {{ y: -40 }}, {{ y: 30, duration: 0.25, ease: "power2.in", yoyo: true, repeat: 5 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .kn", {{ y: -40 }}, {{ y: 30, duration: 0.25, ease: "power2.in", yoyo: true, repeat: 5 }}, {t + 0.45:.2f});',
                    f'    tl.fromTo("#jj-m{i} .cs", {{ x: 0 }}, {{ x: (k) => (k - 2) * 16, duration: 0.6, ease: "expo.out" }}, {t + 1.6:.2f});']
         elif k == "steam":
-            js += [f'    tl.fromTo("#jj-m{i} .st", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: -10, duration: 0.9, ease: "sine.out", stagger: {{ each: 0.2, repeat: 2, yoyo: true }} }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .st", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: -10, duration: 0.9, ease: "sine.out", stagger: {{ each: 0.2, repeat: 2, yoyo: true }} }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .si", {{ fill: "#d9a35c", duration: 1.6, stagger: 0.1 }}, {t + 0.6:.2f});']
         elif k == "heat":
             js += [f'    tl.fromTo("#jj-m{i} .fm", {{ scaleY: 0.7, transformOrigin: "50% 100%" }}, {{ scaleY: 1.15, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7, stagger: 0.1 }}, {t + 0.2:.2f});',
                    f'    tl.fromTo("#jj-m{i} .hb", {{ y: 0, opacity: 0 }}, {{ y: -130, opacity: 1, duration: 1.1, ease: "none", stagger: {{ each: 0.16, repeat: 1 }} }}, {t + 0.6:.2f});']
         elif k == "dry":
-            js += [f'    tl.fromTo("#jj-m{i} .wv", {{ x: 0, opacity: 0 }}, {{ x: 330, opacity: 1, duration: 1.2, ease: "none", stagger: {{ each: 0.3, repeat: 1 }} }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .wv", {{ x: 0, opacity: 0 }}, {{ x: 330, opacity: 1, duration: 1.2, ease: "none", stagger: {{ each: 0.3, repeat: 1 }} }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .ds", {{ scale: 0.82, fill: "#c99a5a", transformOrigin: "50% 50%", duration: 1.6, stagger: 0.05 }}, {t + 0.6:.2f});']
         elif k == "roast":
-            js += [f'    tl.fromTo("#jj-m{i} .bn", {{ y: 0 }}, {{ y: -46, duration: 0.3, ease: "power1.out", yoyo: true, repeat: 5, stagger: 0.07 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .bn", {{ y: 0 }}, {{ y: -46, duration: 0.3, ease: "power1.out", yoyo: true, repeat: 5, stagger: 0.07 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .bn", {{ fill: "#7a4a22", duration: 1.6 }}, {t + 0.4:.2f});',
                    f'    tl.fromTo("#jj-m{i} .fm", {{ scaleY: 0.7, transformOrigin: "50% 100%" }}, {{ scaleY: 1.15, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7 }}, {t + 0.2:.2f});']
         elif k == "fry":
-            js += [f'    tl.fromTo("#jj-m{i} .fr", {{ y: -40 }}, {{ y: 150, duration: 0.8, ease: "power2.out", stagger: 0.12 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .fr", {{ y: -40 }}, {{ y: 150, duration: 0.8, ease: "power2.out", stagger: 0.12 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .fr", {{ fill: "#d79a2a", duration: 1.2 }}, {t + 1.0:.2f});',
                    f'    tl.fromTo("#jj-m{i} .ob", {{ y: 0, opacity: 0 }}, {{ y: -110, opacity: 1, duration: 0.7, ease: "none", stagger: {{ each: 0.1, repeat: 2 }} }}, {t + 0.9:.2f});']
         elif k == "freeze":
-            js += [f'    tl.fromTo("#jj-m{i} .fl", {{ opacity: 0, y: -30 }}, {{ opacity: 1, y: 0, duration: 0.6, stagger: 0.15 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .fl", {{ opacity: 0, y: -30 }}, {{ opacity: 1, y: 0, duration: 0.6, stagger: 0.15 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .fo", {{ opacity: 1, duration: 1.4, ease: "power1.inOut" }}, {t + 0.8:.2f});']
         elif k == "mix":
-            js += [f'    tl.fromTo("#jj-m{i} .mx", {{ rotation: -14, svgOrigin: "280 40" }}, {{ rotation: 14, svgOrigin: "280 40", duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: 5 }}, {t + 0.3:.2f});',
+            js += [f'    tl.fromTo("#jj-m{i} .mx", {{ rotation: -14, svgOrigin: "280 40" }}, {{ rotation: 14, svgOrigin: "280 40", duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: 5 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .mp", {{ x: (k) => (k % 2 ? 30 : -30), y: (k) => (k % 3 - 1) * 12, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 3, stagger: 0.05 }}, {t + 0.4:.2f});']
         elif k in ("extract", "filter"):
             js += [f'    tl.fromTo("#jj-m{i} .dp", {{ y: 0, opacity: 0 }}, {{ y: 70, opacity: 1, duration: 0.5, ease: "power2.in", stagger: {{ each: 0.3, repeat: 1 }} }}, {t + 0.4:.2f});',
                    f'    tl.fromTo("#jj-m{i} .lq", {{ scaleY: 0.3, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 2.0, ease: "power1.out" }}, {t + 0.5:.2f});']
         if i == n - 1:
-            js.append(f'    tl.fromTo("#jj-prod", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6 }}, {t + (2.2 if k == "cold" else 1.6):.2f});')
+            tf = t + (2.2 if k == "cold" else 1.6)  # finale: the whole chart lights up and the product lands
+            js += [f'    tl.fromTo("#jj-prod", {{ opacity: 0, y: 24, scale: 0.92 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "back.out(1.7)" }}, {tf:.2f});',
+                   f'    tl.to(".tb", {{ opacity: 1, duration: 0.5, stagger: 0.06, ease: "power2.out" }}, {tf - 0.1:.2f});',
+                   f'    tl.to(".tl", {{ opacity: 1, duration: 0.4 }}, {tf - 0.1:.2f});']
     return sc("jj", pal, css, body, js, d)
 
 
@@ -416,12 +440,12 @@ def l_parts(c, pal, d):
           f'    tl.fromTo("#lp-img", {{ scale: 1.04 }}, {{ scale: 1, duration: {d - 0.5:.1f}, ease: "power1.out" }}, 0.3);']
     for i in range(n):
         t = 1.1 + i * step
-        js += [f'    tl.fromTo("#lp-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(3)" }}, {t:.2f});',
+        js += [f'    tl.fromTo("#lp-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});',
                f'    tl.to("#lp-l{i}", {{ strokeDashoffset: 0, duration: 0.6, ease: "power2.inOut" }}, {t + 0.15:.2f});',
-               f'    tl.to("#lp-r{i}", {{ opacity: 1, background: "{rgba(b, 0.14)}", duration: 0.4 }}, {t + 0.45:.2f});']
+               f'    tl.fromTo("#lp-r{i}", {{ x: 12 }}, {{ opacity: 1, x: 0, background: "{rgba(b, 0.14)}", duration: 0.45, ease: "expo.out" }}, {t + 0.6:.2f});']
         if i:
-            js += [f'    tl.to("#lp-r{i - 1}", {{ background: "rgba(0,0,0,0)", opacity: 0.75, duration: 0.4 }}, {t + 0.45:.2f});',
-                   f'    tl.to("#lp-l{i - 1}", {{ opacity: 0.25, duration: 0.4 }}, {t + 0.45:.2f});']
+            js += [f'    tl.to("#lp-r{i - 1}", {{ background: "rgba(0,0,0,0)", opacity: 0.75, duration: 0.4 }}, {t + 0.6:.2f});',
+                   f'    tl.to("#lp-l{i - 1}", {{ opacity: 0.25, duration: 0.4 }}, {t + 0.6:.2f});']
     return sc("lp", pal, FIG_CSS, body, js, d)
 
 
@@ -469,7 +493,7 @@ def l_run(c, pal, d):
     drips = 0
     if rn.get("drip"):
         dx, dy = m(*rn["drip"])
-        drips = 4 * max(1, int((d - 3.6) / 5.2))
+        drips = int((d - 4.8) / 1.3) + 1
         for k in range(drips):
             parts += f'<i class="pd" id="lr-w{k}" style="left: {dx - 9:.0f}px; top: {dy:.0f}px"></i>'
     legend, seen = [], set()
@@ -489,16 +513,17 @@ def l_run(c, pal, d):
                  f'stroke="{rgba(b, 0.5)}" stroke-width="3" stroke-dasharray="6 10" /></svg>'
                  f'<div id="lr-pulse" style="position: absolute; left: -12px; top: -12px; width: 24px; height: 24px; border-radius: 50%; background: {b}; box-shadow: 0 0 20px {b}" data-layout-ignore></div>')
         side += "".join(f'<div class="ln" id="lr-n{i}" style="left: {ring[i][0] - 120:.0f}px; top: {ring[i][1] - 40:.0f}px; font-size: {fit(t, 30, 210)}px">{E(t)}</div>' for i, t in enumerate(logic))
-        side += f'<div style="position: absolute; left: {cxl - 190}px; top: {cyl - 80}px; width: 380px">' + "".join(f'<div class="ru">{E(r)}</div>' for r in rn.get("rules", [])) + '</div>'
+        side += f'<div style="position: absolute; left: {cxl - 150}px; top: {cyl - 80}px; width: 300px">' + "".join(f'<div class="ru">{E(r)}</div>' for r in rn.get("rules", [])) + '</div>'
         side_js = [along("lp", ring),
                    '    tl.fromTo("#lr-ring", { opacity: 0, scale: 0.8, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.8, ease: "expo.out" }, 0.8);',
-                   '    tl.fromTo(".ln", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(2)", stagger: 0.25 }, 1.0);',
+                   '    tl.fromTo(".ln", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)", stagger: 0.25 }, 1.0);',
                    '    tl.fromTo(".ru", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.6 }, 3.2);',
                    '    const pul = document.querySelector("#lr-pulse"); const po = { p: 0 }; const pput = () => { const q = at_lp(po.p % 1); pul.style.transform = "translate(" + q[0] + "px," + q[1] + "px)"; }; pput();',
                    f'    tl.to(po, {{ p: 3, duration: {d - 2.6:.1f}, ease: "none", onUpdate: pput }}, 1.8);',
                    '    tl.fromTo("#lr-pulse", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.8);']
-        for i in range(k):
-            side_js.append(f'    tl.to("#lr-n{i}", {{ borderColor: "{b}", background: "{rgba(b, 0.18)}", duration: 0.3, yoyo: true, repeat: 1 }}, {1.8 + i * (d - 2.6) / (3 * k):.2f});')
+        for lap in range(3):  # the pulse runs three laps: light each node as it passes
+            for i in range(k):
+                side_js.append(f'    tl.to("#lr-n{i}", {{ borderColor: "{b}", background: "{rgba(b, 0.18)}", duration: 0.3, yoyo: true, repeat: 1 }}, {1.8 + (lap + i / k) * (d - 2.6) / 3:.2f});')
     else:
         steps = rn.get("steps", [])
         n = len(steps)
@@ -525,14 +550,15 @@ def l_run(c, pal, d):
     .pd {{ position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }}
     .ln {{ position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
       background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }}
-    .ru {{ font-size: 27px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }}"""
+    .ru {{ font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }}"""
     js = ['    tl.fromTo(["#lr-plate", "#lr-img"], { opacity: 0.6 }, { opacity: 1, duration: 0.5 }, 0.2);',
           '    tl.to("#lr-img", { filter: "brightness(0.92) saturate(0.9)", duration: 1 }, 0.6);',
           '    tl.to(".lr-gl", { opacity: 1, duration: 1.2, stagger: 0.6 }, 1.0);',
           '    tl.to(".lr-fl", { opacity: 0.4, duration: 0.8, stagger: 0.2 }, 1.0);', f'    const DUR = {d};',
+          f'    tl.fromTo(".lr-fl", {{ strokeDashoffset: 0 }}, {{ strokeDashoffset: {-15 * round(90 * (d - 1) / 15)}, duration: {d - 1:.1f}, ease: "none" }}, 1.0);',
           '    const mover = (sel, fn, start, dur, count, every) => { for (let k = 0; k < count; k++) { const el = document.querySelector(sel + k); const o = { p: 0 };'
           ' const put = () => { const q = fn(o.p); el.style.transform = "translate(" + q[0] + "px," + q[1] + "px)"; }; put();'
-          ' const reps = Math.max(1, Math.floor((DUR - start - k * every - 0.5) / dur)); for (let r = 0; r < reps; r++) { const t0 = start + k * every + r * dur; tl.set(o, { p: 0 }, t0); tl.to(o, { p: 1, duration: dur, ease: "power1.in", onUpdate: put }, t0);'
+          ' const reps = Math.max(1, Math.floor((DUR - start - k * every - 0.5) / dur)); for (let r = 0; r < reps; r++) { const t0 = start + k * every + r * dur; tl.set(o, { p: 0 }, t0); tl.to(o, { p: 1, duration: dur, ease: "none", onUpdate: put }, t0);'
           ' tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 }, t0); tl.to(el, { opacity: 0, duration: 0.2 }, t0 + dur - 0.2); } } };']
     for fi, pts in enumerate(paths):
         dur = max(1.4, min(3.0, plen(pts) / 380))
@@ -540,6 +566,7 @@ def l_run(c, pal, d):
     for k in range(drips):
         t0 = 3.2 + k * 1.3
         js += [f'    tl.fromTo("#lr-w{k}", {{ opacity: 0, scale: 0.2, y: 0 }}, {{ opacity: 1, scale: 1, duration: 0.6, ease: "power2.out" }}, {t0:.2f});',
+               f'    tl.to("#lr-w{k}", {{ scaleY: 1.2, scaleX: 0.9, duration: 0.15, ease: "power2.in" }}, {t0 + 0.55:.2f});',
                f'    tl.to("#lr-w{k}", {{ y: 300, duration: 0.7, ease: "power2.in" }}, {t0 + 0.7:.2f});',
                f'    tl.to("#lr-w{k}", {{ opacity: 0, duration: 0.2 }}, {t0 + 1.25:.2f});']
     return sc("lr", pal, css, body, js + side_js, d)
@@ -573,14 +600,18 @@ def l_path(c, pal, d):
       {rows}
       <div class="cap" style="left: 140px; top: 1004px">{E(pa.get("figcap", ""))} · 경로는 모식</div>"""
     step = (d - 2.4) / n
+    seg = [math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) for i in range(1, n)]
+    cum = [0.0] + [sum(seg[:i]) / max(1e-6, sum(seg)) for i in range(1, n)]
     js = ['    tl.fromTo(["#lw-plate", "#lw-img"], { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out" }, 0.3);',
           '    tl.to("#lw-line", { opacity: 0.9, duration: 0.6 }, 1.0);', along("w", pts),
-          '    const dr = document.querySelector("#lw-drop"); const wo = { p: 0 }; const wput = () => { const q = at_w(wo.p); dr.style.transform = "translate(" + q[0] + "px," + q[1] + "px)"; }; wput();',
-          '    tl.fromTo("#lw-drop", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.5 }, 1.0);',
-          f'    tl.to(wo, {{ p: 1, duration: {step * (n - 1):.2f}, ease: "power1.inOut", onUpdate: wput }}, 1.4);']
+          '    const dr = document.querySelector("#lw-drop"); const wo = { p: 0 }; const wput = () => { const q = at_w(wo.p); gsap.set(dr, { x: q[0], y: q[1] }); }; wput();',
+          '    tl.fromTo("#lw-drop", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.5 }, 1.0);']
+    for i in range(1, n):
+        js += [f'    tl.to(wo, {{ p: {cum[i]:.4f}, duration: {step - 0.3:.2f}, ease: "power2.inOut", onUpdate: wput }}, {1.2 + (i - 1) * step + 0.3:.2f});',
+               f'    tl.fromTo("#lw-drop", {{ scaleX: 1.18, scaleY: 0.82, immediateRender: false }}, {{ scaleX: 1, scaleY: 1, duration: 0.35, ease: "back.out(1.7)" }}, {1.2 + i * step:.2f});']
     for i in range(n):
         t = 1.2 + i * step
-        js += [f'    tl.fromTo("#lw-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(3)" }}, {t:.2f});',
+        js += [f'    tl.fromTo("#lw-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});',
                f'    tl.to("#lw-r{i}", {{ opacity: 1, background: "{rgba(b, 0.14)}", duration: 0.4 }}, {t:.2f});']
         if i:
             js.append(f'    tl.to("#lw-r{i - 1}", {{ background: "rgba(0,0,0,0)", opacity: 0.75, duration: 0.4 }}, {t:.2f});')
@@ -595,38 +626,47 @@ PCOL = {"F3": "#79c0ff", "FIP": "#a5d6ff", "LF": "#56d4dd", "B3": "#ffa657", "BI
 RCOL = ["#79c0ff", "#ffa657", "#7ee787", "#ff9bce", "#f2cc60", "#56d4dd", "#d2a8ff", "#ff7b72"]
 
 
+PROBLEM_ICONS = [(("피해", "손실", "억", "비용", "유로", "달러"), "coins"), (("면적", "ha", "시군", "지역", "국", "확산"), "globe"),
+                 (("수확", "수량", "감소", "생산"), "sprout"), (("종자", "씨앗"), "seed"), (("바이러스",), "dna"),
+                 (("감염률", "감염", "발생", "병"), "shield"), (("나무", "과원"), "leaf")]
+
+
+def problem_icon(p):
+    """A pictogram for a problem card only when its label names something we can draw; otherwise none."""
+    def pick(text):
+        return next((n for keys, n in PROBLEM_ICONS if any(k in text for k in keys)), None)
+    name = pick(p["l"]) or pick(p.get("s", ""))  # the label decides; the note only when the label names nothing
+    return f'<div class="qi">{icon(name, 72, "url(#qp-lg)", 4)}</div>' if name else ""
+
+
 def q_problem(c, pal, d):
     pb = c["signature"]["problem"]
     k = len(pb["cards"])
     x0 = (1920 - (k * 520 + (k - 1) * 40)) / 2
     cards = ""
     for i, p in enumerate(pb["cards"]):
-        cards += (f'<div class="qp glass" id="qp-c{i}" style="left: {x0 + i * 560:.0f}px"><div class="v grad" style="font-size: {fit(p["v"], 120, 440)}px">{E(p["v"])}</div>'
+        cards += (f'<div class="qp glass" id="qp-c{i}" style="left: {x0 + i * 560:.0f}px">{problem_icon(p)}'
+                  f'<div class="v grad" style="font-size: {fit(p["v"], 120, 330)}px">{E(p["v"])}</div>'
                   f'<div class="l">{E(p["l"])}</div><div class="s">{E(p.get("s", ""))}</div></div>')
     body = heading("qp", "THE PROBLEM", pb.get("title") or f'{c["sub"].split(" ")[0]} 피해, |빨리 찾아야 막는다',
                    "left: 400px; top: -300px; background: radial-gradient(circle, rgba(255,90,90,0.22) 0%, rgba(0,0,0,0) 65%)") + cards + \
         f'<div id="qp-src" class="cap" style="position: absolute; left: 140px; top: 900px; font-size: 28px; color: #8e8ea3">{E(pb.get("src", "자료: 명세서 배경기술"))}</div>'
     css = """    .qp { position: absolute; top: 360px; width: 520px; height: 420px; border-radius: 30px; padding: 50px 44px; }
-    .qp .v { font-weight: 800; letter-spacing: -0.04em; line-height: 1; white-space: nowrap; }
+    .qp .qi { position: absolute; right: 34px; top: 34px; }
+    .qp .v { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 1; white-space: nowrap; }
     .qp .l { font-size: 34px; font-weight: 700; margin-top: 40px; line-height: 1.35; word-break: keep-all; }
     .qp .s { font-size: 28px; color: #a8a8bc; margin-top: 14px; word-break: keep-all; }"""
-    js = ['    tl.fromTo(".qp", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out", stagger: 0.35 }, 0.6);',
+    js = ['    tl.fromTo(".qp", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out", stagger: 0.8 }, 0.6);',
           '    tl.fromTo("#qp-src", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 1.8);']
     for i, p in enumerate(pb["cards"]):
-        js.append(count_js(f"#qp-c{i} .v", p["v"], 0.8 + i * 0.35))
+        js.append(count_js(f"#qp-c{i} .v", p["v"], 0.75 + i * 0.8, 0.75, "expo.out"))
+        if problem_icon(p):
+            js.append(f'    tl.fromTo("#qp-c{i} .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut", stagger: 0.1 }}, {0.8 + i * 0.8:.2f});')
     return sc("qp", pal, css, body, js, d)
 
 
-def count_js(sel, text, t):
-    """Count up the number inside text (keeps its prefix/suffix and decimals)."""
-    import re
-    mt = re.match(r"([^0-9]*)([0-9][0-9,]*(?:\.[0-9]+)?)(.*)", text)
-    if not mt or re.search(r"[0-9]", mt.group(3)):  # ranges like 75~100% stay as written
-        return ""
-    num = mt.group(2).replace(",", "")
-    dec = len(num.split(".")[1]) if "." in num else 0
-    return (f'    (() => {{ const el = document.querySelector("{sel}"); const o = {{ v: 0 }}; tl.to(o, {{ v: {float(num)}, duration: 1.4, ease: "power2.out", '
-            f'onUpdate: () => {{ el.textContent = "{mt.group(1)}" + o.v.toFixed({dec}) + "{mt.group(3)}"; }} }}, {t:.2f}); }})();')
+def count_js(sel, text, t, dur=1.4, ease="power2.out"):
+    return A.count_js(sel, text, t, dur, ease)
 
 
 def q_primers(c, pal, d):
@@ -675,10 +715,12 @@ def q_primers(c, pal, d):
           '    tl.to("#qs-dna2", { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 0.55);',
           '    tl.fromTo(".rg", { opacity: 0 }, { opacity: 1, duration: 0.4, stagger: 0.06 }, 0.9);',
           '    const cnt = document.querySelector("#qs-n"); const lit = { v: 0 }; const show = () => { cnt.textContent = String(Math.round(lit.v)); };']
-    lit, done = 0, set()
+    lit, done, flyers = 0, set(), ""
     for i, p in enumerate(pr):
         t = 1.4 + i * step
         col = pcol(p)
+        bw = max(96, 22 * len(p["id"]) + 30)
+        sx, sy = 160 + bw / 2, 470 + i * rh + (rh - 10) / 2
         js += [f'    tl.to("#qs-r{i}", {{ opacity: 1, duration: 0.3 }}, {t:.2f});',
                f'    tl.to("#qs-r{i} .sq", {{ color: "#c9d1d9", duration: 0.3 }}, {t:.2f});',
                f'    tl.to("#qs-r{i} .sq i", {{ opacity: 1, duration: 0.04, stagger: {min(0.03, (step * 0.55) / len(p["seq"])):.3f} }}, {t + 0.1:.2f});']
@@ -687,12 +729,20 @@ def q_primers(c, pal, d):
                 done.add(r)
                 lit += 1
             tr = t + step * 0.62 + 0.12 * p["regions"].index(r)
+            fj = p["regions"].index(r)
+            dx, dy = rx[r] + rw / 2 - sx, ys - 10 - sy
+            flyers += f'<i class="fly" id="qs-f{i}-{fj}" style="left: {sx - 13:.0f}px; top: {sy - 13:.0f}px; background: {col}; box-shadow: 0 0 16px {col}"></i>'
+            js += [f'    tl.fromTo("#qs-f{i}-{fj}", {{ x: 0, opacity: 0 }}, {{ x: {dx:.0f}, opacity: 1, duration: 0.5, ease: "power1.inOut" }}, {tr - 0.5:.2f});',
+                   f'    tl.fromTo("#qs-f{i}-{fj}", {{ y: 0 }}, {{ y: {dy:.0f}, duration: 0.5, ease: "power3.in" }}, {tr - 0.5:.2f});',
+                   f'    tl.to("#qs-f{i}-{fj}", {{ opacity: 0, scale: 1.6, duration: 0.2 }}, {tr:.2f});',
+                   f'    tl.fromTo("#qs-cnt .grad", {{ scale: 1.12, immediateRender: false }}, {{ scale: 1, duration: 0.4, ease: "power3.out" }}, {tr:.2f});']
             js += [f'    tl.to("#qs-g{r}", {{ borderStyle: "solid", borderColor: "{col}", background: "{col}", duration: 0.3 }}, {tr:.2f});',
                    f'    tl.to("#qs-g{r} span", {{ color: "#04121f", duration: 0.3 }}, {tr:.2f});',
-                   f'    tl.fromTo("#qs-g{r}", {{ scale: 1.25 }}, {{ scale: 1, duration: 0.5, ease: "back.out(3)" }}, {tr:.2f});',
+                   f'    tl.fromTo("#qs-g{r}", {{ scale: 1.25, immediateRender: false }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {tr:.2f});',
                    f'    tl.to(lit, {{ v: {lit}, duration: 0.05, onUpdate: show }}, {tr:.2f});']
-        js.append(f'    tl.to("#qs-r{i}", {{ opacity: 0.85, duration: 0.4 }}, {t + step - 0.1:.2f});')
-    return sc("qs", pal, css, body, js, d)
+        js.append(f'    tl.to("#qs-r{i}", {{ opacity: 0.55, duration: 0.4 }}, {t + step - 0.1:.2f});')
+    js.append(f'    tl.to(".pr", {{ opacity: 1, duration: 0.5 }}, {d - 1.6:.2f});')
+    return sc("qs", pal, css + "\n    .fly { position: absolute; width: 26px; height: 26px; border-radius: 50%; opacity: 0; }", body + flyers, js, d)
 
 
 def curve_path(ct, x0, y0, w, h, cycles, plateau=0.9):
@@ -714,8 +764,9 @@ def chart(sid, title, series, x0, y0, w, h, cycles, cutoff, note):
                    f'<text x="{x0 + w * k / 4:.0f}" y="{y0 + h + 40}" fill="#8e8ea3" font-size="28" text-anchor="middle">{cycles * k // 4}</text>' for k in range(5))
     thr = y0 + h - h * (0.02 + 0.9 * 0.2)
     cx = x0 + w * cutoff / cycles
-    paths = "".join(f'<path class="{sid}-cv" d="{curve_path(s["ct"], x0, y0, w, h, cycles)}" fill="none" stroke="{s["col"]}" stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />'
-                    for s in series)
+    paths = (f'<clipPath id="{sid}-clip"><rect id="{sid}-cr" x="{x0}" y="{y0 - 10}" width="0" height="{h + 20}" /></clipPath><g clip-path="url(#{sid}-clip)">'
+             + "".join(f'<path class="{sid}-cv" d="{curve_path(s["ct"], x0, y0, w, h, cycles)}" fill="none" stroke="{s["col"]}" stroke-width="5" stroke-linecap="butt" />' for s in series)
+             + f'</g><line id="{sid}-cur" x1="{x0}" y1="{y0}" x2="{x0}" y2="{y0 + h}" stroke="rgba(255,255,255,0.55)" stroke-width="2" opacity="0" />')
     legend = "".join(f'<div style="display: flex; align-items: center; gap: 12px; height: 40px; white-space: nowrap"><i style="width: 26px; height: 6px; border-radius: 3px; background: {s["col"]}"></i>'
                      f'<span style="font-size: 28px; color: #d8d8e4">{E(s["l"])}</span><b style="font-size: 28px; color: #a8a8bc; font-weight: 600; margin-left: 6px">{E(s["tag"])}</b></div>' for s in series)
     return (f'<svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>'
@@ -726,6 +777,13 @@ def chart(sid, title, series, x0, y0, w, h, cycles, cutoff, note):
             f'<div style="position: absolute; left: {x0}px; top: {y0 - 64}px; font-size: 34px; font-weight: 700; white-space: nowrap">{E(title)}</div>'
             f'<div style="position: absolute; left: {x0 + 20}px; top: {y0 + 14}px">{legend}</div>'
             f'<div style="position: absolute; left: {x0}px; top: {y0 + h + 58}px; font-size: 28px; color: #8e8ea3; white-space: nowrap">{E(note)}</div>')
+
+
+def chart_reveal(sid, w, t, dur=2.4):
+    """JS: sweep a chart drawn by chart() from cycle 0 to the end at constant speed (the time axis is linear)."""
+    return [f'    tl.to("#{sid}-cr", {{ attr: {{ width: {w} }}, duration: {dur}, ease: "none" }}, {t:.2f});',
+            f'    tl.fromTo("#{sid}-cur", {{ x: 0, opacity: 1 }}, {{ x: {w}, duration: {dur}, ease: "none" }}, {t:.2f});',
+            f'    tl.to("#{sid}-cur", {{ opacity: 0, duration: 0.3 }}, {t + dur:.2f});']
 
 
 def q_probe(c, pal, d):
@@ -753,9 +811,9 @@ def q_probe(c, pal, d):
     js = ['    tl.fromTo("#qb-probe", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6 }, 0.5);',
           '    tl.fromTo("#qb-probe .sq i", { opacity: 0 }, { opacity: 1, duration: 0.03, stagger: 0.03 }, 0.6);',
           '    tl.fromTo("#qb-L", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 1.4);',
-          '    tl.to(".qbl-cv", { strokeDashoffset: 0, duration: 2.2, ease: "power1.inOut", stagger: 0.15 }, 1.6);',
+          *chart_reveal("qbl", 700, 1.6),
           f'    tl.fromTo("#qb-R", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, {d * 0.45:.2f});',
-          f'    tl.to(".qbr-cv", {{ strokeDashoffset: 0, duration: 2.2, ease: "power1.inOut", stagger: 0.15 }}, {d * 0.45 + 0.2:.2f});',
+          *chart_reveal("qbr", 700, d * 0.45 + 0.2),
           f'    tl.to("#qb-L", {{ opacity: 0.45, duration: 0.6 }}, {d * 0.45 + 0.4:.2f});']
     return sc("qb", pal, css, body, js, d)
 
@@ -776,9 +834,9 @@ def q_result(c, pal, d):
       {chips_html(sg, 920)[0]}"""
     css = chips_html(sg, 920)[1]
     js = ['    tl.fromTo("#qr-L", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.5);',
-          '    tl.to(".qrl-cv", { strokeDashoffset: 0, duration: 2.4, ease: "power1.inOut", stagger: 0.2 }, 0.7);',
+          *chart_reveal("qrl", 700, 0.7),
           '    tl.fromTo("#qr-R", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 2.6);',
-          '    tl.to(".qrr-cv", { strokeDashoffset: 0, duration: 2.4, ease: "power1.inOut", stagger: 0.2 }, 2.8);',
+          *chart_reveal("qrr", 700, 2.8),
           '    tl.fromTo(".fc", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }, 5.2);']
     return sc("qr", pal, css, body, js, d)
 
@@ -823,14 +881,21 @@ def q_tubes(c, pal, d):
     .tu .tn { font-size: 28px; font-weight: 700; color: #d8d8e4; margin-top: 24px; white-space: nowrap; }"""
     js = ['    tl.fromTo(".tu", { opacity: 0, y: -60 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.12 }, 0.5);',
           '    tl.fromTo("#qv-blk", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.4);',
-          '    tl.to("#qv-heat", { opacity: 1, duration: 0.8, yoyo: true, repeat: 1 }, 1.6);',
+          '    tl.fromTo("#qv-heat", { opacity: 0.3 }, { opacity: 1, duration: 0.45, ease: "sine.inOut", yoyo: true, repeat: 3 }, 1.4);',
+          '    tl.to("#qv-heat", { opacity: 0, duration: 0.4 }, 3.2);',
           f'    tl.to(".lq.ps", {{ fill: "{pos}", duration: 1.0, ease: "power2.inOut", stagger: 0.15 }}, 3.4);',
-          f'    tl.to(".tu .tg", {{ opacity: 1, duration: 0.4, stagger: 0.1 }}, 4.4);',
+
           '    tl.fromTo("#qv-note", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 4.6);',
           f'    tl.fromTo(".fc", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, {min(d - 2.4, 5.6):.2f});']
+    kpos = 0
     for i, t in enumerate(tb):
         if t.get("pos"):
-            js.append(f'    tl.to("#qv-t{i} svg", {{ filter: "drop-shadow(0 0 22px {pos})", duration: 0.8 }}, {3.6 + i * 0.15:.2f});')
+            tt = 3.4 + kpos * 0.15
+            kpos += 1
+            js += [f'    tl.to("#qv-t{i} svg", {{ filter: "drop-shadow(0 0 22px {pos})", duration: 0.8 }}, {tt + 0.2:.2f});',
+                   f'    tl.fromTo("#qv-t{i} .tg", {{ opacity: 0, y: 12, scale: 0.6 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.7)" }}, {tt + 0.8:.2f});']
+        else:
+            js.append(f'    tl.fromTo("#qv-t{i} .tg", {{ opacity: 0, y: 12 }}, {{ opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }}, {4.1 + i * 0.08:.2f});')
     return sc("qv", pal, css, body, js, d)
 
 
@@ -874,9 +939,10 @@ def q_gel(c, pal, d):
           '    tl.fromTo(".gn", { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.08 }, 0.6);',
           f'    tl.fromTo(".bl", {{ y: (k, el) => {gy + 30} - el.getAttribute("y"), opacity: 0 }}, {{ y: 0, opacity: 1, duration: 1.6, ease: "power2.out" }}, 1.2);']
     for k in range(len(lanes)):
-        js.append(f'    tl.fromTo(".bd.b{k}", {{ y: (i, el) => {gy + 30} - el.getAttribute("y"), opacity: 0 }}, {{ y: 0, opacity: 1, duration: 1.8, ease: "power2.out" }}, {1.4 + k * 0.35:.2f});')
-        js.append(f'    tl.fromTo(".bt.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.4 }}, {3.2 + k * 0.35:.2f});')
-    js.append(f'    tl.fromTo(".fc", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, {min(d - 2.4, 4.0 + len(lanes) * 0.35):.2f});')
+        js.append(f'    tl.fromTo(".bd.b{k}", {{ y: (i, el) => {gy + 30} - el.getAttribute("y") }}, {{ y: 0, duration: 2.0, ease: "power2.out" }}, {1.3 + k * 0.06:.2f});')
+        js.append(f'    tl.fromTo(".bd.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, ease: "none" }}, {1.3 + k * 0.06:.2f});')
+        js.append(f'    tl.fromTo(".bt.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.4 }}, {3.3 + k * 0.1:.2f});')
+    js.append(f'    tl.fromTo(".fc", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, {min(d - 2.4, 4.2 + len(lanes) * 0.1):.2f});')
     return sc("qg", pal, css, body, js, d)
 
 

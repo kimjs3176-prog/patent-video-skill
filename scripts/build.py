@@ -64,8 +64,27 @@ def grad_defs(gid, pal):
 
 
 def enter(sid):
-    return (f'tl.fromTo("#{sid}-in", {{ opacity: 0, scale: 1.08, filter: "blur(30px)" }}, '
-            f'{{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 0);')
+    """Scene entry: a slanted wipe (its edge rides the light sweep of the A transition) with a small settle in scale.
+    Finishes inside the 0.5 s scene overlap; no full-frame blur (slow to render, soft to look at)."""
+    return (f'tl.fromTo("#{sid}-in", {{ clipPath: "polygon(0px 0px, -84px 0px, -236px 1080px, 0px 1080px)" }}, '
+            f'{{ clipPath: "polygon(0px 0px, 2156px 0px, 2004px 1080px, 0px 1080px)", duration: 0.48, ease: "sine.inOut" }}, 0); '
+            f'tl.set("#{sid}-in", {{ clipPath: "none" }}, 0.5); '
+            f'tl.fromTo("#{sid}-in", {{ scale: 1.03 }}, {{ scale: 1, duration: 0.8, ease: "expo.out" }}, 0);')
+
+
+def count_js(sel, text, t, dur=1.4, ease="power2.out"):
+    """Count up the number inside text (keeps prefix/suffix, decimals and thousands separators); seek-safe."""
+    import re
+    mt = re.match(r"([^0-9]*)([0-9][0-9,]*(?:\.[0-9]+)?)(.*)", text)
+    if not mt or re.search(r"[0-9]", mt.group(3)):  # ranges like 75~100% stay as written
+        return ""
+    num = mt.group(2).replace(",", "")
+    dec = len(num.split(".")[1]) if "." in num else 0
+    fmt = (f'o.v.toLocaleString("en-US", {{ minimumFractionDigits: {dec}, maximumFractionDigits: {dec} }})' if "," in mt.group(2)
+           else f"o.v.toFixed({dec})")
+    pre, suf = json.dumps(mt.group(1)), json.dumps(mt.group(3))
+    return (f'    (() => {{ const el = document.querySelector("{sel}"); const o = {{ v: 0 }}; tl.to(o, {{ v: {float(num)}, duration: {dur}, ease: "{ease}", '
+            f'onUpdate: () => {{ el.textContent = {pre} + {fmt} + {suf}; }} }}, {t:.2f}); }})();')
 
 
 def em_width(text):
@@ -290,6 +309,7 @@ def s3(c, pal):
 
 
 def s4_stats(c, pal):
+    from visuals import topic_icon
     a, b, cc = pal
     pr = c["proof"]
     items = pr["items"][:3]
@@ -300,7 +320,7 @@ def s4_stats(c, pal):
     for i, it in enumerate(items):
         big = it["big"]
         size = fit(big + it.get("u", ""), 200, 720)
-        stats.append(f'<div class="s4-stat" id="s4-a{i}"><div class="big grad" style="font-size: {size}px">{E(big)}<small>{E(it.get("u", ""))}</small></div>'
+        stats.append(f'<div class="s4-stat" id="s4-a{i}"><div class="big grad" style="font-size: {size}px"><span class="num">{E(big)}</span><small>{E(it.get("u", ""))}</small></div>'
                      f'<div class="l">{E(it["l"])}</div><div class="s">{it.get("s", "")}</div></div>')
         bars = it.get("bars") or []
         if bars:
@@ -311,24 +331,31 @@ def s4_stats(c, pal):
             rows = []
             for j, br in enumerate(bars):
                 cls = "s4-row hi" if br.get("hi") else "s4-row"
-                rows.append(f'<div class="{cls}" style="height: {rh}px"><div class="lab">{E(br["l"])}</div><div class="val">{E(br.get("t", ""))}</div>'
+                rows.append(f'<div class="{cls}" style="height: {rh}px"><div class="lab">{E(br["l"])}</div><div class="val" id="s4-v{i}-{j}">{E(br.get("t", ""))}</div>'
                             f'<div class="trk"><div class="bar" id="s4-b{i}-{j}"></div></div></div>')
-                bar_js.append(f'tl.to("#s4-b{i}-{j}", {{ scaleX: {max(0.004, min(1, br["v"] / mx)):.4f}, duration: 1.1, ease: "expo.out" }}, {T[i] + 0.3 + j * 0.15:.2f});')
+                # context bars first, quickly; this technology's bar lands last and slower, with a glow on arrival
+                hi = bool(br.get("hi"))
+                tb = T[i] + (0.75 if hi else 0.35 + j * 0.08)
+                bar_js.append(f'tl.to("#s4-b{i}-{j}", {{ scaleX: {max(0.004, min(1, br["v"] / mx)):.4f}, duration: {1.3 if hi else 0.9}, ease: "{"expo.out" if hi else "power3.out"}" }}, {tb:.2f});')
+                bar_js.append(f'tl.fromTo("#s4-v{i}-{j}", {{ opacity: 0, x: -12 }}, {{ opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }}, {tb + 0.6:.2f});')
+                if hi:
+                    bar_js.append(f'tl.fromTo("#s4-b{i}-{j}", {{ boxShadow: "0 0 0px {b}" }}, {{ boxShadow: "0 0 24px {b}", duration: 0.35, ease: "power2.out", yoyo: true, repeat: 1 }}, {tb + 0.8:.2f});')
             groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: {top}px">{"".join(rows)}</div>')
         else:
-            groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: 440px">{icon(it.get("icon", c["hero"]), 260, "url(#s4-lg)", 3, f"class=s4-icon id=s4-ic{i}")}</div>')
+            groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: 440px">{icon(it.get("icon") or topic_icon(it["l"], c["hero"]), 260, "url(#s4-lg)", 3, f"class=s4-icon id=s4-ic{i}")}</div>')
     swap = []
     for i in range(k):
         if i > 0:
-            swap.append(f'tl.to(["#s4-a{i - 1}", "#s4-g{i - 1}"], {{ opacity: 0, filter: "blur(12px)", duration: 0.35, ease: "power3.in" }}, {T[i] - 0.35:.2f});')
-        swap.append(f'tl.fromTo(["#s4-a{i}", "#s4-g{i}"], {{ opacity: 0, filter: "blur(14px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, {T[i]:.2f});')
+            swap.append(f'tl.to(["#s4-a{i - 1}", "#s4-g{i - 1}"], {{ opacity: 0, y: -24, duration: 0.35, ease: "power3.in" }}, {T[i] - 0.35:.2f});')
+        swap.append(f'tl.fromTo(["#s4-a{i}", "#s4-g{i}"], {{ opacity: 0, y: 36 }}, {{ opacity: 1, y: 0, duration: 0.7, ease: "expo.out", stagger: 0.1 }}, {T[i]:.2f});')
+        swap.append(count_js(f"#s4-a{i} .num", items[i]["big"], T[i] + 0.15, 1.1, "expo.out"))
         if not items[i].get("bars"):
             swap.append(f'tl.fromTo("#s4-g{i} .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 1.2, ease: "power2.inOut", stagger: 0.1 }}, {T[i] + 0.2:.2f});')
     return head("s4", pal) + f"""
     #s4-glow {{ left: -200px; top: 100px; background: radial-gradient(circle, {rgba(b, 0.3)} 0%, {rgba(cc, 0.12)} 42%, rgba(0,0,0,0) 66%); }}
     #s4-eyebrow {{ left: 140px; top: 150px; }}
     .s4-stat {{ position: absolute; left: 140px; top: 250px; width: 740px; }}
-    .s4-stat .big {{ font-weight: 700; line-height: 1.05; letter-spacing: -0.04em; white-space: nowrap; }}
+    .s4-stat .big {{ font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.05; letter-spacing: -0.04em; white-space: nowrap; }}
     .s4-stat .big small {{ font-size: 60px; letter-spacing: -0.01em; margin-left: 6px; }}
     .s4-stat .l {{ margin-top: 26px; font-size: 50px; font-weight: 700; letter-spacing: -0.03em; }}
     .s4-stat .s {{ margin-top: 12px; font-size: 30px; line-height: 1.5; font-weight: 500; color: #9a9aae; }}
@@ -419,6 +446,7 @@ def s4_anatomy(c, pal):
 
 
 def s5(c, pal):
+    from visuals import topic_icon
     a, b, cc = pal
     f = c["features"]
     tiles = f["tiles"][:6]
@@ -448,7 +476,7 @@ def s5(c, pal):
       {grad_defs("s5-lg", pal)}
       <div id="s5-eyebrow" class="eyebrow">HIGHLIGHTS</div>
       <div id="s5-head">{gtext(f.get("title", "핵심 |특장점"))}</div>
-      <div class="s5-tile glass" id="s5-big">{icon(c["hero"], 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
+      <div class="s5-tile glass" id="s5-big">{icon(topic_icon(big["l"] + " " + big["s"], c["hero"]), 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
       {"".join(th)}
     </div>
   </div>
@@ -456,7 +484,7 @@ def s5(c, pal):
     const tl = gsap.timeline({{ paused: true }});
     {enter("s5")}
     tl.fromTo(["#s5-eyebrow", "#s5-head"], {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.1 }}, 0.3);
-    tl.fromTo(".s5-tile", {{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.8, ease: "power3.out", stagger: 0.14 }}, 0.9);
+    tl.fromTo(".s5-tile", {{ opacity: 0, y: 30, scale: 0.96 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "expo.out", stagger: 0.08 }}, 0.9);
     tl.fromTo("#s5-big .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 1.4, ease: "power2.inOut", stagger: 0.1 }}, 1.1);
     tl.to("#s5-in", {{ scale: 1.025, duration: {DUR["s5"] - 0.8}, ease: "none" }}, 0.8);
     window.__timelines["s5"] = tl;
@@ -616,6 +644,7 @@ def s7(c, pal):
     tl.fromTo("#s7-ribbon", {{ xPercent: -95, rotation: 8 }}, {{ xPercent: 95, rotation: 8, duration: 1.2, ease: "power3.inOut" }}, 0.2);
     tl.fromTo("#s7-name", {{ opacity: 0, scale: 1.15, filter: "blur(24px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: "expo.out" }}, 0.7);
     tl.fromTo("#s7-sub", {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 1.2);
+    tl.to("#s7-in", {{ opacity: 0, duration: 0.8, ease: "power2.in" }}, {DUR["s7"] - 0.9});  // fade out with the music
     tl.fromTo("#s7-card", {{ opacity: 0, scale: 0.92 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.4)" }}, 1.7);
     tl.fromTo(".s7-row", {{ opacity: 0, x: -20 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, 2.0);
     tl.fromTo("#s7-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.6);

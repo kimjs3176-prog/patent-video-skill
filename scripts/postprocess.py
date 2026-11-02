@@ -52,7 +52,8 @@ def pen_draw(out):
             return f'penDraw({m.group("sel")}, {m.group("t")}, {dur}, {gap});'
         s2, k = CALL.subn(sub, s)
         if k:
-            s2 = s2.replace("const tl = gsap.timeline({ paused: true });", "const tl = gsap.timeline({ paused: true });\n" + PEN, 1)
+            # after the timeline is created, whatever its options (some templates set defaults)
+            s2 = re.sub(r"(const tl = gsap\.timeline\([^;]*\);)", lambda m: m.group(1) + "\n" + PEN, s2, count=1)
             open(p, "w", encoding="utf-8").write(s2)
             n += k
     return n
@@ -75,8 +76,31 @@ def drop_missing_audio(out):
     return gone
 
 
+# pathLength="1" lets a builder write dash draw-ons as 0→1, but Chrome maps that unit unevenly when the offset is tweened
+# through CSS (the stroke stays hidden, then appears all at once). Swap it for the element's real length before the
+# timeline is built, so every draw-on advances smoothly with its ease.
+REAL_LENGTH = ('    document.querySelectorAll(\'[pathLength="1"]\').forEach((el) => { const L = el.getTotalLength(); el.removeAttribute("pathLength");'
+               ' const da = el.getAttribute("stroke-dasharray"); if (da === "1 1") el.setAttribute("stroke-dasharray", L + " " + L);'
+               ' const off = parseFloat(el.getAttribute("stroke-dashoffset") || "0"); el.setAttribute("stroke-dashoffset", String(off * L)); });\n')
+
+
+def real_lengths(out):
+    n = 0
+    for fn in glob.glob(os.path.join(out, "compositions", "*.html")):
+        s = open(fn, encoding="utf-8").read()
+        if 'pathLength="1"' not in s or "getTotalLength(); el.removeAttribute" in s:
+            continue
+        i = s.find("    const tl = gsap.timeline")
+        if i < 0:
+            continue
+        open(fn, "w", encoding="utf-8").write(s[:i] + REAL_LENGTH + s[i:])
+        n += 1
+    return n
+
+
 def run(out):
     gone = drop_missing_audio(out)
+    real_lengths(out)
     k = pen_draw(out)
     f, saved = subset_project(out)
     return f"pen-draw {k}, fonts {f} (-{saved / 1e6:.1f} MB)" + (f", missing audio dropped: {len(gone)}" if gone else "")

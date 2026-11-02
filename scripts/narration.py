@@ -6,7 +6,7 @@ Script source: content["narration"] = {"hook", "overview", "process", "proof", "
 Each scene of the built project is matched to a section by its composition file name. Sections a template has no scene for
 are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
 The voice is 선희 (ko-KR-SunHiNeural) unless --voice says otherwise. A line that does not fit its scene is re-voiced faster
-(+6 % by default, up to +22 %) and then shortened by whole sentences, so narration never runs into the next scene.
+(natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
 Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-SunHiNeural]
 """
@@ -147,7 +147,7 @@ def fit(text, avail, voice):
     parts = sentences(text)
     while parts:
         t = " ".join(parts)
-        for rate in ("+6%", "+14%", "+22%"):
+        for rate in ("+0%", "+6%", "+12%", "+18%"):  # natural pace first; speed up only as much as the scene needs
             mp3, dur = synth(t, voice, rate)
             if dur <= avail:
                 return t, mp3, dur, rate

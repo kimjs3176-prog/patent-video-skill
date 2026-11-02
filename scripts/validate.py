@@ -7,6 +7,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from icons import ICONS  # noqa: E402
 from build import PALETTES, em_width  # noqa: E402
+import sigcheck  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -104,9 +105,11 @@ def check(path):
     if not re.fullmatch(r"\d{13}", str(c.get("appno", ""))):
         errs.append("appno는 숫자 13자리")
     sig = c.get("signature") or {}
-    for at, fn in [("proof.figure", c["proof"].get("figure")), ("signature.figure", sig.get("figure")), ("signature.path_figure", sig.get("path_figure"))]:
+    for at, fn in [("proof.figure", c["proof"].get("figure")), ("signature.figure", sig.get("figure")),
+                   ("signature.run.figure", (sig.get("run") or {}).get("figure")), ("signature.path.figure", (sig.get("path") or {}).get("figure"))]:
         if fn is not None and not re.fullmatch(r"fig-p\d+-[A-Za-z0-9_-]+\.(jpg|png)", fn):
             errs.append(f"{at} 파일명 형식 오류: {fn}")
+    errs += [f"signature: {e}" for e in sigcheck.problems(c)]  # template S: is the technology's own structure there?
     nar = c.get("narration") or {}
     budget = {"hook": 30, "overview": 30, "process": 45, "proof": 50, "figures": 25, "features": 30, "apps": 30, "outro": 25}
     for k, v in nar.items():

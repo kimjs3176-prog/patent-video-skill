@@ -16,6 +16,7 @@ STEP_ICONS = [
     (("추출", "여과", "농축", "분획", "흡착", "정제", "원심", "효소", "분해", "증폭", "검출", "분석", "검증", "평가"), "flask"),
     (("열풍", "송풍", "대류"), "fan"),
     (("건조", "증발", "탈수"), "sun"),
+    (("데침", "데치", "삶", "끓", "유탕", "튀김", "튀기"), "cookpot"),
     (("가열", "볶", "로스팅", "증숙", "찌기", "증자", "취반", "조리", "살균", "승온", "호화", "팽화", "액화", "당화", "열처리", "취사"), "thermo"),
     (("혼합", "배합", "블렌딩", "반죽", "교반", "첨가", "조정", "가수"), "bowl"),
     (("분쇄", "분말", "파쇄", "도정", "압출", "성형", "사출", "제면", "압착", "절단", "코팅", "방사", "가공"), "gear"),
@@ -27,6 +28,11 @@ STEP_ICONS = [
     (("투여", "섭취", "복용"), "capsule"),
     (("수확", "이송"), "tractor"),
 ]
+
+
+def topic_icon(text, fallback):
+    """The pictogram for a phrase when one of its keywords is known, else fallback (usually the patent's hero icon)."""
+    return step_icon(text, fallback)
 
 
 def step_icon(text, hero="spark"):
@@ -254,10 +260,12 @@ def transitions(style, slots, total, w=1920, h=1080, pal=None):
     elif style == "A":  # keynote light sweep: a soft white band crosses the cut
         body = ('<div id="tx-s" style="position: absolute; top: -20%; bottom: -20%; left: 0; width: 70%; '
                 'background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.22) 55%, rgba(255,255,255,0) 100%)"></div>')
+        # the band's bright centre rides the incoming scene's wipe edge (build.enter): same start, length and ease
         js = ['    tl.set("#tx-s", { xPercent: -160, rotation: 8 }, 0);']
         for t in cuts:
-            js += [f'    tl.set("#tx-s", {{ xPercent: -160 }}, {t - 0.3:.2f});',
-                   f'    tl.to("#tx-s", {{ xPercent: 260, duration: 0.85, ease: "power2.inOut" }}, {t - 0.28:.2f});']
+            js += [f'    tl.set("#tx-s", {{ xPercent: -62 }}, {t - 0.02:.2f});',
+                   f'    tl.to("#tx-s", {{ xPercent: 105, duration: 0.48, ease: "sine.inOut" }}, {t:.2f});',
+                   f'    tl.to("#tx-s", {{ xPercent: 170, duration: 0.2, ease: "power1.out" }}, {t + 0.48:.2f});']  # leave the frame
     elif style == "D":  # mint wash: a pale panel rises with a rounded edge, then lifts away
         body = ('<div id="tx-m" style="position: absolute; left: -5%; right: -5%; top: 0; height: 115%; background: #e8f3ec; border-radius: 0 0 50% 50% / 0 0 12% 12%"></div>')
         js = ['    tl.set("#tx-m", { yPercent: 101 }, 0);']
