@@ -10,6 +10,16 @@ from build import PALETTES, em_width  # noqa: E402
 import sigcheck  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+APPNO = re.compile(r"\d{13}")
+FIGURE = re.compile(r"fig-p\d+-[A-Za-z0-9_-]+\.(jpg|png)")  # a bare file name in data/patents/<appno>/
+
+
+def appno_ok(appno):
+    return bool(APPNO.fullmatch(str(appno or "")))
+
+
+def figure_ok(fn):
+    return isinstance(fn, str) and bool(FIGURE.fullmatch(fn))
 
 
 def check(path):
@@ -110,12 +120,12 @@ def _check(path):
     for at, v in strings(c):
         if re.search(r"<(?!br />)[A-Za-z/!?]", v.replace("<br/>", "<br />")):  # tags only; '<4%' is text
             errs.append(f"허용되지 않은 마크업({at}): <br /> 외 태그 금지")
-    if not re.fullmatch(r"\d{13}", str(c.get("appno", ""))):
+    if not appno_ok(c.get("appno")):
         errs.append("appno는 숫자 13자리")
     sig = c.get("signature") or {}
     for at, fn in [("proof.figure", c["proof"].get("figure")), ("signature.figure", sig.get("figure")),
                    ("signature.run.figure", (sig.get("run") or {}).get("figure")), ("signature.path.figure", (sig.get("path") or {}).get("figure"))]:
-        if fn is not None and not re.fullmatch(r"fig-p\d+-[A-Za-z0-9_-]+\.(jpg|png)", fn):
+        if fn is not None and not figure_ok(fn):
             errs.append(f"{at} 파일명 형식 오류: {fn}")
     for i, part in enumerate(c["proof"].get("parts", [])):  # markers on the drawing: fractions of the figure image
         if ("x" in part) != ("y" in part) or any(not (isinstance(part.get(k), (int, float)) and 0 <= part[k] <= 1) for k in ("x", "y") if k in part):

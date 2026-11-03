@@ -9,7 +9,7 @@ Usage:
              (first run pip-installs transformers + torch and downloads ~300 MB; slow on CPU;
               MusicGen weights are CC-BY-NC 4.0, non-commercial)
 
-Writes assets/music/m<N>-<mood>.mp3 (60.5 s, faded in and out, crossfade-looped when the source is shorter) and
+Writes assets/music/m<NN>-<mood>.mp3 (60.5 s, faded in and out, crossfade-looped when the source is shorter) and
 assets/music/SOURCES.json (provider, mode, query/prompt, licence note). The builders rotate whatever mp3s are in
 assets/music in production order, so a few tracks cover any number of videos. Refuses to run when assets/music already
 holds mp3 files unless --force. Pick the route with the user first (media-use preflight): never generate silently.
@@ -56,7 +56,10 @@ def media_use_dir():
 def check():
     """Report the routes; read-only."""
     import importlib.util
-    print("media-use:", media_use_dir())
+    try:
+        print("media-use:", media_use_dir())
+    except SystemExit as e:  # still report the other routes
+        print("media-use:", e)
     r = subprocess.run([NPX, HF, "auth", "status"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
     for line in (r.stdout + r.stderr).splitlines():
         if "music" in line.lower() or "heygen" in line.lower() or "signed" in line.lower():
@@ -93,9 +96,8 @@ def to_bed(src, dst, length=LENGTH, xfade=3.0):
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *ins, "-filter_complex", ";".join(chain), "-map", "[o]", "-ac", "2", "-ar", "44100", "-b:a", "192k", dst], check=True)
 
 
-def one(mu, mode, slug, query, prompt):
-    """Run the engine for one bed in its own scratch folder; return (source path, provider)."""
-    work = tempfile.mkdtemp(prefix="bgm-")
+def one(mu, work, mode, slug, query, prompt):
+    """Run the engine for one bed in the scratch folder work; return (source path, provider)."""
     req = {"provider": "auto", "lines": [], "bgm": {"mode": mode, "query": query, "prompt": prompt}}
     json.dump(req, open(os.path.join(work, "audio_request.json"), "w", encoding="utf-8"), ensure_ascii=False)
     scripts = os.path.join(mu, "audio", "scripts")
@@ -146,11 +148,12 @@ def main(args):
     start = len([f for f in os.listdir(MUSIC) if f.lower().endswith(".mp3")])
     made = 0
     for i, (slug, query, prompt) in enumerate(MOODS[:count]):
-        name = f"m{start + i + 1}-{slug}.mp3"
+        name = f"m{start + i + 1:02d}-{slug}.mp3"  # zero-padded: the builders rotate tracks in sorted order
         t = time.time()
         try:
-            src, provider = one(mu, mode, slug, query, prompt)
-            to_bed(src, os.path.join(MUSIC, name))
+            with tempfile.TemporaryDirectory(prefix="bgm-", ignore_cleanup_errors=True) as work:  # removed once the bed is written
+                src, provider = one(mu, work, mode, slug, query, prompt)
+                to_bed(src, os.path.join(MUSIC, name))
         except Exception as e:  # keep going: a missing bed only means fewer tracks in the rotation
             print(name, "FAILED:", e, flush=True)
             continue

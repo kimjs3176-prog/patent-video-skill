@@ -2,13 +2,14 @@
 
 Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-SunHiNeural] [--no-narrate] [--no-render] [order ...]
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
-unless --no-narrate.
+unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
 One log line per video in renders*/produce.log.
 """
 import glob
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -68,6 +69,15 @@ def check_project(out):
     return errs, warns
 
 
+def rendered_voice(mp4):
+    """Voice of an earlier narrated render, from the narration.txt copied beside it (house voice when it predates the copy)."""
+    try:
+        line = open(mp4[:-4] + ".narration.txt", encoding="utf-8").readline()
+    except OSError:
+        return narration.VOICE
+    return line[len("voice: "):].strip() if line.startswith("voice: ") else narration.VOICE
+
+
 def main():
     global TEMPLATE, NARRATE, VOICE
     args = sys.argv[1:]
@@ -104,8 +114,8 @@ def one(path, render, want):
         return
     slug = os.path.basename(path)[:-5]
     mp4 = os.path.join(render_dir(), slug + ("" if TEMPLATE == "A" else "_" + TEMPLATE.lower()) + ("_nar" if NARRATE else "") + ".mp4")
-    # skip only if the render is newer than its content (edited content gets re-rendered)
-    if render and os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path):
+    # skip only if the render is newer than its content (edited content gets re-rendered) and has the requested voice
+    if render and os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path) and (not NARRATE or rendered_voice(mp4) == VOICE):
         deliver = os.path.join(ROOT, "patents", slug.split("-", 1)[1])
         if not (os.path.exists(deliver + ".mp4") and os.path.exists(deliver + ".jpg")):  # an earlier export failed
             dst, jpg = export(mp4, slug.split("-", 1)[1])
@@ -144,6 +154,8 @@ def one(path, render, want):
     ok = r.returncode == 0 and os.path.exists(mp4) and os.path.getmtime(mp4) >= t - 1
     log(f"{slug} {'RENDERED' if ok else 'RENDER FAIL'} {time.time() - t:.0f}s warnings={len(warns)}" + ("" if ok else " " + ((r.stderr or "") + (r.stdout or ""))[-300:]))
     if ok:
+        if NARRATE:  # remembers the voice of this render (see rendered_voice)
+            shutil.copyfile(os.path.join(out, "narration.txt"), mp4[:-4] + ".narration.txt")
         dst, jpg = export(mp4, slug.split("-", 1)[1])  # deliverable: patents/{출원번호}.mp4 + .jpg
         log(f"{slug} exported {os.path.relpath(dst, ROOT)} {os.path.relpath(jpg, ROOT)}")
 

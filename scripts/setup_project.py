@@ -9,6 +9,7 @@ Sound effects and background music are not redistributed with the public skill:
   (~/.claude/skills/media-use/audio/assets/sfx, Pixabay Content License) when it is installed.
 - music: put your own licensed mp3 files in <project>/assets/music (any names; they rotate in production order).
 Videos still build without either — the missing audio clips are simply left out.
+Re-running updates tools/*.py; a file that differs from the skill (your edits) is first saved as tools/<name>.py.bak.
 The KIPRIS key is NOT copied: write it to <project>/.env as KIPRIS_API_KEY=... (or set the env var).
 """
 import os
@@ -25,7 +26,11 @@ def main(dst):
     os.makedirs(tools, exist_ok=True)
     for f in os.listdir(os.path.join(SKILL, "scripts")):
         if f.endswith(".py") and f != "setup_project.py":
-            shutil.copy(os.path.join(SKILL, "scripts", f), tools)
+            src, have = os.path.join(SKILL, "scripts", f), os.path.join(tools, f)
+            if os.path.exists(have) and open(have, "rb").read() != open(src, "rb").read():  # e.g. CONTACT/DISCLAIMER edits in build.py
+                shutil.copy2(have, have + ".bak")
+                print(f"note: tools/{f} differed from the skill (your edits or an older copy) - updated; previous version kept as tools/{f}.bak")
+            shutil.copy(src, tools)
     shutil.copy(os.path.join(SKILL, "references", "CONTENT_SPEC.md"), tools)
     shutil.copytree(os.path.join(SKILL, "references", "examples"), os.path.join(tools, "examples"), dirs_exist_ok=True)
     for sub in ("fonts", "fonts_serif", "sfx", "music"):
