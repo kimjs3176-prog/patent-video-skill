@@ -59,6 +59,10 @@ PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template S     # → pate
 옆에는 청구항의 제어 루프(센서 → 제어 → 구동)나 작동 단계가 돌고, 두 번째 도면이 있으면 그 위로 경로를 따라갑니다.
 ![장치형](docs/previews/template-s-loop.jpg)
 
+### 배합형 (formula)·계통형 (lineage)
+조성물·추출물은 성분이 명세서 비율대로 용기를 채운 뒤 효능이 대조군 대비 막대로, 품종·균주는 교배(또는 분리원)에서 신품종까지 계보가 그려진 뒤
+형질이 대비 품종과 나란히 비교됩니다. 공정·장치·서열이 없는 특허도 시그니처로 만들 수 있습니다.
+
 ### 서열형 (sequence) — 인식하고 판독한다
 배경기술 수치로 문제를 세우고, 프라이머가 실제 염기를 한 글자씩 찍은 뒤 표적 부위로 날아가 켜집니다.
 판독은 명세서의 방식대로: Ct 증폭 곡선, 반응 튜브 색 변화, 다중 전기영동 밴드(실제 bp) 중 하나.
@@ -69,9 +73,10 @@ PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template S     # → pate
 | 식품·가공·추출·발효 공정 | journey |
 | 장치·설비·재배 시스템·센서, SW·제어 시스템(구성도) | loop |
 | 프라이머·마커·진단 키트 | sequence |
-| 미생물·균주 | 배양·발효가 핵심이면 journey, 진단 마커가 있으면 sequence |
-| 조성물·배합 | 제조 공정이 있으면 journey |
-| 위에 맞지 않는 것(예: 분자마커 없는 품종) | signature 없이 A~I |
+| 미생물·균주 | 배양·발효가 핵심이면 journey, 진단 마커가 있으면 sequence, 선발된 균주 자체면 lineage |
+| 조성물·추출물·기능성 소재 | 제조 공정이 핵심이면 journey, 배합 비율과 효능이 핵심이면 **formula** |
+| 품종(분자마커 없음) | **lineage** |
+| 위 어디에도 맞지 않는 것(드묾) | signature 없이 A~I |
 
 ## 도면 분석 — 어떤 특허든 도면이 그래픽이 된다
 

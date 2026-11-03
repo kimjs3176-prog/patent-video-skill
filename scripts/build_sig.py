@@ -1046,6 +1046,11 @@ SIG = {"jr-route": j_route, "jj-journey": j_journey, "lp-parts": l_parts, "lr-ru
        "qp-problem": q_problem, "qs-primers": q_primers, "qb-probe": q_probe, "qr-result": q_result, "qv-tubes": q_tubes, "qg-gel": q_gel}
 
 
+import build_sig_types as _types  # noqa: E402  (formula · lineage)
+
+SIG.update(_types.SCENES)
+
+
 def narrative(c):
     """The scene list for this patent, sized to its own data (total stays under 60 s)."""
     sg = c["signature"]
@@ -1061,6 +1066,8 @@ def narrative(c):
         mid = [("lp", "lp-parts", round(max(8.0, 2.4 + 1.5 * len(sg["callouts"])), 1)), ("lr", "lr-run", 13.0)]
         mid += [("lw", "lw-path", 8.5)] if sg.get("path") else []
         mid.append(("s5", "s5-features", 7.0))
+    elif kind in ("formula", "lineage"):
+        mid = _types.narrative_mid(sg)
     else:
         rk = sg["result"]["kind"]
         mid = [("qp", "qp-problem", 6.0), ("qs", "qs-primers", round(min(16.0, max(12.0, 2.6 + 1.9 * len(sg["primers"]))), 1))]

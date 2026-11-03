@@ -17,7 +17,8 @@ KEYS = {"soak", "cut", "steam", "heat", "boil", "dry", "roast", "fry", "freeze",
 MEDIA = {"air", "water", "heat", "cold", "gas", "uv", "light", "solid", "power"}
 FRAME = {"teaser", "proof", "features", "apps", "outro"}
 SCENES = {"journey": {"route", "journey"}, "loop": {"parts", "run", "path"},
-          "sequence": {"problem", "primers", "probe", "result", "tubes", "gel"}}
+          "sequence": {"problem", "primers", "probe", "result", "tubes", "gel"},
+          "formula": {"mix", "effect"}, "lineage": {"tree", "traits"}}
 BASES = re.compile(r"[ACGTURYKMSWBDHVNI]+")
 
 
@@ -59,7 +60,7 @@ def _problems(c):
     errs = []
     kind = sg.get("type")
     if kind not in SCENES:
-        return [f"signature.type은 journey·loop·sequence 중 하나({kind})"]
+        return [f"signature.type은 journey·loop·sequence·formula·lineage 중 하나({kind})"]
     for k in (sg.get("narration") or {}):
         if k not in SCENES[kind] | FRAME:
             errs.append(f"signature.narration 알 수 없는 장면: {k} ({kind}에는 {', '.join(sorted(SCENES[kind] | FRAME))})")
@@ -113,6 +114,37 @@ def _problems(c):
         if sg.get("path"):
             _figure(c, sg["path"].get("figure"), "path.figure", errs)
             _points(sg["path"].get("points") or [], "path.points", errs, 3, 5, named=True)
+    elif kind == "formula":
+        comps, eff = sg.get("components") or [], sg.get("effects") or []
+        if not 2 <= len(comps) <= 6:
+            errs.append(f"components 2~6개({len(comps)}개): 배합 성분과 비율")
+        for i, p in enumerate(comps):
+            if not p.get("n") or not isinstance(p.get("v"), (int, float)) or p["v"] <= 0:
+                errs.append(f"components[{i}]: n과 양수 v(명세서의 비율·함량) 필요")
+        if not 1 <= len(eff) <= 4:
+            errs.append(f"effects 1~4개({len(eff)}개): 대조군 대비 효능 수치")
+        for i, e in enumerate(eff):
+            if not e.get("l") or not all(isinstance(e.get(k), (int, float)) for k in ("control", "treated")):
+                errs.append(f"effects[{i}]: l과 숫자 control·treated(명세서 값 그대로) 필요")
+            if e.get("better", "up") not in ("up", "down"):
+                errs.append(f"effects[{i}].better는 up 또는 down")
+    elif kind == "lineage":
+        cross, steps, tr = sg.get("cross") or {}, sg.get("steps") or [], sg.get("traits") or []
+        if not ((cross.get("mother") and cross.get("father")) or sg.get("source")):
+            errs.append("cross{mother, father}(교배 품종) 또는 source(분리원·선발 모집단) 필요")
+        if not 3 <= len(steps) <= 6 or any(not (s.get("gen") and s.get("l")) for s in steps):
+            errs.append("steps 3~6개, 각 gen(세대·단계)·l 필요")
+        if not sg.get("variety"):
+            errs.append("variety(신품종·균주 이름) 필요")
+        if not 1 <= len(tr) <= 5:
+            errs.append(f"traits 1~5개({len(tr)}개): 대비 품종과 비교한 형질")
+        for i, t in enumerate(tr):
+            if not t.get("l") or not all(isinstance(t.get(k), (int, float)) for k in ("new", "check")):
+                errs.append(f"traits[{i}]: l과 숫자 new·check(명세서 값 그대로) 필요")
+            if t.get("better", "up") not in ("up", "down"):
+                errs.append(f"traits[{i}].better는 up 또는 down")
+        if not sg.get("check"):
+            errs.append("check(대비 품종·대조 균주 이름) 필요")
     else:
         pb = sg.get("problem") or {}
         if not 2 <= len(pb.get("cards") or []) <= 3:
@@ -157,6 +189,10 @@ def fingerprint(c):
     if sg["type"] == "loop":
         run = sg["run"]
         return ("loop", tuple(sorted(f.get("color") for f in run.get("flows", []))), "logic" if run.get("logic") else "steps", bool(sg.get("path")))
+    if sg["type"] == "formula":
+        return ("formula", len(sg.get("components", [])), len(sg.get("effects", [])))
+    if sg["type"] == "lineage":
+        return ("lineage", bool(sg.get("cross")), len(sg.get("steps", [])), len(sg.get("traits", [])))
     return ("sequence", sg["result"]["kind"], bool(sg.get("probe")), len(sg.get("layout", [])))
 
 
@@ -170,6 +206,11 @@ def describe(c):
         media = ", ".join(f'{f["label"]}({f["color"]})' for f in run.get("flows", []))
         side = "제어 루프" if run.get("logic") else f'단계 {len(run.get("steps", []))}'
         return f'부품 {len(sg["callouts"])} · 흐름 {media} · {side}' + (" · 두 번째 도면 경로" if sg.get("path") else "")
+    if sg["type"] == "formula":
+        return f'성분 {len(sg["components"])}(' + ", ".join(p["n"] for p in sg["components"][:3]) + f') → 효능 {len(sg["effects"])}'
+    if sg["type"] == "lineage":
+        top = "교배 " + " × ".join([sg["cross"]["mother"], sg["cross"]["father"]]) if sg.get("cross") else "분리 " + sg.get("source", "")
+        return f'{top} → 단계 {len(sg["steps"])} → {sg.get("variety", "")} · 형질 {len(sg["traits"])}'
     rs = sg["result"]
     return f'프라이머 {len(sg["primers"])} → 부위 {len(sg["layout"])}' + (" · 프로브 비교" if sg.get("probe") else "") + f' · 판독 {rs["kind"]}'
 

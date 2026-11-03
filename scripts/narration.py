@@ -41,7 +41,7 @@ EDGE_TTS = "edge-tts==7.3.1"  # pinned: the package is fetched from PyPI at run 
 
 
 # template S: the signature scenes are voiced one by one (scene key → line), the frame scenes keep the section lines
-SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel")
+SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel", "mix", "effect", "tree", "traits")
 SIG_FRAME = {"teaser": "hook", "proof": "proof", "features": "features", "apps": "apps", "outro": "outro"}
 
 
@@ -106,6 +106,14 @@ def auto_sig_script(c):
         out["primers"] = f'{len(sg["primers"])}개 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 인식합니다.'
     if sg.get("probe"):
         out["probe"] = "프로브를 더하면 비특이 신호가 사라지고 표적만 남습니다."
+    if sg.get("components"):
+        out["mix"] = f'{", ".join(p["n"] for p in sg["components"][:3])}을 배합합니다.'
+    if sg.get("effects"):
+        out["effect"] = " ".join(f'{e["l"]}, 대조군 {e["control"]}에서 {e["treated"]}{e.get("unit", "")}로 바뀌었습니다.' for e in sg["effects"][:2])
+    if sg.get("steps") and sg.get("type") == "lineage":
+        out["tree"] = f'{sg.get("variety", "신품종")}은 {sg["steps"][0]["l"]}부터 {sg["steps"][-1]["l"]}까지 선발했습니다.'
+    if sg.get("traits"):
+        out["traits"] = " ".join(f'{t["l"]}은 {t["new"]}{t.get("unit", "")}입니다.' for t in sg["traits"][:2])
     rs = sg.get("result") or {}
     if rs:
         out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = clean(rs.get("title", "")) + ". " + clean(rs.get("note", ""))

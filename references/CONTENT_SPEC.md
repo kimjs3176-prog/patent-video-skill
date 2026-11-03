@@ -111,10 +111,11 @@
    | 식품·가공·추출·발효 공정 | journey | 재료가 단계마다 모양을 바꾸며 온도 그래프를 따라간다 |
    | 장치·설비·재배 시스템·센서 | loop | 도면 위로 매질이 실제 경로를 흐르고, 제어 루프나 단계가 돈다 |
    | 프라이머·마커·진단 키트 | sequence | 실제 염기가 찍히고 표적 부위가 켜진 뒤, 명세서의 판독 방식으로 결과가 나온다 |
-   | 미생물·균주 | 배양·발효가 핵심이면 journey, 진단 마커가 있으면 sequence | |
-   | 조성물·배합 | 제조 공정이 있으면 journey(mix·heat·dry …) | |
+   | 미생물·균주 | 배양·발효 공정이 핵심이면 journey, 진단 마커가 있으면 sequence, **분리·선발된 균주 자체**가 핵심이면 lineage | 분리원 → 선발 단계 → 균주, 대조 균주와 활성 비교 |
+   | 조성물·배합 | 제조 공정이 핵심이면 journey(mix·heat·dry …), **배합 비율과 효능**이 핵심이면 formula | 성분이 비율대로 채워지고, 효능이 대조군 대비 막대로 |
    | SW·제어 시스템 | 구성도가 있으면 loop(데이터·전력 흐름 `power`/`light`, 청구항 제어 루프) | |
-   | 품종·육종(분자마커 없음) 등 위에 안 맞는 것 | signature 없이 A~I 템플릿, `notes`에 "S 유형 없음" | |
+   | 품종·육종(분자마커 없음) | **lineage** | 교배 부모(또는 분리원) → 세대·선발 단계 → 신품종, 형질이 대비 품종과 나란히 |
+   | 위 어디에도 안 맞는 것(드묾) | signature 없이 A~I 템플릿, `notes`에 사유 | |
 4. **차별화 규칙**:
    - 단계 그림(`key`)은 재료가 실제로 겪는 변화로 고른다. 같은 그림이 이어지면 조건 차이(온도·시간)를 `cond`·`t`로 보이게 한다.
    - 도면 좌표·경로는 도면을 직접 열어 찍는다(추정 금지). 경로는 매질이 지나는 순서대로.
@@ -143,6 +144,13 @@
   선택 키: `source`(근거 표기), `flows[].legend: false`(같은 이름 흐름을 범례에 한 번만), `run.drip` `[x, y]` + `drip_label`(응축수처럼 맺혀 떨어지는 방울),
   `glows[]`는 `x, y` 대신 `ref`(그 부호의 callout 자리)나 `at_flow`(0부터 센 흐름 번호, 그 흐름의 두 번째 점)로 자리를 줄 수 있다.
   `path.points[].ref`는 도면 부호 대신 순서도 단계 번호(S210 등)도 된다.
+- `formula` (조성물·추출물·기능성 소재): `mix_title`(선택) · `components[{n, v, u?, role?}]` 2~6개(v = 명세서의 비율·함량 숫자, 상대 크기로 용기를 채움) ·
+  `base_note`(비율 근거) · `effects[{l, control, treated, unit?, better: "up"|"down", note?}]` 1~4개(대조군·처리군 값은 명세서 그대로, 배수·감소율을 새로 계산하지 않음) ·
+  `effects_title` · `effects_note`(자료 출처) · `control_label`/`treated_label`(선택, 기본 대조군/처리군). 장면: teaser · mix · effect · features · apps.
+- `lineage` (품종·선발 균주): `variety`(신품종·균주 이름) · `cross{mother, father}`(교배) 또는 `source`(분리원·선발 모집단) ·
+  `steps[{gen, l, year?}]` 3~6개(F1·F2~F5·생산력 검정·지역 적응·품종 등록 / 분리·스크리닝·동정 …, 마지막이 신품종) · `tree_title`(선택) ·
+  `check`(대비 품종·대조 균주) · `traits[{l, new, check, unit?, better}]` 1~5개(명세서 특성 조사표 값 그대로) · `traits_title` · `traits_note`.
+  장면: teaser · tree · traits · features · apps.
 - `sequence` (프라이머·진단): `problem{title, cards[{v, l, s}] 2~3개, src}` · `target` · `target_note` · `layout`(표적 부위 순서) ·
   `primers[{id, seq, regions}]`(서열번호의 실제 염기, 8개 이하) · `primers_title`/`primers_cap`(선택) · `field`(칩 2~4개) ·
   `result` 중 하나: `{kind: "tubes", tubes[{l, pos}], pos_color, neg_color, note, cap}`(육안 색 판독) ·
@@ -159,12 +167,16 @@
   | loop `run.logic` / `rules` | 4 / 1~2 | 노드 8 · 규칙 22 |
   | loop `path.points` | 3~5 | `n` 12 · `d` 22 |
   | sequence `problem.cards` · `primers` · `field` | 2~3 · ≤8 · 2~4 | 카드 `l` 14 · `s` 20 |
+  | formula `components` / `effects` | 2~6 / 1~4 | 성분 `n` 14 · `role` 18 · 효능 `l` 10 · `note` 12 |
+  | lineage `steps` / `traits` | 3~6 / 1~5 | `gen` 8 · `l` 14 · 형질 `l` 10 · 품종명 10 |
   | `title`·`parts_title`·`run.title`·`path.title` | — | `|`로 두 덩이, 합쳐 22 이내(`|` 뒤가 강조색) |
 - **장면과 길이**(나레이션 키 = 장면, 6초 × 약 6음절 = 28음절 식으로 쓴다. 엔딩은 읽지 않음):
   - journey: teaser 6 · (route 7.5, 공정 편집이 있을 때) · journey 2.6+2.7×단계 수(최소 14) · proof 12 · (features 7, 공정 편집이 없을 때) · apps 6.5
   - loop: teaser 6 · parts 2.4+1.5×부품 수(최소 8) · run 13 · (path 8.5, 있을 때) · features 7 · apps 6.5 — **proof 장면은 없다**(써도 읽히지 않음)
+  - formula: teaser 6 · mix 2.8+1.7×성분 수(9~13) · effect 3+1.8×효능 수(8.5~12) · features 7 · apps 6.5
+  - lineage: teaser 6 · tree 3.2+1.6×단계 수(9~13) · traits 3+1.6×형질 수(8.5~12) · features 7 · apps 6.5
   - sequence: teaser 6 · problem 6 · primers 2.6+1.9×프라이머 수(12~16) · (probe 9, 있을 때) · result 9.5 / tubes 8.5 / gel 9.5 · (features 7, 프로브가 없을 때) · apps 6.5
-- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel ·
+- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel · mix/effect · tree/traits ·
   proof · features · apps 중 그 영상에 있는 것). 장면 길이(초) × 약 6음절 이내(예: journey 18.8초 → 100음절, teaser 6초 → 28음절).
   6음절은 상한이다. 표지(teaser)·짧은 장면은 5음절 안쪽으로 쓰고, `python -I tools/narration.py --check <파일>`로 확인한다.
   숫자·단위는 읽히는 대로(“100에서 105도”, “퍼센트”). 없으면 시그니처 데이터로 자동 대본.

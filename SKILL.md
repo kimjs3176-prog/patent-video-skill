@@ -91,7 +91,7 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 - 명세서 모순·오기는 더 타당한 쪽을 쓰고 `notes`에 한 줄 남긴다(나중에 목록 엑셀의 검토 메모가 된다).
 - 나레이션 대본 `narration`(hook·overview·process·proof·figures·features·apps)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 비었거나 빠진 항목은 단순 자동 대본으로 채운다. 엔딩은 읽지 않으므로 outro는 쓰지 않아도 된다.
 - 템플릿 S를 쓰려면 `signature` 블록(유형별 데이터, CONTENT_SPEC "시그니처 장면")을 명세서·도면을 보고 쓴다. 도면 좌표는 도면을 직접 확인해서.
-  유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단) 셋. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
+  유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단)·formula(조성물·추출물: 배합 → 효능)·lineage(품종·선발 균주: 계보 → 형질) 다섯. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
   판독은 Ct 곡선/튜브 색 변화/전기영동 중 하나). S의 나레이션은 장면별 한 줄 `signature.narration`(CONTENT_SPEC). 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
 - **도면 분석**(장치·시스템 특허, `references/FIGURE_ANALYSIS.md`): 흑백 선 도면은 빌드 때 자동으로 선을 뽑아 펜으로 그리듯 그려진다(`figtrace.py`).
   부품 표식을 위해 `python -I tools/figmap.py data/content/<파일>.json`으로 "부호의 설명" 대조표와 10×10 격자 도면을 만들고
