@@ -9,6 +9,7 @@ The voice is 선희 (ko-KR-SunHiNeural) unless --voice says otherwise. A line th
 (natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
 Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-SunHiNeural]
+       python -I tools/narration.py --check data/content/<file>.json [...]   (template S: dry run, flags lines sped past +6 % or cut)
 """
 import hashlib
 import json
@@ -225,8 +226,44 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
     return report
 
 
+def check(paths, voice=VOICE, lead=0.45, tail=0.55):
+    """Dry run for template S contents (no build needed): voice each scene line and report the ones that would be sped up
+    past +6 % or cut. Fills the voice cache, so the later render reuses the clips. Returns the number of cut lines."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import build_sig
+    cut = 0
+    for p in paths:
+        c = json.load(open(p, encoding="utf-8"))
+        if not c.get("signature"):
+            print(os.path.basename(p), "- no signature (S only)")
+            continue
+        slots, _ = build_sig.slots_for(c)
+        texts = sig_script(c)
+        for i, (sid, f, st, du) in enumerate(slots):
+            key = scene_key(f + ".html")  # slots name the composition without its extension
+            if key not in texts:
+                continue
+            nxt = slots[i + 1][2] if i + 1 < len(slots) else st + du
+            start = st + (0.6 if st == 0 else lead)
+            avail = max(1.0, nxt + 0.25 - start - tail)
+            got = fit(texts[key], avail, voice)
+            if not got:
+                print(f"{os.path.basename(p)[:3]} {key:9s} NO FIT in {avail:.1f}s")
+                cut += 1
+                continue
+            t, _, dur, rate = got
+            shortened = t != texts[key]
+            cut += shortened
+            flag = "  <-- cut: shorten the line" if shortened else ("  <-- sped up " + rate if rate not in ("+0%", "+6%") else "")
+            print(f"{os.path.basename(p)[:3]} {key:9s} {dur:4.1f}/{avail:4.1f}s {rate}{flag}")
+    return cut
+
+
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     a = sys.argv[1:]
     v = a[a.index("--voice") + 1] if "--voice" in a else VOICE
+    if a and a[0] == "--check":  # python -I tools/narration.py --check data/content/<file>.json [...]
+        sys.exit(1 if check([x for x in a[1:] if x.endswith(".json")], v) else 0)
     for line in narrate(a[0], json.load(open(a[1], encoding="utf-8")), v):
         print(line)

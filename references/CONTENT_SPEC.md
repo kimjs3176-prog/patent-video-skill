@@ -166,6 +166,7 @@
   - sequence: teaser 6 · problem 6 · primers 2.6+1.9×프라이머 수(12~16) · (probe 9, 있을 때) · result 9.5 / tubes 8.5 / gel 9.5 · (features 7, 프로브가 없을 때) · apps 6.5
 - `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel ·
   proof · features · apps 중 그 영상에 있는 것). 장면 길이(초) × 약 6음절 이내(예: journey 18.8초 → 100음절, teaser 6초 → 28음절).
+  6음절은 상한이다. 표지(teaser)·짧은 장면은 5음절 안쪽으로 쓰고, `python -I tools/narration.py --check <파일>`로 확인한다.
   숫자·단위는 읽히는 대로(“100에서 105도”, “퍼센트”). 없으면 시그니처 데이터로 자동 대본.
 - 모식도인 부분(부위 배치, 물방울 경로)은 화면에 "모식"이라고 표기된다. 곡선은 Ct 값에서 문턱선을 지나도록 그린다.
 

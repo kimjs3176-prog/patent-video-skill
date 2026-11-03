@@ -97,6 +97,8 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
   부품 표식을 위해 `python -I tools/figmap.py data/content/<파일>.json`으로 "부호의 설명" 대조표와 10×10 격자 도면을 만들고
   (아직 도면을 정하지 않았으면 모든 도면의 격자를, `--figure <파일>`로 특정 도면을, 시그니처의 두 번째 도면도 함께 만든다),
   격자 도면을 Read로 보며 `proof.parts[].x/y`(장치 시그니처는 `callouts`)를 찍는다. 확신이 없는 부품은 비워 둔다.
+- 시그니처 나레이션은 쓴 뒤 `python -I tools/narration.py --check data/content/<파일>.json`으로 미리 읽혀 본다(빌드 없이 장면 길이에 맞춰 음성 생성,
+  음성 캐시에 남아 렌더 때 다시 쓴다). "sped up"(+12% 이상)이나 "cut" 표시가 나온 줄은 짧게 고친다. 잘린 줄이 있으면 실패 코드(1)로 끝난다.
 - 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다(시그니처 구조 검사 포함: 단계 그림이 모두 같거나,
   흐르는 매질이 없거나, 도면 좌표가 0~1 밖이거나, 서열이 염기가 아니면 오류).
 - 여러 건이면 `python -I tools/sigcheck.py data/content/*.json`으로 영상끼리 구성이 겹치지 않는지 본다. "같은 구성으로 보일 수 있음" 묶음은
