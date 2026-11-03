@@ -106,7 +106,8 @@ def em_width(text):
 
 
 def fit(text, max_px, width, k=None):
-    return int(min(max_px, width / em_width(text)))
+    w = em_width(text)
+    return int(max_px if w <= 0 else min(max_px, width / w))
 
 
 def gtext(s):
@@ -164,7 +165,9 @@ def s1(c, pal):
 
 
 def s2(c, pal):
+    from visuals import cover_figure
     a, b, cc = pal
+    cover = cover_figure(c, 540)
     chips = c["chips"][:4]
     pos = [(110, 200, "L"), (1430, 200, "R"), (110, 600, "L"), (1430, 600, "R")]
     lines, chip_html = [], []
@@ -199,7 +202,7 @@ def s2(c, pal):
       {grad_defs("s2-lg", pal)}
       <div class="glow" id="s2-glow" data-layout-ignore></div>
       <div id="s2-ring" data-layout-ignore></div>
-      <div id="s2-hero" data-layout-ignore>{icon(c["hero"], 420, "url(#s2-lg)", 3)}</div>
+      <div id="s2-hero" data-layout-ignore{' style="left: 690px; top: 240px"' if cover else ""}>{cover or icon(c["hero"], 420, "url(#s2-lg)", 3)}</div>
       <svg id="s2-lines" width="1920" height="1080" viewBox="0 0 1920 1080" data-layout-ignore>{"".join(lines)}</svg>
       {"".join(chip_html)}
       <div id="s2-title">{gtext(c["headline"])}</div>
@@ -216,7 +219,7 @@ def s2(c, pal):
     ORDER.forEach((n, i) => {{
       const t = 1.7 + i * 0.4;
       tl.fromTo("#s2-l" + n, {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 0.5, ease: "power2.out" }}, t);
-      tl.fromTo("#s2-c" + n, {{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.6, ease: "back.out(1.4)" }}, t + 0.1);
+      tl.fromTo("#s2-c" + n, {{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.6, ease: "expo.out" }}, t + 0.1);
     }});
     tl.fromTo("#s2-title", {{ opacity: 0, filter: "blur(14px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 3.6);
     window.__timelines["s2"] = tl;
@@ -235,17 +238,21 @@ def s3(c, pal):
     rows = []
     from visuals import step_icon
     for i, st in enumerate(steps):
-        rows.append(f'<div class="s3-row" id="s3-r{i}" style="top: {i * row_h}px"><span class="n">{icon(step_icon(st["n"], c["hero"]), 44, "url(#s3-lg)", 6)}{E(st["n"])}</span>'
+        rows.append(f'<div class="s3-row" id="s3-r{i}" style="top: {i * row_h}px"><span class="n">{icon(step_icon(st["n"], "flow"), 44, "url(#s3-lg)", 6)}{E(st["n"])}</span>'
                     f'<span class="d">{E(st["d"])}</span></div>')
     bigs = []
     for i, st in enumerate(steps):
         txt = st["big"] + st.get("u", "")
         size = fit(txt, 170, 400)
-        bigs.append(f'<div class="s3-big" id="s3-b{i}"><div class="v grad" style="font-size: {size}px">{E(st["big"])}<small style="font-size: {max(40, size // 2)}px">{E(st.get("u", ""))}</small></div>'
+        val = (f'{E(st["big"])}<small style="font-size: {max(40, size // 2)}px">{E(st.get("u", ""))}</small>' if st["big"]
+               else f'<span style="display: inline-block; margin-top: -30px">{icon(step_icon(st["n"], "flow"), 150, "url(#s3-lg)", 4)}</span>')
+        bigs.append(f'<div class="s3-big" id="s3-b{i}"><div class="v grad" style="font-size: {size}px">{val}</div>'
                     f'<div class="k">STEP {i + 1:02d}</div></div>')
     r = 230
     circ = 2 * 3.14159 * r
     T = [0.9 + i * ((DUR["s3"] - 2.8) / n) for i in range(n)]
+    from visuals import temp_profile
+    prof_html, prof_js = temp_profile("s3", steps, [960 + 840 * (i + 0.5) / n for i in range(n)], 880, 100, T, b, rgba(b, 0.4))
     return head("s3", pal) + f"""
     #s3-glow {{ left: -50px; top: 40px; background: radial-gradient(circle, {rgba(b, 0.34)} 0%, {rgba(cc, 0.12)} 42%, rgba(0,0,0,0) 66%); }}
     #s3-eyebrow {{ left: 140px; top: 96px; }}
@@ -277,6 +284,7 @@ def s3(c, pal):
       {"".join(bigs)}
       <div id="s3-list"><div id="s3-sel"></div>{"".join(rows)}</div>
       <div id="s3-note">{E(p.get("note", ""))}</div>
+      {prof_html}
     </div>
   </div>
   <script>
@@ -290,6 +298,7 @@ def s3(c, pal):
     tl.fromTo(".s3-row", {{ opacity: 0, x: 30 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.06 }}, 0.4);
     tl.fromTo("#s3-sel", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5, ease: "expo.out" }}, T[0]);
     tl.fromTo("#s3-dial", {{ opacity: 0, scale: 0.9 }}, {{ opacity: 1, scale: 1, duration: 0.8, ease: "expo.out" }}, 0.4);
+{chr(10).join(prof_js)}
     gsap.set(".s3-big", {{ opacity: 0 }});
     T.forEach((t, i) => {{
       if (i > 0) {{
@@ -342,7 +351,7 @@ def s4_stats(c, pal):
                     bar_js.append(f'tl.fromTo("#s4-b{i}-{j}", {{ boxShadow: "0 0 0px {b}" }}, {{ boxShadow: "0 0 24px {b}", duration: 0.35, ease: "power2.out", yoyo: true, repeat: 1 }}, {tb + 0.8:.2f});')
             groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: {top}px">{"".join(rows)}</div>')
         else:
-            groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: 440px">{icon(it.get("icon") or topic_icon(it["l"], c["hero"]), 260, "url(#s4-lg)", 3, f"class=s4-icon id=s4-ic{i}")}</div>')
+            groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: 440px">{icon(it.get("icon") or topic_icon(it["l"], "chart"), 260, "url(#s4-lg)", 3, f"class=s4-icon id=s4-ic{i}")}</div>')
     swap = []
     for i in range(k):
         if i > 0:
@@ -476,7 +485,7 @@ def s5(c, pal):
       {grad_defs("s5-lg", pal)}
       <div id="s5-eyebrow" class="eyebrow">HIGHLIGHTS</div>
       <div id="s5-head">{gtext(f.get("title", "핵심 |특장점"))}</div>
-      <div class="s5-tile glass" id="s5-big">{icon(topic_icon(big["l"] + " " + big["s"], c["hero"]), 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
+      <div class="s5-tile glass" id="s5-big">{icon(topic_icon(big["l"] + " " + big["s"], "flow"), 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
       {"".join(th)}
     </div>
   </div>
@@ -509,7 +518,7 @@ def sf(c, pal):
         steps = c["process"]["steps"][:5]
         boxes = fig_boxes(len(steps), 140, 300, 1640, 640, 28)
         cells = "".join(f'<div class="sf-c" id="sf-c{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="pl dark">{icon(step_icon(st["n"], c["hero"]), min(220, w * 0.55), "url(#sf-lg)", 3)}</div>'
+                        f'<div class="pl dark">{icon(step_icon(st["n"], "flow"), min(220, w * 0.55), "url(#sf-lg)", 3)}</div>'
                         f'<div class="cp"><b class="grad">0{i + 1}</b> {E(st["n"])}</div></div>'
                         for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
     k = len(boxes)
@@ -594,7 +603,7 @@ def s6(c, pal):
     tl.to("#s6-in", {{ scale: 1.03, duration: {DUR["s6"] - 0.7}, ease: "none" }}, 0.7);
     for (let i = 0; i < {n}; i++) {{
       const t = 0.8 + i * 0.45;
-      tl.fromTo("#s6-t" + i, {{ opacity: 0, y: 40, scale: 0.94 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.4)" }}, t);
+      tl.fromTo("#s6-t" + i, {{ opacity: 0, y: 40, scale: 0.94 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "expo.out" }}, t);
       tl.fromTo("#s6-t" + i + " .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 0.8, ease: "power2.out", stagger: 0.08 }}, t + 0.25);
     }}
     window.__timelines["s6"] = tl;
@@ -645,7 +654,7 @@ def s7(c, pal):
     tl.fromTo("#s7-name", {{ opacity: 0, scale: 1.15, filter: "blur(24px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: "expo.out" }}, 0.7);
     tl.fromTo("#s7-sub", {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 1.2);
     tl.to("#s7-in", {{ opacity: 0, duration: 0.8, ease: "power2.in" }}, {DUR["s7"] - 0.9});  // fade out with the music
-    tl.fromTo("#s7-card", {{ opacity: 0, scale: 0.92 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.4)" }}, 1.7);
+    tl.fromTo("#s7-card", {{ opacity: 0, scale: 0.92 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }}, 1.7);
     tl.fromTo(".s7-row", {{ opacity: 0, x: -20 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, 2.0);
     tl.fromTo("#s7-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.6);
     tl.fromTo("#s7-disc", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.9);
@@ -696,7 +705,8 @@ def index(c):
 
 
 def build(path):
-    c = json.load(open(path, encoding="utf-8"))
+    from visuals import clean_steps  # visuals imports build, so not at module level
+    c = clean_steps(json.load(open(path, encoding="utf-8")))
     pal = PALETTES.get(c.get("palette", "blue"), PALETTES["blue"])
     slug = f'{int(c["order"]):03d}-{c["appno"]}'
     out = os.path.join(ROOT, "videos", slug)

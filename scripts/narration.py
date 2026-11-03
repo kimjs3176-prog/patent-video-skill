@@ -195,7 +195,8 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
         if sec not in texts:
             continue
         nxt = slots[i + 1][2] if i + 1 < len(slots) else st + du
-        avail = max(1.0, nxt + 0.25 - st - lead - tail)  # may run into the cross-fade, never past it
+        start = st + (0.6 if st == 0 else lead)
+        avail = max(1.0, nxt + 0.25 - start - tail)  # may run into the cross-fade, never past it
         got = fit(texts[sec], avail, voice)
         if not got:
             report.append(f"{sid}: no fit ({avail:.1f}s)")
@@ -204,7 +205,6 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
         name = f"{sid}.mp3"
         with open(mp3, "rb") as a, open(os.path.join(vdir, name), "wb") as b:
             b.write(a.read())
-        start = st + (0.6 if st == 0 else lead)
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
         report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == texts[sec] else ' (shortened)'}: {t}")

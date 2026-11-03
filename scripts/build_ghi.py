@@ -17,7 +17,7 @@ import build_def  # noqa: E402
 from build import CONTACT, DISCLAIMER, E, fit, rgba  # noqa: E402
 from build_def import count, darken, grad_text, plain, pop, scene, up  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon  # noqa: E402
+from visuals import bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon, clean_steps  # noqa: E402
 
 
 def oneline(s):
@@ -151,7 +151,7 @@ def g3(c, pal, d):
     for i, st in enumerate(steps):
         x = 120 + i * cw
         cols += (f'<div class="col" id="g3-c{i}" style="left: {x:.0f}px; width: {cw:.0f}px">'
-                 f'<div class="ix ar">0{i + 1}</div><div class="pg">{icon(step_icon(st["n"], c["hero"]), 84, "#0e0e0e", 4)}</div>'
+                 f'<div class="ix ar">0{i + 1}</div><div class="pg">{icon(step_icon(st["n"], "flow"), 84, "#0e0e0e", 4)}</div>'
                  f'<div class="bg ar" style="font-size: {fit(st["big"] + st.get("u", ""), 76, cw - 56)}px">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div>'
                  f'<div class="nm" style="font-size: {fit(st["n"], 38, cw - 56)}px">{E(st["n"])}</div><div class="ds">{E(st["d"])}</div></div>')
     grid, gjs = g_grid("g3", (120,))
@@ -237,11 +237,11 @@ def g4(c, pal, d):
                      f'<div style="position: absolute; left: 0; right: 0; top: 0; height: 560px">{vis}</div>'
                      f'<div style="position: absolute; left: 0; right: 0; top: 560px; height: 3px; background: #0e0e0e"></div></div>')
             for j, br in enumerate(bars):
-                js.append(f'    tl.fromTo("#g4-b{i}-{j}", {{ scaleY: 0 }}, {{ scaleY: 1, duration: 1.2, ease: "expo.out" }}, {T[i] + 0.7 + j * 0.18:.2f});')
+                js.append(f'    tl.fromTo("#g4-b{i}-{j}", {{ scaleY: 0 }}, {{ scaleY: 1, duration: 1.2, ease: "expo.out" }}, {bar_at(T[i] + 0.7, j, bars):.2f});')
                 js.append(f'    tl.fromTo("#g4-v{i}-{j}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, {T[i] + 1.3 + j * 0.18:.2f});')
         else:
             right = (f'<div style="position: absolute; left: 1120px; top: 240px; width: 560px; height: 560px; border: 2px solid #0e0e0e; display: flex; align-items: center; justify-content: center">'
-                     f'<div style="position: absolute; right: -2px; top: -2px; width: 90px; height: 90px; background: {RED}"></div>{icon(it.get("icon", c["hero"]), 320, "#0e0e0e", 3)}</div>')
+                     f'<div style="position: absolute; right: -2px; top: -2px; width: 90px; height: 90px; background: {RED}"></div>{icon(it.get("icon") or step_icon(it["l"], "chart"), 320, "#0e0e0e", 3)}</div>')
             js.append(draw(f"#g4-k{i} .ic", T[i] + 0.4))
         blocks += f"""
       <div class="blk" id="g4-k{i}">
@@ -277,7 +277,7 @@ def gf(c, pal, d):
         steps = c["process"]["steps"][:6]
         boxes = fig_boxes(len(steps), 120, 340, 1680, 560)
         cells = "".join(f'<div class="fr" id="gf-f{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], c["hero"]), min(220, w * 0.6), "#0e0e0e", 3)}</div>'
+                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], "flow"), min(220, w * 0.6), "#0e0e0e", 3)}</div>'
                         f'<div class="cp"><b class="ar">0{i + 1}</b>{E(st["n"])}</div></div>' for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
         js = gjs + [up("#gf-l", 0.3), up("#gf-t", 0.45), up(".fr", 0.8, 0.25, 0.8, 30), draw(".fr .ic", 1.0, 1.4, 0.04)]
         return scene("gf", 1920, 1080, css, grid + head + cells + g_foot("gf", c, 5, "도면"), "\n".join(js), "paper")
@@ -453,10 +453,10 @@ def h1(c, pal, d):
     js = [pop("#h1-card", 0.1), up("#h1-e", 0.4), up("#h1-i", 0.55),
           '    tl.fromTo("#h1-t", { opacity: 0.3, y: 30 }, { opacity: 1, y: 0, duration: 1.1, ease: "expo.out" }, 0.3);',
           up("#h1-s", 1.4), particle_text("#h1-n", 1.6, 2.6, core),
-          '    tl.fromTo("#h1-core", { scale: 0 }, { scale: 1, duration: 1.0, ease: "back.out(1.6)" }, 0.5);',
+          '    tl.fromTo("#h1-core", { scale: 0 }, { scale: 1, duration: 1.0, ease: "expo.out" }, 0.5);',
           draw(".lk", 0.9, 1.0, 0.07),
           '    tl.fromTo("#h1-ring", { opacity: 0, scale: 0.8, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 1.4, ease: "expo.out" }, 0.8);',
-          '    tl.fromTo(".nd", { scale: 0 }, { scale: 1, duration: 0.6, ease: "back.out(2)", stagger: 0.07 }, 1.5);',
+          '    tl.fromTo(".nd", { scale: 0 }, { scale: 1, duration: 0.6, ease: "back.out(1.7)", stagger: 0.07 }, 1.5);',
           '    tl.to(".nd", { y: -10, duration: 1.6, ease: "sine.inOut", yoyo: true, repeat: 3, stagger: 0.15 }, 2.3);',
           '    tl.to("#h1-core", { scale: 1.06, duration: 2, ease: "sine.inOut", yoyo: true, repeat: 2 }, 2.5);',
           up(".cp", 2.6, 0.15, 0.7, 24)]
@@ -480,7 +480,7 @@ def h2(c, pal, d):
         t = (i + 0.5) / n
         x, y = x0 + (x1 - x0) * t, wy(t)
         last = i == n - 1
-        nodes += (f'<div class="wn" id="h2-n{i}" style="left: {x - 48:.0f}px; top: {y - 48:.0f}px; border-color: {core if last else node}">{icon(step_icon(st["n"], c["hero"]), 56, ct, 5)}</div>'
+        nodes += (f'<div class="wn" id="h2-n{i}" style="left: {x - 48:.0f}px; top: {y - 48:.0f}px; border-color: {core if last else node}">{icon(step_icon(st["n"], "flow"), 56, ct, 5)}</div>'
                   f'<div class="wv mr" id="h2-v{i}" style="left: {x - span / 2:.0f}px; width: {span:.0f}px; top: {y - 150:.0f}px; font-size: {fit(st["big"] + st.get("u", ""), 46, span - 30)}px">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div>')
         cards += (f'<div class="wc card" id="h2-c{i}" style="left: {x - cw / 2:.0f}px; width: {cw:.0f}px; top: 640px">'
                   f'<div class="ix mr">STEP 0{i + 1}</div><b style="font-size: {fit(st["n"], 36, cw - 48)}px">{E(st["n"])}</b><span>{E(st["d"])}</span></div>')
@@ -512,7 +512,7 @@ def h2(c, pal, d):
           f'el.style.transform = "translate(" + (P[k][0] + (P[k + 1][0] - P[k][0]) * r) + "px," + (P[k][1] + (P[k + 1][1] - P[k][1]) * r) + "px)"; }}; '
           f'put(); tl.to(o, {{ t: 1, duration: {D}, ease: "none", onUpdate: put }}, 1.0); }})();']
     for i, t in enumerate(T):
-        js += [f'    tl.fromTo("#h2-n{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.6, ease: "back.out(2)" }}, {t - 0.15:.2f});',
+        js += [f'    tl.fromTo("#h2-n{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.6, ease: "back.out(1.7)" }}, {t - 0.15:.2f});',
                draw(f"#h2-n{i} .ic", t, 1.0, 0.05), up(f"#h2-v{i}", t, 0, 0.7, 20), up(f"#h2-c{i}", t + 0.1, 0, 0.8, 30)]
     return hscene("h2", c, d, css, body, "\n".join(js))
 
@@ -561,11 +561,11 @@ def h3(c, pal, d):
             rows = "".join(f'<div class="hb{" hi" if br.get("hi") else ""}"><div class="nm"><span>{E(br["l"])}</span><b>{E(br.get("t", ""))}</b></div>'
                            f'<div class="tr"><i id="h3-f{i}-{j}"></i></div></div>' for j, br in enumerate(bars))
             right = f'<div class="card" style="position: absolute; left: 1000px; top: 220px; width: 800px; padding: 60px 60px 16px">{rows}</div>'
-            js += [f'    tl.fromTo("#h3-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.02, min(1, br["v"] / mx)):.4f}, duration: 1.5, ease: "expo.out" }}, {T[i] + 0.8 + j * 0.2:.2f});'
+            js += [f'    tl.fromTo("#h3-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.02, min(1, br["v"] / mx)):.4f}, duration: 1.5, ease: "expo.out" }}, {bar_at(T[i] + 0.8, j, bars):.2f});'
                    for j, br in enumerate(bars)]
         else:
             right = (f'<div style="position: absolute; left: 1100px; top: 210px; width: 600px; height: 600px; border-radius: 50%; background: {rgba(node, 0.16)}; display: flex; align-items: center; justify-content: center">'
-                     f'<div class="card" style="width: 400px; height: 400px; border-radius: 50%; display: flex; align-items: center; justify-content: center">{icon(it.get("icon", c["hero"]), 220, ct, 4)}</div></div>')
+                     f'<div class="card" style="width: 400px; height: 400px; border-radius: 50%; display: flex; align-items: center; justify-content: center">{icon(it.get("icon") or step_icon(it["l"], "chart"), 220, ct, 4)}</div></div>')
             js.append(draw(f"#h3-k{i} .ic", T[i] + 0.4))
         blocks += f"""
       <div class="blk" id="h3-k{i}">
@@ -593,7 +593,7 @@ def hf(c, pal, d):
     .fc2 img { width: 100%; height: 100%; object-fit: contain; }
     .fc2 .cp { position: absolute; left: 28px; right: 28px; bottom: 18px; font-size: 28px; font-weight: 600; color: #6c675d; white-space: nowrap; }"""
     if not figs:
-        items = [(step_icon(st["n"], c["hero"]), st["n"]) for st in c["process"]["steps"][:5]]
+        items = [(step_icon(st["n"], "flow"), st["n"]) for st in c["process"]["steps"][:5]]
     else:
         items = None
     k = len(figs) if figs else len(items)
@@ -612,7 +612,7 @@ def hf(c, pal, d):
             inner = (f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(items[i][0], min(200, w * 0.45), ct, 4)}</div>'
                      f'<div class="cp"><b class="ct mr">0{i + 1}</b>&nbsp; {E(items[i][1])}</div>')
         cards += f'<div class="fc2 card" id="hf-c{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w}px; height: {h}px; z-index: {i + 1}">{inner}</div>'
-        js.append(f'    tl.fromTo("#hf-c{i}", {{ opacity: 0, y: 260, rotation: 0 }}, {{ opacity: 1, y: 0, rotation: {rots[i]}, duration: 1.0, ease: "back.out(1.3)" }}, {0.7 + i * 0.22:.2f});')
+        js.append(f'    tl.fromTo("#hf-c{i}", {{ opacity: 0, y: 260, rotation: 0 }}, {{ opacity: 1, y: 0, rotation: {rots[i]}, duration: 1.0, ease: "expo.out" }}, {0.7 + i * 0.22:.2f});')
     js.append(f'    tl.fromTo(".fc2 img", {{ scale: 1.1 }}, {{ scale: 1, duration: {d - 0.8:.1f}, ease: "power1.out" }}, 0.7);')
     if not figs:
         js.append(draw(".fc2 .ic", 1.0, 1.3, 0.03))
@@ -644,7 +644,7 @@ def h4(c, pal, d):
     .fc h5 {{ font-size: 34px; font-weight: 800; margin-top: 20px; white-space: nowrap; }}
     .fc span {{ display: block; font-size: 28px; color: #6c675d; margin-top: 8px; white-space: nowrap; }}"""
     js = "\n".join([up("#h4-e", 0.25), up("#h4-t", 0.4), up(".fc", 0.9, 0.18, 0.9, 40),
-                    '    tl.fromTo(".fc i", { scale: 0 }, { scale: 1, duration: 0.5, ease: "back.out(2)", stagger: 0.18 }, 1.3);',
+                    '    tl.fromTo(".fc i", { scale: 0 }, { scale: 1, duration: 0.5, ease: "back.out(1.7)", stagger: 0.18 }, 1.3);',
                     '    tl.to(".fc", { y: -8, duration: 1.8, ease: "sine.inOut", yoyo: true, repeat: 2, stagger: 0.2 }, 2.4);'])
     return hscene("h4", c, d, css, body, js)
 
@@ -678,7 +678,7 @@ def h5(c, pal, d):
     .an span {{ display: block; margin-top: 4px; font-size: 28px; color: #6c675d; white-space: nowrap; }}
     .an em {{ display: inline-block; margin-top: 8px; font-style: normal; font-size: 28px; font-weight: 700; color: {ct}; }}"""
     js = [up("#h5-e", 0.25), up("#h5-t", 0.4),
-          '    tl.fromTo("#h5-core", { scale: 0 }, { scale: 1, duration: 1.0, ease: "back.out(1.6)" }, 0.4);', up("#h5-name", 0.9),
+          '    tl.fromTo("#h5-core", { scale: 0 }, { scale: 1, duration: 1.0, ease: "expo.out" }, 0.4);', up("#h5-name", 0.9),
           draw(".lk", 0.9, 0.9, 0.15),
           '    tl.fromTo(".an", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.7)", stagger: 0.18 }, 1.4);',
           draw(".ab .ic", 1.6, 1.0, 0.03),
@@ -756,7 +756,7 @@ def i1(c, pal, d):
     figs = pick_figures(c, 4)
     plate = (f'<img src="assets/fig/{E(figs[0]["file"])}" alt="대표 도면" style="position: absolute; inset: 24px; width: 490px; height: 610px; object-fit: contain" />'
              if figs else icon(c["hero"], 360, "#121212", 2.6))
-    capt = f"{E(c['sub'])} — 명세서 대표 도면 ({figs[0]['page']}쪽)" if figs else f"{E(c['sub'])} 개념도"
+    capt = f"{E(c['sub'])} — 명세서 대표 도면 ({figs[0]['page']}쪽)" if figs else f"{E(c['sub'])}"
     body = f"""{fr}
       <div style="position: absolute; left: 120px; top: 170px; width: 1020px">
         <div class="kick" id="i1-k">AGRI-TECH · {E(c["institute"])}</div>
@@ -784,8 +784,8 @@ def i2(c, pal, d):
     steps = c["process"]["steps"][:6]
     n = len(steps)
     rh = min(110, 560 / n)
-    rows = "".join(f'<div class="tr" id="i2-r{i}" style="height: {rh:.0f}px"><span class="no serif">{i + 1}</span><span class="pg">{icon(step_icon(st["n"], c["hero"]), min(64, rh - 30), "#121212", 5)}</span><b>{E(st["n"])}</b>'
-                   f'<span class="cv serif" style="font-size: {fit(st["big"] + st.get("u", ""), 44, 300)}px">{E(st["big"])}<small> {E(st.get("u", ""))}</small></span><span class="ds">{E(st["d"])}</span></div>'
+    rows = "".join(f'<div class="tr" id="i2-r{i}" style="height: {rh:.0f}px"><span class="no serif">{i + 1}</span><span class="pg">{icon(step_icon(st["n"], "flow"), min(64, rh - 30), "#121212", 5)}</span><b>{E(st["n"])}</b>'
+                   f'<span class="cv serif" style="font-size: {fit(st["big"] + st.get("u", ""), 44, 300)}px">{E(st["big"]) or "—"}<small> {E(st.get("u", ""))}</small></span><span class="ds">{E(st["d"])}</span></div>'
                    for i, st in enumerate(steps))
     body = f"""{fr}
       <div style="position: absolute; left: 120px; top: 150px; width: 1680px">
@@ -868,7 +868,7 @@ def i3(c, pal, d):
                 rows += (f'<div class="br{" hi" if br.get("hi") else ""}" style="top: {j * 130:.0f}px; width: {W}px"><div class="lb">{E(br["l"])}</div>'
                          f'<div class="fl" id="i3-f{i}-{j}" style="width: {w:.0f}px"></div>'
                          f'<div class="vl mono" id="i3-v{i}-{j}" style="left: {w + 16:.0f}px">{E(br.get("t", ""))}{" ◀ 본 특허" if br.get("hi") else ""}</div></div>')
-                js.append(f'    tl.fromTo("#i3-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 1.3, ease: "expo.out" }}, {T[i] + 0.8 + j * 0.2:.2f});')
+                js.append(f'    tl.fromTo("#i3-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 1.3, ease: "expo.out" }}, {bar_at(T[i] + 0.8, j, bars):.2f});')
                 js.append(f'    tl.fromTo("#i3-v{i}-{j}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, {T[i] + 1.4 + j * 0.2:.2f});')
             right = (f'<div style="position: absolute; left: 1000px; top: 200px; width: 800px">'
                      f'<div style="font-size: 30px; font-weight: 800">{E(it["l"])}</div>'
@@ -876,7 +876,7 @@ def i3(c, pal, d):
                      f'<div style="position: absolute; left: 1290px; top: 400px; width: {W}px; height: {len(bars) * 130 - 10}px">{grid}{rows}</div>')
         else:
             right = (f'<div style="position: absolute; left: 1140px; top: 200px; width: 560px; height: 620px; background: #efeadf; border: 1px solid #d8d3c7; display: flex; align-items: center; justify-content: center">'
-                     f'{icon(it.get("icon", c["hero"]), 300, "#121212", 2.6)}</div>')
+                     f'{icon(it.get("icon") or step_icon(it["l"], "chart"), 300, "#121212", 2.6)}</div>')
             js.append(draw(f"#i3-k{i} .ic", T[i] + 0.4))
         blocks += f"""
       <div class="blk" id="i3-k{i}">
@@ -908,7 +908,7 @@ def i_fig(c, pal, d):
         steps = c["process"]["steps"][:5]
         boxes = [(120 + i * (1680 / len(steps)), 330, 1680 / len(steps) - 24, 520) for i in range(len(steps))]
         plates = "".join(f'<div class="pl" id="if-p{i}" style="left: {x:.0f}px; top: {y}px; width: {w:.0f}px; height: {h}px; display: flex; align-items: center; justify-content: center">'
-                         f'{icon(step_icon(st["n"], c["hero"]), min(220, w * 0.6), "#121212", 3)}</div>'
+                         f'{icon(step_icon(st["n"], "flow"), min(220, w * 0.6), "#121212", 3)}</div>'
                          f'<div class="cap serif" style="left: {x:.0f}px; top: {y + h + 14}px"><b class="acc">{i + 1}.</b> {E(st["n"])}</div>' for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
         js = fjs + [up("#if-k", 0.3), up("#if-t", 0.45), up(".pl", 0.8, 0.2, 0.8, 30), draw(".pl .ic", 1.0, 1.3, 0.03), up(".cap", 1.4, 0.2, 0.6, 14)]
         return iscene("if", css, fr + head + plates + i_foot("if", c), "\n".join(js))
@@ -1010,7 +1010,7 @@ build_def.TEMPLATES.update({
 def build(tpl, path):
     tpl = tpl.upper()
     out = build_def.build(tpl, path)
-    c = json.load(open(path, encoding="utf-8"))
+    c = clean_steps(json.load(open(path, encoding="utf-8")))
     copy_figures(c, out)
     w, h, total, slots, _, _ = build_def.TEMPLATES[tpl]
     core, _, node = h_cols(c)

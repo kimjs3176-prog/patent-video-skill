@@ -35,6 +35,8 @@ ICONS = {
     "factory": _p("M14 104 V54 l24 14 V54 l24 14 V54 l24 14 V24 h14 v80 z") + _p("M28 86 h10 M50 86 h10 M72 86 h10"),
     # cooking pot on a flame with steam (데침·삶기·끓임·튀김); "pot" is a flower pot
     "cookpot": _p("M22 52 h76 M28 52 v30 a10 10 0 0 0 10 10 h44 a10 10 0 0 0 10 -10 v-30 M14 60 h8 M98 60 h8") + _p("M46 108 q-6 -8 0 -14 q6 8 0 14 M60 110 q-7 -10 0 -16 q7 10 0 16 M74 108 q-6 -8 0 -14 q6 8 0 14") + _p("M46 40 q-6 -8 0 -16 M60 36 q-6 -8 0 -16 M74 40 q-6 -8 0 -16"),
+    # neutral process mark (an arrow through a ring) when no pictogram fits the words: never a misleading object
+    "flow": _c(60, 60, 40) + _p("M36 60 h44 M66 46 l14 14 l-14 14"),
     "cup": _p("M24 46 h60 v22 a28 28 0 0 1 -28 28 h-4 a28 28 0 0 1 -28 -28 z") + _p("M84 52 h6 a10 10 0 0 1 0 20 h-8") + _p("M18 106 h80") + _p("M44 16 q-6 8 0 16 M58 12 q-6 8 0 16 M72 16 q-6 8 0 16"),
     "chart": _p("M18 102 h86 M18 102 V18") + _p("M30 86 l22 -22 l16 14 l30 -36") + _p("M84 42 h14 v14"),
     "thermo": _p("M52 74 V22 a8 8 0 0 1 16 0 v52 a18 18 0 1 1 -16 0 z") + _c(60, 90, 8) + _p("M60 82 V40 M76 30 h14 M76 46 h10 M76 62 h14"),

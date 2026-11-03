@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import add_transitions, copy_figures, fig_boxes, pick_figures, step_icon  # noqa: E402
+from visuals import bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
 
 FONT = """    @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-Medium.woff2") format("woff2"); font-weight: 500; }
     @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
@@ -63,7 +63,7 @@ def scene(sid, w, h, css, body, js, bg_cls, enter=True):
   </div>
   <script>
     const tl = gsap.timeline({{ paused: true }});
-    {f'tl.fromTo("#{sid}-in", {{ opacity: 0, filter: "blur(10px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "power2.out" }}, 0);' if enter else ""}
+    {f'tl.fromTo("#{sid}-in", {{ opacity: 0, scale: 1.02 }}, {{ opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" }}, 0);' if enter else ""}
 {js}
     window.__timelines["{sid}"] = tl;
   </script>
@@ -82,17 +82,16 @@ def pop(sel, t, stagger=0.0):
 
 
 def blurin(sel, t, d=1.2):
-    return (f'    tl.fromTo("{sel}", {{ opacity: 0, filter: "blur(24px)", scale: 1.05 }}, '
-            f'{{ opacity: 1, filter: "blur(0px)", scale: 1, duration: {d}, ease: "expo.out" }}, {t:.2f});')
+    return (f'    tl.fromTo("{sel}", {{ opacity: 0, y: 30, scale: 1.03 }}, '
+            f'{{ opacity: 1, y: 0, scale: 1, duration: {min(d, 0.9)}, ease: "expo.out" }}, {t:.2f});')
 
 
 def count(sel_id, big, t, d=1.4):
     np_ = num_parts(big)
     if not np_:
         return ""
-    pre, val, dec, suf = np_
-    return (f'    (() => {{ const el = document.querySelector("#{sel_id}"); const o = {{ v: 0 }}; '
-            f'tl.to(o, {{ v: {val}, duration: {d}, ease: "power2.out", onUpdate: () => {{ el.textContent = "{E(pre)}" + o.v.toFixed({dec}) + "{E(suf)}"; }} }}, {t:.2f}); }})();')
+    from build import count_js
+    return count_js(f"#{sel_id}", big, t, min(d, 1.1), "expo.out")
 
 
 def grad_defs(gid, a, b):
@@ -127,8 +126,9 @@ def d_css(pal):
 
 def d1(c, pal, d):
     a1, a2, a3 = pal
+    cover = cover_figure(c, 540, "40px")
     body = f"""{grad_defs("d1-lg", a1, a3)}
-      <div id="d1-art" style="position: absolute; left: 1180px; top: 190px" data-layout-ignore>{icon(c["hero"], 640, "url(#d1-lg)", 2.2)}</div>
+      <div id="d1-art" style="position: absolute; left: {1250 if cover else 1180}px; top: {250 if cover else 190}px" data-layout-ignore>{cover or icon(c["hero"], 640, "url(#d1-lg)", 2.2)}</div>
       <div style="position: absolute; left: 160px; top: 230px; width: 1060px">
         <div class="eye" id="d1-e">{E(c["institute"])}</div>
         <div class="h" id="d1-t" style="margin-top: 26px; font-size: 112px; color: #fff">{E(c["sub"])}</div>
@@ -139,14 +139,14 @@ def d1(c, pal, d):
     css = d_css(pal) + f"""
     .chip {{ font-size: 28px; font-weight: 600; padding: 14px 26px; border-radius: 30px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #e9f0ea; }}
     .gname {{ color: {a1}; font-family: Outfit, Pretendard; font-weight: 800; letter-spacing: 0.02em; }}"""
-    js = "\n".join(['    tl.fromTo("#d1-art", { opacity: 0.35, filter: "blur(18px)" }, { opacity: 1, filter: "blur(0px)", duration: 1.8, ease: "expo.out" }, 0);', '    tl.fromTo("#d1-art .ic", { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 2.2, ease: "power2.inOut", stagger: 0.12 }, 0.2);',
+    js = "\n".join(['    tl.fromTo("#d1-art", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.2, ease: "expo.out" }, 0);', '    tl.fromTo("#d1-art .ic", { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 2.2, ease: "power2.inOut", stagger: 0.12 }, 0.2);',
                     '    tl.fromTo("#d1-art", { scale: 1.08 }, { scale: 1, duration: 6.5, ease: "none" }, 0);',
                     up("#d1-e", 0.3), '    tl.fromTo("#d1-t", { opacity: 0.35, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 1.2, ease: "expo.out" }, 0.1);', up("#d1-b", 1.6), up("#d1-chips .chip", 2.2, 0.15)])
     return scene("d1", 1920, 1080, css, body, js, "dark", enter=False)
 
 
 def d2(c, pal, d):
-    rows = "".join(f'<div class="row" id="d2-r{i}"><div class="ic" style="width: 72px; height: 72px; border-radius: 22px">{icon(c["hero"], 44, "url(#d2-lg)", 6)}</div>'
+    rows = "".join(f'<div class="row" id="d2-r{i}"><div class="ic" style="width: 72px; height: 72px; border-radius: 22px">{icon(step_icon(ch["k"], "chart"), 44, "url(#d2-lg)", 6)}</div>'
                    f'<div><b>{E(ch["v"])}<em>{E(ch.get("u", ""))}</em></b><small>{E(ch["k"])}</small></div></div>' for i, ch in enumerate(c["chips"][:4]))
     a1, a2, a3 = pal
     body = f"""{grad_defs("d2-lg", darken(a1, 0.3), darken(a3, 0.2))}
@@ -172,7 +172,7 @@ def d3(c, pal, d):
     n = len(steps)
     span = 1640 / n
     nodes = "".join(f'<div class="tn{" k" if i == n - 1 else ""}" id="d3-n{i}" style="left: {span * (i + 0.5):.0f}px; width: {span - 20:.0f}px; margin-left: -{(span - 20) / 2:.0f}px">'
-                    f'<div class="y">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div><div class="dt">{icon(step_icon(st["n"], c["hero"]), 40, "currentColor", 6)}</div>'
+                    f'<div class="y">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div><div class="dt">{icon(step_icon(st["n"], "flow"), 40, "currentColor", 6)}</div>'
                     f'<div class="tt">{E(st["n"])}</div><div class="dd">{E(st["d"])}</div></div>'
                     for i, st in enumerate(steps))
     a1, a2, _ = pal
@@ -194,7 +194,9 @@ def d3(c, pal, d):
     .tn .tt {{ font-size: 34px; font-weight: 700; margin-top: 22px; letter-spacing: -0.03em; color: #fff; }}
     .tn .dd {{ font-size: 28px; color: #a9b8ad; margin-top: 12px; line-height: 1.45; }}"""
     T = [1.0 + i * (6.6 / n) for i in range(n)]
-    js = [up("#d3-e", 0.3), up("#d3-t", 0.45), f'    tl.fromTo("#d3-fill", {{ scaleX: 0 }}, {{ scaleX: 1, duration: {T[-1] - 0.6:.2f}, ease: "none" }}, 0.9);']
+    prof_html, prof_js = temp_profile("d3", steps, [140 + span * (i + 0.5) for i in range(n)], 820, 140, T, a1, "rgba(255,255,255,0.18)", caption="#a9b8ad")
+    body += prof_html
+    js = prof_js + [up("#d3-e", 0.3), up("#d3-t", 0.45), f'    tl.fromTo("#d3-fill", {{ scaleX: 0 }}, {{ scaleX: 1, duration: {T[-1] - 0.6:.2f}, ease: "none" }}, 0.9);']
     js += [up(f"#d3-n{i}", t, 0, 0.8, 30) for i, t in enumerate(T)]
     js += [f'    tl.fromTo("#d3-n{i} .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 0.8, ease: "power2.out", stagger: 0.05 }}, {t + 0.15:.2f});' for i, t in enumerate(T)]
     return scene("d3", 1920, 1080, css, body, "\n".join(js), "dark")
@@ -244,10 +246,10 @@ def d4(c, pal, d):
             rows = "".join(f'<div class="crow{" hi" if br.get("hi") else ""}"><div class="nm">{E(br["l"])}</div><div class="bar"><i id="d4-f{i}-{j}"></i></div><div class="v">{E(br.get("t", ""))}</div></div>'
                            for j, br in enumerate(bars[:4]))
             right = f'<div class="card" style="position: absolute; left: 980px; top: 230px; width: 800px; padding: 44px 50px">{rows}</div>'
-            js += [f'    tl.fromTo("#d4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1.4, ease: "expo.out" }}, {T[i] + 0.8 + j * 0.2:.2f});'
+            js += [f'    tl.fromTo("#d4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1.4, ease: "expo.out" }}, {bar_at(T[i] + 0.8, j, bars):.2f});'
                    for j, br in enumerate(bars[:4])]
         else:
-            right = f'<div class="card" style="position: absolute; left: 1080px; top: 250px; width: 600px; height: 560px; display: flex; align-items: center; justify-content: center">{icon(it.get("icon", c["hero"]), 320, "url(#d4-lg)", 3)}</div>'
+            right = f'<div class="card" style="position: absolute; left: 1080px; top: 250px; width: 600px; height: 560px; display: flex; align-items: center; justify-content: center">{icon(it.get("icon") or step_icon(it["l"], "chart"), 320, "url(#d4-lg)", 3)}</div>'
         blocks += f"""
       <div class="blk" id="d4-k{i}">
         <div style="position: absolute; left: 160px; top: 230px; width: 760px">
@@ -277,7 +279,7 @@ def df(c, pal, d):
                         for i, (f, (x, y, w, h)) in enumerate(zip(figs, boxes)))
     else:
         cells = "".join(f'<div class="fg card" id="df-c{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], c["hero"]), min(200, w * 0.5), "url(#df-lg)", 3)}</div>'
+                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], "flow"), min(200, w * 0.5), "url(#df-lg)", 3)}</div>'
                         f'<div class="cp"><b>0{i + 1}</b> · {E(st["n"])}</div></div>' for i, (st, (x, y, w, h)) in enumerate(zip(c["process"]["steps"], boxes)))
     body = f"""{grad_defs("df-lg", darken(a1, 0.3), darken(a3, 0.2))}
       <div style="position: absolute; left: 0; right: 0; top: 140px; text-align: center">
@@ -430,7 +432,7 @@ def e3(c, pal, d):
     for i, st in enumerate(steps):
         if i:
             flow += f'<div class="arrow" id="e3-a{i}">›</div>'
-        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(step_icon(st["n"], c["hero"]), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4>{E(st["n"])}</h4>'
+        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(step_icon(st["n"], "flow"), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4>{E(st["n"])}</h4>'
                  f'<div class="v gr" style="font-size: {fit(st["big"] + st.get("u", ""), 46, w - 50)}px">{E(st["big"])}<em>{E(st.get("u", ""))}</em></div><p>{E(st["d"])}</p></div>')
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 120px">
@@ -499,7 +501,7 @@ def e4(c, pal, d):
                 fill = f"linear-gradient(90deg, {a}, {cc})" if br.get("hi") else ("#55565c" if dark else "#c7c7cc")
                 rows += (f'<div class="br"><span>{E(br["l"])}</span><em>{E(br.get("t", ""))}</em><div class="tr" style="background: {track}">'
                          f'<i id="e4-f{i}-{j}" style="background: {fill}"></i></div></div>')
-                js.append(f'    tl.fromTo("#e4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1.3, ease: "expo.out" }}, {T[i] + 1.0 + j * 0.2:.2f});')
+                js.append(f'    tl.fromTo("#e4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1.3, ease: "expo.out" }}, {bar_at(T[i] + 1.0, j, bars):.2f});')
         blocks += f"""
       <div class="blk" id="e4-k{i}" style="background: {bg}; color: {fg}{"; opacity: 0" if i else ""}">
         <div class="eye" style="position: absolute; left: 0; right: 0; top: 110px; color: {a if dark else darken(b, 0.35)}">{E(pr.get("eyebrow", "PERFORMANCE"))}</div>
@@ -529,7 +531,7 @@ def ef(c, pal, d):
     """Apple-style figure stage: one large figure at a time cross-fades in the centre, a thumbnail strip marks the current one."""
     a, b, cc = pal
     figs = pick_figures(c, 4)
-    items = figs or [{"icon": step_icon(st["n"], c["hero"]), "n": st["n"]} for st in c["process"]["steps"][:4]]
+    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:4]]
     k = len(items)
     big, thumbs = "", ""
     for i, it in enumerate(items):
@@ -606,7 +608,7 @@ def e6(c, pal, d):
     for i in range(len(apps)):
         t = 1.0 + i * 0.5
         js.append(f'    tl.fromTo(".nl:nth-of-type({i + 1})", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 0.6, ease: "power2.out" }}, {t:.2f});')
-        js.append(f'    tl.fromTo("#e6-n{i}", {{ opacity: 0, scale: 0.8 }}, {{ opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.6)" }}, {t + 0.35:.2f});')
+        js.append(f'    tl.fromTo("#e6-n{i}", {{ opacity: 0, scale: 0.8 }}, {{ opacity: 1, scale: 1, duration: 0.6, ease: "expo.out" }}, {t + 0.35:.2f});')
     js.append('    tl.to("#e6-in", { scale: 1.025, duration: 6.5, ease: "none" }, 1);')
     return scene("e6", 1920, 1080, css, body, "\n".join(js), "navy")
 
@@ -673,8 +675,8 @@ def f2(c, pal, d):
 def f3(c, pal, d):
     a, b, cc = pal
     steps = c["process"]["steps"][:5]
-    rows = "".join(f'<div class="ck" id="f3-r{i}" style="top: {i * 130}px"><i id="f3-b{i}">{icon(step_icon(st["n"], c["hero"]), 52, "#ffffff", 6)}</i>'
-                   f'<div><b>{E(st["n"])}</b><span>{E(st["big"])}{E(st.get("u", ""))} · {E(st["d"])}</span></div></div>' for i, st in enumerate(steps))
+    rows = "".join(f'<div class="ck" id="f3-r{i}" style="top: {i * 130}px"><i id="f3-b{i}">{icon(step_icon(st["n"], "flow"), 52, "#ffffff", 6)}</i>'
+                   f'<div><b>{E(st["n"])}</b><span>{E(st["big"] + st.get("u", "") + " · ") if st["big"] else ""}{E(st["d"])}</span></div></div>' for i, st in enumerate(steps))
     body = f"""
       <div class="t" id="f3-t" style="top: 260px; font-size: 76px">{grad_text(c["process"]["title"], "acc")}</div>
       <div style="position: absolute; left: 110px; right: 90px; top: 520px; height: 680px">{rows}</div>"""
@@ -718,7 +720,7 @@ def f4(c, pal, d):
         cols = [darken(b, 0.2), darken(cc, 0.15), darken(a, 0.25), "#9aa0a6"]
         for j, br in enumerate(bars[:4]):
             rows += (f'<div class="sr"><span>{E(br["l"])}</span><div class="tr"><i id="f4-f{j}" style="background: {cols[0] if br.get("hi") else "#b8bcc2"}"></i></div><em>{E(br.get("t", ""))}</em></div>')
-            js.append(f'    tl.fromTo("#f4-f{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1, ease: "expo.out" }}, {1.6 + j * 0.2:.2f});')
+            js.append(f'    tl.fromTo("#f4-f{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 1, ease: "expo.out" }}, {bar_at(1.6, j, bars):.2f});')
     big = it["big"]
     body = f"""
       <div class="t" id="f4-t" style="top: 250px; font-size: 72px">{E(it["l"])}</div>
@@ -742,7 +744,7 @@ def ff(c, pal, d):
     """Two spec figures stacked as cards on grey (pictogram cards when the spec has none)."""
     a, b, cc = pal
     figs = pick_figures(c, 2)
-    items = figs or [{"icon": step_icon(st["n"], c["hero"]), "n": st["n"]} for st in c["process"]["steps"][:2]]
+    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:2]]
     cards = ""
     for i, it in enumerate(items):
         top = 430 + i * 440
@@ -858,7 +860,7 @@ def index(c, tpl):
 def build(tpl, path):
     tpl = tpl.upper()
     w, h, total, slots, scenes, _ = TEMPLATES[tpl]
-    c = json.load(open(path, encoding="utf-8"))
+    c = clean_steps(json.load(open(path, encoding="utf-8")))
     pal = PALETTES.get(c.get("palette", "blue"), PALETTES["blue"])
     slug = f'{int(c["order"]):03d}-{c["appno"]}'
     out = os.path.join(ROOT, "videos_" + tpl.lower(), slug)
@@ -877,7 +879,7 @@ def build(tpl, path):
         open(os.path.join(out, "compositions", f + ".html"), "w", encoding="utf-8").write(scenes[f](c, pal, du))
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(index(c, tpl))
     copy_figures(c, out)
-    if tpl in ("D", "E"):
+    if tpl in ("D", "E", "F"):  # G/H/I (build_ghi) add their own, with their palette
         add_transitions(out, tpl, slots, total, w, h)
     print(slug, f"built ({tpl})")
     return out

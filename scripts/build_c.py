@@ -12,7 +12,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import copy_figures, pick_figures, step_icon  # noqa: E402
+from build import count_js as build_count  # noqa: E402
+from visuals import bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 DARK, PAPER = "#0d0d12", "#f3efe6"
@@ -134,7 +135,7 @@ def c3(c, pal, d):
         divs.append(f"""
       <div class="beat" id="c3-b{i}" style="background: {bg}; color: {fg}">
         <div class="ghost" data-layout-ignore>{i + 1:02d}</div>
-        <div class="pop" style="position: absolute; right: 72px; top: 250px">{icon(step_icon(st["n"], c["hero"]), 170, fg, 7)}</div>
+        <div class="pop" style="position: absolute; right: 72px; top: 250px">{icon(step_icon(st["n"], "flow"), 170, fg, 7)}</div>
         <div class="k pop" style="top: 300px; font-size: 34px; font-weight: 800; letter-spacing: 0.16em">STEP {i + 1:02d} / {len(steps):02d}</div>
         <div class="k pop" style="top: 370px; font-size: 76px">{E(st["n"])}</div>
         <div class="k pop" style="top: 560px; font-family: Outfit, NotoKR; font-weight: 800; font-size: {fit(big, 300, 940)}px; line-height: 1; white-space: nowrap">{E(st["big"])}<span style="font-size: 0.42em">{E(st.get("u", ""))}</span></div>
@@ -185,7 +186,7 @@ def c4(c, pal, d):
                 track = "rgba(255,255,255,0.16)" if bg == DARK else "rgba(13,13,18,0.12)"
                 rows += (f'<div class="band" style="top: {j * 104}px"><span>{E(br["l"])}</span><em>{E(br.get("t", ""))}</em>'
                          f'<div class="trk" style="background: {track}"><div class="fill" id="c4-f{i}-{j}" style="background: {band_bg}"></div></div></div>')
-                js.append(f'    tl.fromTo("#c4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.12, min(1, br["v"] / mx)):.4f}, duration: 0.6, ease: "expo.out" }}, {T[i] + 0.5 + j * 0.15:.2f});')
+                js.append(f'    tl.fromTo("#c4-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: {max(0.01, min(1, br["v"] / mx)):.4f}, duration: 0.6, ease: "expo.out" }}, {bar_at(T[i] + 0.5, j, bars):.2f});')
         num = re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", it["big"].replace(",", ""))
         divs.append(f"""
       <div class="beat" id="c4-b{i}" style="background: {bg}; color: {fg}">
@@ -197,8 +198,7 @@ def c4(c, pal, d):
         <div style="position: absolute; left: 72px; right: 72px; top: 890px; height: 320px">{rows}</div>
       </div>""")
         if num:
-            dec = len(it["big"].split(".")[1]) if "." in it["big"] else 0
-            count_js.append(f'    (() => {{ const el = document.querySelector("#c4-n{i}"); const o = {{ v: 0 }}; tl.to(o, {{ v: {float(it["big"].replace(",", ""))}, duration: 0.9, ease: "power2.out", onUpdate: () => {{ el.textContent = o.v.toFixed({dec}); }} }}, {T[i] + 0.15:.2f}); }})();')
+            count_js.append(build_count(f"#c4-n{i}", it["big"], T[i] + 0.15, 0.9, "expo.out"))
     extra = f"""    .band {{ position: absolute; left: 0; right: 0; height: 96px; }}
     .band span {{ position: absolute; left: 0; top: 0; font-size: 32px; font-weight: 800; white-space: nowrap; }}
     .band em {{ position: absolute; right: 0; top: 0; font-style: normal; font-size: 32px; font-weight: 900; }}
@@ -215,7 +215,7 @@ def cf(c, pal, d):
     """Spec-figure montage: one figure per beat on alternating fields; without figures, step pictograms instead."""
     fl = fields(pal)
     figs = pick_figures(c, 3)
-    items = figs or [{"icon": step_icon(st["n"], c["hero"]), "n": st["n"]} for st in c["process"]["steps"][:3]]
+    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:3]]
     divs = []
     for i, it in enumerate(items):
         bg = fl[(i + 2) % len(fl)]
@@ -335,7 +335,7 @@ def index(c):
 
 
 def build(path, out_root="videos_c"):
-    c = json.load(open(path, encoding="utf-8"))
+    c = clean_steps(json.load(open(path, encoding="utf-8")))
     pal = PALETTES.get(c.get("palette", "blue"), PALETTES["blue"])
     slug = f'{int(c["order"]):03d}-{c["appno"]}'
     out = os.path.join(ROOT, out_root, slug)
@@ -354,6 +354,7 @@ def build(path, out_root="videos_c"):
         open(os.path.join(out, "compositions", f + ".html"), "w", encoding="utf-8").write(SCENES[f](c, pal, du))
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(index(c))
     copy_figures(c, out)
+    add_transitions(out, "C", SLOTS, round(SLOTS[-1][2] + SLOTS[-1][3], 2), 1080, 1920)  # end fade
     print(slug, "built (C)")
     return out
 
