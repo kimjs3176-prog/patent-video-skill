@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from icons import icon  # noqa: E402
@@ -50,6 +51,10 @@ def head(sid, pal):
     @font-face {{ font-family: "NotoKR"; src: url("assets/fonts/NotoSansKR-VF.ttf") format("truetype"); font-weight: 100 900; }}
     #root {{ position: absolute; inset: 0; overflow: hidden; font-family: "Outfit", "NotoKR", sans-serif; color: #fff; }}
     #{sid}-in {{ position: absolute; inset: 0; background: #000; }}
+    #{sid}-in::before {{ content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image: radial-gradient(circle, rgba(255, 255, 255, 0.075) 1.5px, rgba(255, 255, 255, 0) 2.2px); background-size: 48px 48px; background-position: 24px 12px;
+      -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0) 100%);
+      mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0) 100%); }}
     .grad {{ background: linear-gradient(100deg, {a} 0%, {b} 50%, {c} 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }}
     .glow {{ position: absolute; width: 1100px; height: 1100px; border-radius: 50%; }}
     .eyebrow {{ position: absolute; font-size: 28px; font-weight: 600; letter-spacing: 0.36em; color: #a8a8bc; }}
@@ -120,7 +125,10 @@ def gtext(s):
 
 # ---------------------------------------------------------------- scenes
 def s1(c, pal):
+    from visuals import motes  # visuals imports build, so not at module level
     a, b, cc = pal
+    mt_html, mt_js = motes("s1", rgba(a, 0.85), DUR["s1"], n=22, seed=11)
+    rings = "".join(f'<div class="s1-rg" id="s1-rg{i}" data-layout-ignore></div>' for i in range(3))
     name = c["name"]
     na, nb = (name.split("|", 1) + [""])[:2] if "|" in name else (name, "")
     size = fit(na + nb, 230, 1600)
@@ -137,14 +145,19 @@ def s1(c, pal):
     #s1-name .c {{ display: inline-block; }}
     #s1-sub {{ position: absolute; left: 0; right: 0; top: 660px; text-align: center; font-size: 46px; font-weight: 700; letter-spacing: -0.02em; color: #e6e6f0; }}
     #s1-meta {{ position: absolute; left: 0; right: 0; top: 740px; text-align: center; font-size: 28px; font-weight: 500; color: #8e8ea3; }}
+    .s1-rg {{ position: absolute; left: 560px; top: 70px; width: 800px; height: 800px; border-radius: 50%; border: 2px solid {rgba(b, 0.5)}; opacity: 0; }}
+    #s1-line {{ position: absolute; left: 660px; top: 640px; width: 600px; height: 2px; background: linear-gradient(90deg, {rgba(a, 0)}, {a}, {b}, {rgba(cc, 0)}); }}
   </style>
   <div id="root" data-composition-id="s1" data-width="1920" data-height="1080">
     <div id="s1-in">
       <div class="glow" id="s1-g1" data-layout-ignore></div>
       <div class="glow" id="s1-g2" data-layout-ignore></div>
+      {rings}
+      <div id="s1-motes" data-layout-ignore>{mt_html}</div>
       <div id="s1-ribbon" data-layout-ignore></div>
-      <div id="s1-eyebrow" class="eyebrow">2026 TECH REVEAL</div>
+      <div id="s1-eyebrow" class="eyebrow">{time.strftime("%Y")} TECH REVEAL</div>
       <div id="s1-name" aria-label="{E(na + nb)}">{chars}</div>
+      <div id="s1-line" data-layout-ignore></div>
       <div id="s1-sub">{E(c["sub"])}</div>
       <div id="s1-meta">{E(c["institute"])} · {E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호</div>
     </div>
@@ -158,6 +171,10 @@ def s1(c, pal):
     tl.fromTo("#s1-name .c", {{ opacity: 0, filter: "blur(24px)", scale: 1.25 }}, {{ opacity: 1, filter: "blur(0px)", scale: 1, duration: 0.7, ease: "expo.out", stagger: 0.05 }}, 1.1);
     tl.fromTo("#s1-sub", {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 2.5);
     tl.fromTo("#s1-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 3.2);
+    tl.fromTo(".s1-rg", {{ scale: 0.35, opacity: 0.9 }}, {{ scale: 1.45, opacity: 0, duration: 2.6, ease: "power2.out", stagger: 0.45, immediateRender: false }}, 1.0);
+    tl.fromTo("#s1-line", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 0.9, ease: "expo.inOut" }}, 2.3);
+{chr(10).join(mt_js)}
+    tl.fromTo("#s1-motes", {{ opacity: 0 }}, {{ opacity: 1, duration: 1.4, ease: "power1.out" }}, 0.2);
     window.__timelines["s1"] = tl;
   </script>
 </template>
@@ -335,13 +352,15 @@ def s4_stats(c, pal):
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
             n = len(bars)
-            rh = 104 if n <= 3 else 86
+            rh = 112 if n <= 3 else 86
+            bh = 40 if n <= 3 else 28  # bar thickness
             top = 560 - (n * rh) // 2
-            rows = []
+            rows = [f'<div class="s4-grid" style="top: 38px; height: {(n - 1) * rh + 16 + bh}px" data-layout-ignore></div>']  # under the tracks
             for j, br in enumerate(bars):
                 cls = "s4-row hi" if br.get("hi") else "s4-row"
+                sheen = '<i class="sh"></i>' if br.get("hi") else ""
                 rows.append(f'<div class="{cls}" style="height: {rh}px"><div class="lab">{E(br["l"])}</div><div class="val" id="s4-v{i}-{j}">{E(br.get("t", ""))}</div>'
-                            f'<div class="trk"><div class="bar" id="s4-b{i}-{j}"></div></div></div>')
+                            f'<div class="trk" style="height: {bh}px; border-radius: {bh // 2}px"><div class="bar" id="s4-b{i}-{j}" style="height: {bh}px; border-radius: {bh // 2}px">{sheen}</div></div></div>')
                 # context bars first, quickly; this technology's bar lands last and slower, with a glow on arrival
                 hi = bool(br.get("hi"))
                 tb = T[i] + (0.75 if hi else 0.35 + j * 0.08)
@@ -349,6 +368,7 @@ def s4_stats(c, pal):
                 bar_js.append(f'tl.fromTo("#s4-v{i}-{j}", {{ opacity: 0, x: -12 }}, {{ opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }}, {tb + 0.6:.2f});')
                 if hi:
                     bar_js.append(f'tl.fromTo("#s4-b{i}-{j}", {{ boxShadow: "0 0 0px {b}" }}, {{ boxShadow: "0 0 24px {b}", duration: 0.35, ease: "power2.out", yoyo: true, repeat: 1 }}, {tb + 0.8:.2f});')
+                    bar_js.append(f'tl.fromTo("#s4-b{i}-{j} .sh", {{ xPercent: -120 }}, {{ xPercent: 520, duration: 1.1, ease: "power2.inOut" }}, {tb + 1.0:.2f});')  # parked off the bar until then
             groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: {top}px">{"".join(rows)}</div>')
         else:
             groups.append(f'<div class="s4-bars" id="s4-g{i}" style="top: 440px">{icon(it.get("icon") or topic_icon(it["l"], "chart"), 260, "url(#s4-lg)", 3, f"class=s4-icon id=s4-ic{i}")}</div>')
@@ -374,8 +394,11 @@ def s4_stats(c, pal):
     .s4-row .lab {{ position: absolute; left: 0; top: 0; font-size: 30px; font-weight: 600; color: #b4b4c8; white-space: nowrap; }}
     .s4-row .val {{ position: absolute; right: 0; top: 0; font-size: 30px; font-weight: 700; color: #b4b4c8; }}
     .s4-row .trk {{ position: absolute; left: 0; top: 46px; width: 840px; height: 28px; border-radius: 14px; background: rgba(255,255,255,0.07); }}
-    .s4-row .bar {{ position: absolute; left: 0; top: 0; width: 840px; height: 28px; border-radius: 14px; background: #4a4a5c; transform-origin: 0% 50%; transform: scaleX(0); }}
+    .s4-row .bar {{ position: absolute; left: 0; top: 0; width: 840px; height: 28px; border-radius: 14px; background: linear-gradient(180deg, #5a5a6e, #42424f); transform-origin: 0% 50%; transform: scaleX(0); overflow: hidden; }}
     .s4-row.hi .bar {{ background: linear-gradient(90deg, {a}, {b} 55%, {cc}); }}
+    .s4-row .bar .sh {{ position: absolute; left: 0; top: 0; bottom: 0; width: 20%; background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%); opacity: 0.9; }}
+    .s4-grid {{ position: absolute; left: 0; width: 841px; border-left: 1px solid rgba(255,255,255,0.14);
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,0) 0px, rgba(255,255,255,0) 209px, rgba(255,255,255,0.06) 209px, rgba(255,255,255,0.06) 210px); }}
     .s4-row.hi .lab, .s4-row.hi .val {{ color: #fff; }}
     #s4-src {{ position: absolute; left: 140px; top: 952px; font-size: 28px; font-weight: 500; color: #6e6e82; }}
   </style>
@@ -559,7 +582,7 @@ def sf(c, pal):
     tl.fromTo("#sf-glow", {{ x: -120 }}, {{ x: 120, duration: {d}, ease: "none" }}, 0);
     tl.fromTo(["#sf-eyebrow", "#sf-title"], {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.1 }}, 0.2);
     tl.fromTo(".sf-c", {{ opacity: 0, y: 60, rotationX: 18, transformPerspective: 1400 }}, {{ opacity: 1, y: 0, rotationX: 0, duration: 1.0, ease: "expo.out", stagger: 0.16 }}, 0.5);
-    tl.fromTo(".sf-c img", {{ scale: 1.1 }}, {{ scale: 1, duration: {d - 0.6:.1f}, ease: "power1.out" }}, 0.5);
+    {f'tl.fromTo(".sf-c img", {{ scale: 1.1 }}, {{ scale: 1, duration: {d - 0.6:.1f}, ease: "power1.out" }}, 0.5);' if figs else ""}
     tl.fromTo(".sf-c .ic", {{ strokeDasharray: 1, strokeDashoffset: 1 }}, {{ strokeDashoffset: 0, duration: 1.2, ease: "power2.inOut", stagger: 0.04 }}, 0.9);
 {spots}
     window.__timelines["sf"] = tl;
