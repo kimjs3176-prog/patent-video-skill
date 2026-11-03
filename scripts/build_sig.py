@@ -285,7 +285,10 @@ def j_journey(c, pal, d):
     tick = next((v for v in (5, 10, 20, 25, 50, 100, 200, 250, 500) if (hi_t - lo_t) / v <= 4), 1000)
     guides = "".join(f'<line x1="{x0 - 40}" y1="{ty(v):.0f}" x2="{x1 + 40}" y2="{ty(v):.0f}" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="4 8" />'
                      f'<text x="{x0 - 52}" y="{ty(v) + 9:.0f}" fill="#6e6e82" font-size="26" text-anchor="end">{v:g}</text>'
-                     for v in range(int(math.ceil(lo_t / tick) * tick), int(hi_t) + 1, tick) if yt - 10 <= ty(v) <= yb - 14)
+                     for v in range(int(math.ceil(lo_t / tick) * tick), int(hi_t) + 1, tick) if yt - 10 <= ty(v) <= yb - 14) if len(pts) >= 2 else ""
+    # fewer than two stated temperatures: the stage rail carries the journey alone (no empty temperature axis)
+    temp_cap = ('<div style="position: absolute; right: {r}px; top: {t}px; font-size: 28px; color: #8e8ea3">온도 조건(명세서) ℃</div>'
+                .format(r=1920 - x1 - 40, t=yt - 40) if len(pts) >= 2 else "")
     # area under the pen line, revealed with the pen (its clip rect grows to the dot)
     area = ""
     if len(pts) >= 2:
@@ -319,7 +322,7 @@ def j_journey(c, pal, d):
       <div id="jj-halo" style="position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; border: 3px solid {a}; opacity: 0" data-layout-ignore></div>
       <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
       {labels}
-      <div style="position: absolute; right: {1920 - x1 - 40}px; top: {yt - 40}px; font-size: 28px; color: #8e8ea3">온도 조건(명세서) ℃</div>"""
+      {temp_cap}"""
     css = """    .jc { position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }
     .jc .k { font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }
     .jc .n { font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }

@@ -79,8 +79,7 @@ def _problems(c):
                 errs.append(f"stages[{i}]: 온도 t가 없으면 label(시간·비율 등) 필요")
         if len({s.get("key") for s in st}) < 2:
             errs.append("모든 단계의 그림(key)이 같음: 재료가 바뀌는 모습이 보이지 않음")
-        if sum(1 for s in st if s.get("t")) < 2:
-            errs.append("온도(t)가 있는 단계가 2개 미만: 온도 그래프가 그려지지 않음(명세서 조건 확인)")
+        # fewer than two stated temperatures is fine: the stage rail and each stage's label carry the journey
         if sg.get("removed") and sg["removed"] not in (sg.get("conventional") or []):
             errs.append("removed는 conventional 안의 단계 이름이어야 함")
     elif kind == "loop":
