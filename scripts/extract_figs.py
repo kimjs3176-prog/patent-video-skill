@@ -72,10 +72,11 @@ def extract(appno):
     outdir = os.path.join(ROOT, "data", "patents", appno)
     if not os.path.exists(pdf):
         return []
+    os.makedirs(outdir, exist_ok=True)  # the PDF may have been placed by hand, without kipris.py --pdf
     made = []
     reader = pypdf.PdfReader(pdf)
     for i, page in enumerate(reader.pages):
-        xo = page["/Resources"].get("/XObject")
+        xo = (page.get("/Resources") or {}).get("/XObject")
         if not xo:
             continue
         for name, ref in xo.get_object().items():

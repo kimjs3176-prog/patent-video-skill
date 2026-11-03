@@ -52,8 +52,17 @@ def log(msg):
 
 
 def check_project(out):
-    subprocess.run([NPX, "hyperframes@0.8.207", "check", "--json"], cwd=out, env=ENV, capture_output=True, timeout=600)
-    reports = glob.glob(os.path.join(out, ".hyperframes", "artifacts", "checks", "*.json"))
+    """(error count, warning codes) from `hyperframes check`; a check that did not run counts as an error."""
+    t0 = time.time()
+    try:
+        r = subprocess.run([NPX, "hyperframes@0.8.207", "check", "--json"], cwd=out, env=ENV, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=600)
+    except subprocess.TimeoutExpired:
+        return 1, ["check:timeout"]
+    # only a report written by this run (an older clean report must not pass a project whose check crashed)
+    reports = [p for p in glob.glob(os.path.join(out, ".hyperframes", "artifacts", "checks", "*.json")) if os.path.getmtime(p) >= t0 - 1]
+    if not reports:
+        return 1, [f"check:no-report rc={r.returncode} {(r.stderr or r.stdout or '').strip()[-200:]}"]
     d = json.load(open(max(reports, key=os.path.getmtime), encoding="utf-8"))
     errs = sum(v.get("errorCount", 0) for v in d.values() if isinstance(v, dict) and "ok" in v)
     warns = [f'{k}:{x.get("code")}' for k, v in d.items() if isinstance(v, dict) for x in v.get("findings", []) if x.get("severity") == "warning"]
@@ -89,17 +98,28 @@ def main():
             break
         for path in files:
             done.add((path, os.path.getmtime(path)))
-            one(path, render, want)
+            try:
+                one(path, render, want)
+            except Exception as e:  # one bad content file must not stop the batch
+                log(f"{os.path.basename(path)[:-5]} FAIL {type(e).__name__}: {str(e)[:300]}")
 
 
 def one(path, render, want):
-    order = int(os.path.basename(path).split("-")[0])
+    head = os.path.basename(path).split("-")[0]
+    if not head.isdigit() or "-" not in os.path.basename(path):
+        log(f"{os.path.basename(path)} SKIP file name is not <order>-<appno>.json")
+        return
+    order = int(head)
     if want and order not in want:
         return
     slug = os.path.basename(path)[:-5]
     mp4 = os.path.join(render_dir(), slug + ("" if TEMPLATE == "A" else "_" + TEMPLATE.lower()) + ("_nar" if NARRATE else "") + ".mp4")
     # skip only if the render is newer than its content (edited content gets re-rendered) and has the requested voice
     if render and os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path) and (not NARRATE or rendered_voice(mp4) == VOICE):
+        deliver = os.path.join(ROOT, "patents", slug.split("-", 1)[1])
+        if not (os.path.exists(deliver + ".mp4") and os.path.exists(deliver + ".jpg")):  # an earlier export failed
+            dst, jpg = export(mp4, slug.split("-", 1)[1])
+            log(f"{slug} exported {os.path.relpath(dst, ROOT)} {os.path.relpath(jpg, ROOT)}")
         return
     if TEMPLATE == "S" and "signature" not in json.load(open(path, encoding="utf-8")):
         log(f"{slug} SKIP template S needs a signature block (CONTENT_SPEC: 시그니처 장면)")
@@ -114,7 +134,7 @@ def one(path, render, want):
         try:
             rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE)
             log(f"{slug} narration " + " | ".join(r.split(":")[0] for r in rep))
-        except Exception as e:  # network or TTS failure: keep the video, say why
+        except Exception as e:  # network or TTS failure: skip this video (no silent render), say why
             log(f"{slug} SKIP narration failed: {e}")
             return
     errs, warns = check_project(out)
@@ -125,10 +145,14 @@ def one(path, render, want):
         log(f"{slug} built ok warnings={len(warns)} {sorted(set(warns))[:4]}")
         return
     t = time.time()
-    r = subprocess.run([NPX, "hyperframes@0.8.207", "render", "-q", "delivery", "-o", mp4], cwd=out, env=ENV, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", timeout=1800)
-    ok = r.returncode == 0 and os.path.exists(mp4)
-    log(f"{slug} {'RENDERED' if ok else 'RENDER FAIL'} {time.time() - t:.0f}s warnings={len(warns)}" + ("" if ok else " " + r.stdout[-300:]))
+    try:
+        r = subprocess.run([NPX, "hyperframes@0.8.207", "render", "-q", "delivery", "-o", mp4], cwd=out, env=ENV, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=1800)
+    except subprocess.TimeoutExpired:
+        log(f"{slug} RENDER FAIL timeout after {time.time() - t:.0f}s")
+        return
+    ok = r.returncode == 0 and os.path.exists(mp4) and os.path.getmtime(mp4) >= t - 1
+    log(f"{slug} {'RENDERED' if ok else 'RENDER FAIL'} {time.time() - t:.0f}s warnings={len(warns)}" + ("" if ok else " " + ((r.stderr or "") + (r.stdout or ""))[-300:]))
     if ok:
         if NARRATE:  # remembers the voice of this render (see rendered_voice)
             shutil.copyfile(os.path.join(out, "narration.txt"), mp4[:-4] + ".narration.txt")

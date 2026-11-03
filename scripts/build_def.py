@@ -551,12 +551,12 @@ def ef(c, pal, d):
         <div class="h" id="ef-t" style="margin-top: 12px; font-size: 64px">{'명세서 <span class="gr">도면</span>으로 보는 기술' if figs else '공정 <span class="gr">한눈에</span> 보기'}</div></div>
       <div class="card" id="ef-stage" style="position: absolute; left: 400px; top: 250px; width: 1120px; height: 600px; overflow: hidden">{big}</div>
       <div style="position: absolute; left: 0; right: 0; top: 890px; display: flex; justify-content: center; gap: 22px">{thumbs}</div>"""
-    css = e_css(pal) + f"""
-    .eb {{ position: absolute; inset: 0; opacity: 0; }}
-    .eb img {{ position: absolute; left: 40px; right: 40px; top: 30px; bottom: 80px; width: calc(100% - 80px); height: calc(100% - 110px); object-fit: contain; }}
-    .ec {{ position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; font-size: 30px; font-weight: 600; color: #6e6e73; }}
-    .et {{ width: 170px; height: 110px; border-radius: 16px; background: #fff; overflow: hidden; border: 3px solid transparent; opacity: 0.5; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }}
-    .et img {{ width: 100%; height: 100%; object-fit: contain; }}"""
+    css = e_css(pal) + """
+    .eb { position: absolute; inset: 0; opacity: 0; }
+    .eb img { position: absolute; left: 40px; right: 40px; top: 30px; bottom: 80px; width: calc(100% - 80px); height: calc(100% - 110px); object-fit: contain; }
+    .ec { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; font-size: 30px; font-weight: 600; color: #6e6e73; }
+    .et { width: 170px; height: 110px; border-radius: 16px; background: #fff; overflow: hidden; border: 3px solid transparent; opacity: 0.5; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
+    .et img { width: 100%; height: 100%; object-fit: contain; }"""
     step = (d - 1.0) / k
     js = [up("#ef-e", 0.2), up("#ef-t", 0.35), pop("#ef-stage", 0.4), up(".et", 0.7, 0.1, 0.6, 20)]
     for i in range(k):
@@ -684,12 +684,12 @@ def f3(c, pal, d):
     body = f"""
       <div class="t" id="f3-t" style="top: 260px; font-size: 76px">{grad_text(c["process"]["title"], "acc")}</div>
       <div style="position: absolute; left: 110px; right: 90px; top: 520px; height: 680px">{rows}</div>"""
-    css = f_css(pal) + f"""
-    .ck {{ position: absolute; left: 0; right: 0; height: 110px; display: flex; align-items: center; gap: 30px; }}
-    .ck i {{ width: 84px; height: 84px; flex: none; border-radius: 24px; background: #e4e4e8; display: flex; align-items: center; justify-content: center; }}
-    .ck svg {{ opacity: 0; }}
-    .ck b {{ display: block; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }}
-    .ck span {{ display: block; font-size: 30px; font-weight: 600; color: #6e6e73; white-space: nowrap; }}"""
+    css = f_css(pal) + """
+    .ck { position: absolute; left: 0; right: 0; height: 110px; display: flex; align-items: center; gap: 30px; }
+    .ck i { width: 84px; height: 84px; flex: none; border-radius: 24px; background: #e4e4e8; display: flex; align-items: center; justify-content: center; }
+    .ck svg { opacity: 0; }
+    .ck b { display: block; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
+    .ck span { display: block; font-size: 30px; font-weight: 600; color: #6e6e73; white-space: nowrap; }"""
     js = [up("#f3-t", 0.3)]
     for i in range(len(steps)):
         t = 0.8 + i * 0.95
@@ -704,7 +704,7 @@ def f4(c, pal, d):
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
         fm_html, fm_js = fig_markers(c, pr, "f4", (40, 36, 820, 480), 1.0, 0.45)
-        parts = "".join(f'<div class="pr">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b>•</b>') + f'{E(p["n"])}</div>' for p in pr["parts"][:6])
+        parts = "".join('<div class="pr">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b>•</b>') + f'{E(p["n"])}</div>' for p in pr["parts"][:6])
         body = f"""
       <div class="t" id="f4-t" style="top: 230px; font-size: 64px">{grad_text(pr.get("title", "핵심 |구성"), "acc")}</div>
       <div class="card" id="f4-c" style="top: 400px; height: 900px">
@@ -874,8 +874,9 @@ def build(tpl, path):
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for sub in ("fonts", "sfx", "music"):
         dst = os.path.join(out, "assets", sub)
-        if not os.path.exists(dst) and os.path.isdir(os.path.join(ROOT, "assets", sub)):
-            shutil.copytree(os.path.join(ROOT, "assets", sub), dst)
+        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
+            shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     if c["proof"].get("kind") == "anatomy":
         shutil.copy(os.path.join(ROOT, "data", "patents", c["appno"], c["proof"]["figure"]), os.path.join(out, "assets", "fig", c["proof"]["figure"]))
     for fn in ("package.json", "hyperframes.json"):

@@ -36,6 +36,9 @@ def _points(pts, at, errs, lo=3, hi=6, named=False):
     if not lo <= len(pts) <= hi:
         errs.append(f"{at}: {lo}~{hi}개 필요({len(pts)}개)")
     for i, p in enumerate(pts):
+        if not isinstance(p, dict if named else (list, tuple)):
+            errs.append(f"{at}[{i}]: " + ('{"x", "y", …} 객체' if named else "[x, y] 배열") + " 필요")
+            continue
         x, y = (p.get("x"), p.get("y")) if named else (p[0], p[1]) if len(p) == 2 else (None, None)
         if not (_frac(x) and _frac(y)):
             errs.append(f"{at}[{i}]: 좌표는 도면 비율 0~1")
@@ -43,6 +46,13 @@ def _points(pts, at, errs, lo=3, hi=6, named=False):
 
 def problems(c):
     """Structural errors in c['signature'] (empty list when it can carry a distinctive film)."""
+    try:
+        return _problems(c)
+    except (KeyError, TypeError, AttributeError, IndexError, ValueError) as e:  # malformed block: report, never crash
+        return [f"signature 구조 오류: {type(e).__name__} {e}"]
+
+
+def _problems(c):
     sg = c.get("signature")
     if not sg:
         return []
@@ -88,6 +98,8 @@ def problems(c):
             for i, f in enumerate(flows):
                 if f.get("color") not in MEDIA:
                     errs.append(f"run.flows[{i}].color: {', '.join(sorted(MEDIA))}")
+                if not f.get("label"):
+                    errs.append(f"run.flows[{i}].label 필요(범례에 쓰는 매질 이름)")
                 _points(f.get("pts") or [], f"run.flows[{i}].pts", errs)
             for i, g in enumerate(run.get("glows") or []):
                 if g.get("color") not in MEDIA:
@@ -167,14 +179,19 @@ def main(paths):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     groups, missing, bad = collections.defaultdict(list), [], 0
     for p in paths:
-        c = json.load(open(p, encoding="utf-8"))
         slug = os.path.basename(p)[:-5]
+        try:
+            c = json.load(open(p, encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print(f"{slug} ✗ JSON 오류: {e}")
+            bad += 1
+            continue
         if "signature" not in c:
             missing.append(slug)
             continue
         errs = problems(c)
         bad += bool(errs)
-        print(f'{slug} [{c["signature"]["type"]}] {describe(c)}')
+        print(f'{slug} [{c["signature"].get("type")}] ' + ("(구조 오류)" if errs else describe(c)))
         for e in errs:
             print("   ✗", e)
         if not errs:

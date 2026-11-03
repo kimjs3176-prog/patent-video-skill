@@ -23,6 +23,14 @@ def figure_ok(fn):
 
 
 def check(path):
+    """Problems in one content JSON (empty list when it is ready to build); never raises on malformed content."""
+    try:
+        return _check(path)
+    except (KeyError, TypeError, AttributeError, IndexError, ValueError) as e:
+        return [f"구조 오류(필드 형식·누락): {type(e).__name__} {e}"]
+
+
+def _check(path):
     errs = []
     try:
         c = json.load(open(path, encoding="utf-8"))

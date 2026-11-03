@@ -128,8 +128,8 @@ def j_route(c, pal, d):
     .rp.rm {{ border-color: rgba(255, 90, 90, 0.7); color: #ffb4b4; }}
     .ra {{ position: absolute; font-size: 34px; color: #6e6e82; }}
     .rl {{ position: absolute; left: 0; right: 0; text-align: center; font-size: 34px; font-weight: 700; color: #a8a8bc; }}"""
-    js = [f'    tl.fromTo(".rp", {{ opacity: 0, y: 30 }}, {{ opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.14 }}, 0.6);',
-          f'    tl.fromTo(".ra", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, stagger: 0.14 }}, 0.8);',
+    js = ['    tl.fromTo(".rp", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.14 }, 0.6);',
+          '    tl.fromTo(".ra", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.14 }, 0.8);',
           '    tl.fromTo("#jr-lab", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.5);',
           f'    tl.to("#jr-p{rm}", {{ scale: 1.12, boxShadow: "0 0 40px rgba(255,90,90,0.55)", duration: 0.4, ease: "back.out(1.7)" }}, 2.4);',
           '    tl.to("#jr-strike line", { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, 2.9);',
@@ -157,9 +157,9 @@ def material(key, a, b, cc, name=""):
     if key == "puff":
         grains = "".join(f'<ellipse class="gr0" cx="{150 + (i % 6) * 52}" cy="{250 + (i // 6) * 46}" rx="16" ry="9" fill="#efe6d2" />' for i in range(18))
         puffs = "".join(f'<path class="gr1" transform="translate({150 + (i % 6) * 52} {250 + (i // 6) * 46})" d="M-22 4 C-26 -14 -10 -24 2 -18 C14 -26 28 -12 22 2 C30 14 12 26 0 18 C-12 26 -30 16 -22 4 Z" fill="#fff6e4" stroke="{a}" stroke-width="2" opacity="0" />' for i in range(18))
-        gauge = (f'<g transform="translate(450 110)"><circle r="62" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10" />'
-                 f'<path d="M -44 44 A 62 62 0 1 1 44 44" fill="none" stroke="url(#jj-lg)" stroke-width="10" stroke-linecap="round" />'
-                 f'<line id="jj-needle" x1="0" y1="0" x2="0" y2="-48" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(-130)" /><circle r="8" fill="#fff" /></g>')
+        gauge = ('<g transform="translate(450 110)"><circle r="62" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10" />'
+                 '<path d="M -44 44 A 62 62 0 1 1 44 44" fill="none" stroke="url(#jj-lg)" stroke-width="10" stroke-linecap="round" />'
+                 '<line id="jj-needle" x1="0" y1="0" x2="0" y2="-48" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(-130)" /><circle r="8" fill="#fff" /></g>')
         return grains + puffs + gauge
     if key == "mash":
         bubbles = "".join(f'<circle class="bb" cx="{170 + i * 40}" cy="330" r="{6 + i % 3 * 2}" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="3" />' for i in range(6))
@@ -281,31 +281,66 @@ def j_journey(c, pal, d):
         labels += f'<div class="tl" id="jj-l{i}" style="left: {cx[i] - lw / 2:.0f}px; width: {lw:.0f}px; top: {yb + 8:.0f}px">{E(s["n"])}<b>{E(lab)}</b></div>'
     segs = "".join(f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1]:.0f} {pts[k - 1][2]:.0f} L{pts[k][1]:.0f} {pts[k][2]:.0f}" fill="none" stroke="url(#jj-lg)" '
                    f'stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />' for k in range(1, len(pts)))
+    # temperature guides: a few round values inside the strip, labelled on the left
+    tick = next((v for v in (5, 10, 20, 25, 50, 100, 200, 250, 500) if (hi_t - lo_t) / v <= 4), 1000)
+    guides = "".join(f'<line x1="{x0 - 40}" y1="{ty(v):.0f}" x2="{x1 + 40}" y2="{ty(v):.0f}" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="4 8" />'
+                     f'<text x="{x0 - 52}" y="{ty(v) + 9:.0f}" fill="#6e6e82" font-size="26" text-anchor="end">{v:g}</text>'
+                     for v in range(int(math.ceil(lo_t / tick) * tick), int(hi_t) + 1, tick) if yt - 10 <= ty(v) <= yb - 14)
+    # area under the pen line, revealed with the pen (its clip rect grows to the dot)
+    area = ""
+    if len(pts) >= 2:
+        poly = " ".join(f"{x:.0f},{y:.0f}" for _, x, y in pts)
+        area = (f'<defs><linearGradient id="jj-ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{b}" stop-opacity="0.32" />'
+                f'<stop offset="1" stop-color="{b}" stop-opacity="0" /></linearGradient>'
+                f'<clipPath id="jj-ac"><rect id="jj-acr" x="{pts[0][1]:.0f}" y="{yt - 80}" width="0" height="{yb - yt + 80}" /></clipPath></defs>'
+                f'<polygon clip-path="url(#jj-ac)" points="{pts[0][1]:.0f},{yb} {poly} {pts[-1][1]:.0f},{yb}" fill="url(#jj-ag)" />')
+    # progress rail on the axis with one node per stage
+    rail = (f'<rect x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="rgba(255,255,255,0.2)" />'
+            f'<rect id="jj-rail" x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="url(#jj-lg)" />'
+            + "".join(f'<circle class="jn" id="jj-n{i}" cx="{cx[i]:.0f}" cy="{yb}" r="8" fill="#0b0b10" stroke="rgba(255,255,255,0.35)" stroke-width="3" />' for i in range(n)))
     vals = [trange(s["t"]) if s.get("t") else s.get("label", "") for s in st]
     cards = "".join(f'<div class="jc" id="jj-c{i}"><div class="k">STAGE {i + 1:02d} / {n:02d}</div><div class="n" style="font-size: {fit(s["n"], 60, 720)}px">{E(s["n"])}</div>'
                     f'<div class="v grad" style="font-size: {fit(vals[i], 120, 680)}px">{E(vals[i])}</div><div class="s">{E(s["cond"])}</div></div>'
                     for i, s in enumerate(st))
     body = heading("jj", "MATERIAL JOURNEY", sg.get("title") or f'원료가 |{josa(sg.get("product", "제품"), "이", "가")} 되기까지',
                    f"left: 0px; top: 0px; background: radial-gradient(circle, {rgba(a, 0.26)} 0%, rgba(0,0,0,0) 65%)") + f"""
+      <div id="jj-ped" data-layout-ignore></div>
+      <div id="jj-ring" data-layout-ignore></div>
       {art}
       <div id="jj-prod" class="grad" style="position: absolute; left: 190px; width: 560px; top: 708px; text-align: center; font-size: 40px; font-weight: 800; white-space: nowrap; opacity: 0">{E(sg.get("product", ""))} 완성</div>
       {cards}
       <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>
-        <line x1="{x0 - 40}" y1="{yb}" x2="{x1 + 40}" y2="{yb}" stroke="rgba(255,255,255,0.2)" stroke-width="2" />
+        {guides}
+        {area}
         {bands}
         {segs}
+        {rail}
       </svg>
+      <div id="jj-halo" style="position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; border: 3px solid {a}; opacity: 0" data-layout-ignore></div>
       <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
       {labels}
       <div style="position: absolute; right: {1920 - x1 - 40}px; top: {yt - 40}px; font-size: 28px; color: #8e8ea3">온도 조건(명세서) ℃</div>"""
-    css = f"""    .jc {{ position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }}
-    .jc .k {{ font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }}
-    .jc .n {{ font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }}
-    .jc .v {{ font-weight: 800; margin-top: 10px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }}
-    .jc .s {{ font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }}
-    .tl {{ position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }}
-    .tl b {{ display: block; color: #e8e8f0; font-weight: 700; }}"""
-    js = ['    tl.fromTo(".tl", { opacity: 0 }, { opacity: 0.45, duration: 0.4 }, 0.3);']
+    css = """    .jc { position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }
+    .jc .k { font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }
+    .jc .n { font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }
+    .jc .v { font-weight: 800; margin-top: 10px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }
+    .jc .s { font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }
+    .tl { position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }
+    .tl b { display: block; color: #e8e8f0; font-weight: 700; }""" + f"""
+    #jj-ring {{ position: absolute; left: 230px; top: 252px; width: 480px; height: 480px; border-radius: 50%;
+      background: conic-gradient(from 0deg, {rgba(a, 0)}, {rgba(a, 0.9)}, {rgba(b, 0.9)}, {rgba(cc, 0)} 70%, {rgba(cc, 0)});
+      -webkit-mask: radial-gradient(circle, transparent 235px, #000 236px, #000 239px, transparent 240px);
+      mask: radial-gradient(circle, transparent 235px, #000 236px, #000 239px, transparent 240px); opacity: 0; }}
+    #jj-ped {{ position: absolute; left: 200px; top: 640px; width: 540px; height: 110px; border-radius: 50%;
+      background: radial-gradient(ellipse, {rgba(b, 0.38)} 0%, {rgba(a, 0.10)} 45%, rgba(0,0,0,0) 70%); opacity: 0; }}"""
+    js = ['    tl.fromTo(".tl", { opacity: 0 }, { opacity: 0.45, duration: 0.4 }, 0.3);',
+          '    tl.fromTo(["#jj-ped", "#jj-ring"], { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 1.0, ease: "expo.out", stagger: 0.15 }, 0.6);',
+          f'    tl.fromTo("#jj-ring", {{ rotation: 0 }}, {{ rotation: {round(36 * d)}, duration: {d:.1f}, ease: "none" }}, 0);',
+          f'    tl.set("#jj-rail", {{ scaleX: 0, svgOrigin: "{x0 - 40} {yb}" }}, 0);']
+    for i in range(n):  # the rail runs on to each stage as it comes up, and that stage's node lights
+        js += [f'    tl.to("#jj-rail", {{ scaleX: {(cx[i] - x0 + 40) / (x1 - x0 + 80):.4f}, duration: 0.7, ease: "power2.inOut" }}, {T[i]:.2f});',
+               f'    tl.to("#jj-n{i}", {{ attr: {{ fill: "{b}", stroke: "#ffffff" }}, duration: 0.3 }}, {T[i] + 0.55:.2f});',
+               f'    tl.fromTo("#jj-n{i}", {{ scale: 1.8, svgOrigin: "{cx[i]:.0f} {yb}" }}, {{ scale: 1, svgOrigin: "{cx[i]:.0f} {yb}", duration: 0.5, ease: "back.out(2)", immediateRender: false }}, {T[i] + 0.55:.2f});']
     # the pen moves only when a stage with a temperature comes up: the segment and the dot travel together on one ease,
     # then the stated range opens around the point and earlier ranges step back
     glide = min(0.9, span * 0.35)
@@ -321,6 +356,10 @@ def j_journey(c, pal, d):
                    f'    tl.to("#jj-dot", {{ x: {x:.0f}, y: {y:.0f}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});']
             arrive = tp + glide * 0.8
         js.append(f'    tl.fromTo("#jj-b{i}", {{ scaleY: 0, opacity: 0, transformOrigin: "50% 50%" }}, {{ scaleY: 1, opacity: 1, duration: 0.7, ease: "power3.out" }}, {arrive:.2f});')
+        js += [f'    tl.set("#jj-halo", {{ x: {x:.0f}, y: {y:.0f} }}, {arrive - 0.05:.2f});',
+               f'    tl.fromTo("#jj-halo", {{ scale: 0.4, opacity: 0.9 }}, {{ scale: 2.2, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }}, {arrive:.2f});']
+        if k:
+            js.append(f'    tl.to("#jj-acr", {{ attr: {{ width: {x - pts[0][1]:.0f} }}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});')
         if k:
             js.append(f'    tl.to("#jj-b{pts[k - 1][0]}", {{ opacity: 0.5, duration: 0.5 }}, {arrive:.2f});')
     for i, s in enumerate(st):
@@ -357,7 +396,7 @@ def j_journey(c, pal, d):
         elif k == "soak":
             js += [f'    tl.fromTo("#jj-m{i} .sk", {{ y: -170, opacity: 0 }}, {{ y: 0, opacity: 1, duration: 0.5, ease: "power2.in", stagger: 0.18 }}, {t + 0.45:.2f});',
                    f'    tl.to("#jj-m{i} .sk", {{ y: 10, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 1, stagger: 0.18 }}, {t + 0.95:.2f});',
-                   f'    tl.fromTo("#jj-m{i} .rq", {{ opacity: 0.8, scale: 0.4, transformOrigin: "50% 50%" }}, {{ opacity: 0, scale: 1.6, duration: 1.0, ease: "power1.out", stagger: 0.18 }}, {t + 0.95:.2f});']
+                   f'    tl.fromTo("#jj-m{i} .rq", {{ opacity: 0.8, scale: 0.4, transformOrigin: "50% 50%" }}, {{ opacity: 0, scale: 1.6, duration: 1.0, ease: "power1.out", stagger: 0.18, immediateRender: false }}, {t + 0.95:.2f});']
         elif k == "cut":
             js += [f'    tl.fromTo("#jj-m{i} .kn", {{ y: -40 }}, {{ y: 30, duration: 0.25, ease: "power2.in", yoyo: true, repeat: 5 }}, {t + 0.45:.2f});',
                    f'    tl.fromTo("#jj-m{i} .cs", {{ x: 0 }}, {{ x: (k) => (k - 2) * 16, duration: 0.6, ease: "expo.out" }}, {t + 1.6:.2f});']
@@ -391,7 +430,8 @@ def j_journey(c, pal, d):
             tf = t + (2.2 if k == "cold" else 1.6)  # finale: the whole chart lights up and the product lands
             js += [f'    tl.fromTo("#jj-prod", {{ opacity: 0, y: 24, scale: 0.92 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "back.out(1.7)" }}, {tf:.2f});',
                    f'    tl.to(".tb", {{ opacity: 1, duration: 0.5, stagger: 0.06, ease: "power2.out" }}, {tf - 0.1:.2f});',
-                   f'    tl.to(".tl", {{ opacity: 1, duration: 0.4 }}, {tf - 0.1:.2f});']
+                   f'    tl.to(".tl", {{ opacity: 1, duration: 0.4 }}, {tf - 0.1:.2f});',
+                   f'    tl.to("#jj-rail", {{ scaleX: 1, duration: 0.6, ease: "power2.inOut" }}, {tf - 0.1:.2f});']
     return sc("jj", pal, css, body, js, d)
 
 
@@ -410,7 +450,23 @@ FIG_CSS = """    .fp { position: absolute; border-radius: 28px; background: #fff
     .cr b { width: 58px; height: 58px; border-radius: 50%; font-size: 30px; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; }
     .cr .n { font-size: 38px; font-weight: 700; white-space: nowrap; }
     .cr .s { font-size: 28px; color: #a8a8bc; white-space: nowrap; margin-top: 2px; }
-    .cap { position: absolute; font-size: 28px; color: #8e8ea3; white-space: nowrap; }"""
+    .cap { position: absolute; font-size: 28px; color: #8e8ea3; white-space: nowrap; }
+    .cpg { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 3px solid #fff; opacity: 0; }
+    .scan { position: absolute; height: 120px; pointer-events: none; opacity: 0; }"""
+
+
+def ping(sid, i, x, y, col):
+    """A ring that spreads from a marker as it lands (html, js at time t)."""
+    return (f'<div class="cpg" id="{sid}-q{i}" style="left: {x:.0f}px; top: {y:.0f}px; border-color: {col}" data-layout-ignore></div>',
+            lambda t: f'    tl.fromTo("#{sid}-q{i}", {{ scale: 0.6, opacity: 0.95 }}, {{ scale: 3.2, opacity: 0, duration: 0.9, ease: "power2.out", immediateRender: false }}, {t:.2f});')
+
+
+def scan(sid, x, y, w, h, col, t):
+    """A soft band of light that passes down the figure plate once, as if the drawing were being read in."""
+    return (f'<div class="scan" id="{sid}-scan" style="left: {x}px; top: {y}px; width: {w}px; '
+            f'background: linear-gradient(180deg, {rgba(col, 0)} 0%, {rgba(col, 0.28)} 70%, {rgba(col, 0.75)} 100%)" data-layout-ignore></div>',
+            [f'    tl.fromTo("#{sid}-scan", {{ y: -40, opacity: 0 }}, {{ y: {h - 80}, opacity: 1, duration: 1.1, ease: "power1.inOut" }}, {t:.2f});',
+             f'    tl.to("#{sid}-scan", {{ opacity: 0, duration: 0.3 }}, {t + 1.0:.2f});'])
 
 
 def l_parts(c, pal, d):
@@ -420,27 +476,32 @@ def l_parts(c, pal, d):
     co = sg["callouts"]
     pl, m = plate(c, sg["figure"], "lp", 120, 230, 840, 760)
     n = len(co)
-    rows, dots, lines = "", "", ""
+    rows, dots, lines, pings = "", "", "", []
     top0 = 560 - n * 124 / 2 + 60
+    sc_html, sc_js = scan("lp", 120, 230, 840, 760, b, 0.7)
     for i, p in enumerate(co):
         px, py = m(p["x"], p["y"])
         ry = top0 + i * 124
         rows += (f'<div class="cr" id="lp-r{i}" style="top: {ry:.0f}px"><b style="background: linear-gradient(135deg, {a}, {cc})">{E(p["ref"])}</b>'
                  f'<div><div class="n">{E(p["n"])}</div><div class="s">{E(p["d"])}</div></div></div>')
         dots += f'<div class="cd" id="lp-d{i}" style="left: {px:.0f}px; top: {py:.0f}px; background: {b}"></div>'
+        ph, pj = ping("lp", i, px, py, b)
+        dots += ph
+        pings.append(pj)
         lines += f'<path id="lp-l{i}" d="M{px:.0f} {py:.0f} C {px + 160:.0f} {py:.0f}, {1000:.0f} {ry + 56:.0f}, 1060 {ry + 56:.0f}" fill="none" stroke="{b}" stroke-width="3" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0.8" />'
     body = heading("lp", "ANATOMY", sg.get("parts_title") or f'{c["sub"]}의 |구성',
                    f"left: 900px; top: -300px; background: radial-gradient(circle, {rgba(b, 0.28)} 0%, rgba(0,0,0,0) 65%)") + f"""
       {pl}
+      {sc_html}
       <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>{lines}</svg>
       {dots}{rows}
       <div class="cap" style="left: 140px; top: 1004px">{E(sg.get("figcap", ""))} · 부호는 도면 번호</div>"""
     step = (d - 2.2) / n
     js = ['    tl.fromTo(["#lp-plate", "#lp-img"], { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out" }, 0.3);',
-          f'    tl.fromTo("#lp-img", {{ scale: 1.04 }}, {{ scale: 1, duration: {d - 0.5:.1f}, ease: "power1.out" }}, 0.3);']
+          f'    tl.fromTo("#lp-img", {{ scale: 1.04 }}, {{ scale: 1, duration: {d - 0.5:.1f}, ease: "power1.out" }}, 0.3);', *sc_js]
     for i in range(n):
         t = 1.1 + i * step
-        js += [f'    tl.fromTo("#lp-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});',
+        js += [f'    tl.fromTo("#lp-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});', pings[i](t + 0.2),
                f'    tl.to("#lp-l{i}", {{ strokeDashoffset: 0, duration: 0.6, ease: "power2.inOut" }}, {t + 0.15:.2f});',
                f'    tl.fromTo("#lp-r{i}", {{ x: 12 }}, {{ opacity: 1, x: 0, background: "{rgba(b, 0.14)}", duration: 0.45, ease: "expo.out" }}, {t + 0.6:.2f});']
         if i:
@@ -453,6 +514,12 @@ FLOW = {"air": "#5ccfff", "water": "#2aa7e6", "heat": "#ff8a4c", "cold": "#7fd6f
         "light": "#ffe066", "solid": "#d9b38c", "power": "#ffd23f"}
 GLOW = {"air": "80,200,255", "water": "60,170,240", "heat": "255,120,60", "cold": "80,200,255", "gas": "190,200,215",
         "uv": "170,120,255", "light": "255,224,102", "solid": "220,180,140", "power": "255,210,63"}
+
+
+def over(fg, alpha, bg):
+    """Opaque colour of `fg` at `alpha` laid over `bg` (both #rrggbb), so lines behind a lit pill do not show through."""
+    f, g = [int(fg[i:i + 2], 16) for i in (1, 3, 5)], [int(bg[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x * alpha + y * (1 - alpha)):02x}" for x, y in zip(f, g, strict=True))
 
 
 def plen(pts):
@@ -477,7 +544,7 @@ def l_run(c, pal, d):
         for k in range(per):
             parts += (f'<i class="pf" id="lr-f{fi}-{k}" style="left: {-sz / 2:.0f}px; top: {-sz / 2:.0f}px; width: {sz}px; height: {sz}px; '
                       f'border-radius: {rad}; background: {col}; border: 2px solid rgba(0,0,0,0.35); box-shadow: 0 0 14px {col}"></i>')
-        lines += (f'<path class="lr-fl" d="M' + " L".join(f"{x:.0f} {y:.0f}" for x, y in paths[fi]) +
+        lines += ('<path class="lr-fl" d="M' + " L".join(f"{x:.0f} {y:.0f}" for x, y in paths[fi]) +
                   f'" fill="none" stroke="{col}" stroke-width="4" stroke-dasharray="3 12" stroke-linecap="round" opacity="0" />')
     for gi, g in enumerate(rn.get("glows", [])):
         if "ref" in g:
@@ -509,21 +576,29 @@ def l_run(c, pal, d):
         cxl, cyl, R = 1430, 600, 285
         k = len(logic)
         ring = [(cxl + R * math.cos(-math.pi / 2 + i * 2 * math.pi / k), cyl + R * math.sin(-math.pi / 2 + i * 2 * math.pi / k)) for i in range(k + 1)]
+        seg = 96  # the pulse rides the drawn circle (sampled finely), not the chords between the nodes
+        orbit = [(cxl + R * math.cos(-math.pi / 2 + j * 2 * math.pi / seg), cyl + R * math.sin(-math.pi / 2 + j * 2 * math.pi / seg)) for j in range(seg + 1)]
+        circ, arc = 2 * math.pi * R, 2 * math.pi * R * 0.22
         side += (f'<svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore><circle id="lr-ring" cx="{cxl}" cy="{cyl}" r="{R}" fill="none" '
-                 f'stroke="{rgba(b, 0.5)}" stroke-width="3" stroke-dasharray="6 10" /></svg>'
+                 f'stroke="{rgba(b, 0.5)}" stroke-width="3" stroke-dasharray="6 10" />'
+                 f'<defs><linearGradient id="lr-tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{a}" /><stop offset="1" stop-color="{cc}" /></linearGradient></defs>'
+                 f'<circle id="lr-arc" cx="{cxl}" cy="{cyl}" r="{R}" fill="none" stroke="url(#lr-tg)" stroke-width="6" stroke-linecap="round" '
+                 f'stroke-dasharray="{arc:.1f} {circ:.1f}" stroke-dashoffset="{arc:.1f}" transform="rotate(-90 {cxl} {cyl})" opacity="0" /></svg>'
                  f'<div id="lr-pulse" style="position: absolute; left: -12px; top: -12px; width: 24px; height: 24px; border-radius: 50%; background: {b}; box-shadow: 0 0 20px {b}" data-layout-ignore></div>')
         side += "".join(f'<div class="ln" id="lr-n{i}" style="left: {ring[i][0] - 120:.0f}px; top: {ring[i][1] - 40:.0f}px; font-size: {fit(t, 30, 210)}px">{E(t)}</div>' for i, t in enumerate(logic))
         side += f'<div style="position: absolute; left: {cxl - 150}px; top: {cyl - 80}px; width: 300px">' + "".join(f'<div class="ru">{E(r)}</div>' for r in rn.get("rules", [])) + '</div>'
-        side_js = [along("lp", ring),
+        side_js = [along("lp", orbit),
                    '    tl.fromTo("#lr-ring", { opacity: 0, scale: 0.8, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.8, ease: "expo.out" }, 0.8);',
                    '    tl.fromTo(".ln", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)", stagger: 0.25 }, 1.0);',
                    '    tl.fromTo(".ru", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.6 }, 3.2);',
-                   '    const pul = document.querySelector("#lr-pulse"); const po = { p: 0 }; const pput = () => { const q = at_lp(po.p % 1); pul.style.transform = "translate(" + q[0] + "px," + q[1] + "px)"; }; pput();',
+                   '    const pul = document.querySelector("#lr-pulse"); const arc = document.querySelector("#lr-arc"); const po = { p: 0 };'
+                   f' const pput = () => {{ const f = po.p % 1; const q = at_lp(f); pul.style.transform = "translate(" + q[0] + "px," + q[1] + "px)";'
+                   f' arc.setAttribute("stroke-dashoffset", ({arc:.1f} - f * {circ:.1f}).toFixed(1)); }}; pput();',
                    f'    tl.to(po, {{ p: 3, duration: {d - 2.6:.1f}, ease: "none", onUpdate: pput }}, 1.8);',
-                   '    tl.fromTo("#lr-pulse", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.8);']
+                   '    tl.fromTo(["#lr-pulse", "#lr-arc"], { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.8);']
         for lap in range(3):  # the pulse runs three laps: light each node as it passes
             for i in range(k):
-                side_js.append(f'    tl.to("#lr-n{i}", {{ borderColor: "{b}", background: "{rgba(b, 0.18)}", duration: 0.3, yoyo: true, repeat: 1 }}, {1.8 + (lap + i / k) * (d - 2.6) / 3:.2f});')
+                side_js.append(f'    tl.to("#lr-n{i}", {{ borderColor: "{b}", background: "{over(b, 0.22, "#101016")}", duration: 0.3, yoyo: true, repeat: 1 }}, {1.8 + (lap + i / k) * (d - 2.6) / 3:.2f});')
     else:
         steps = rn.get("steps", [])
         n = len(steps)
@@ -545,12 +620,12 @@ def l_run(c, pal, d):
       {parts}
       {side}
       <div class="cap" style="left: 140px; top: 1004px">{" &nbsp; ".join(legend)}</div>"""
-    css = FIG_CSS + f"""
-    .pf {{ position: absolute; opacity: 0; }}
-    .pd {{ position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }}
-    .ln {{ position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
-      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }}
-    .ru {{ font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }}"""
+    css = FIG_CSS + """
+    .pf { position: absolute; opacity: 0; }
+    .pd { position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }
+    .ln { position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
+      background: #101016; border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }
+    .ru { font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }"""
     js = ['    tl.fromTo(["#lr-plate", "#lr-img"], { opacity: 0.6 }, { opacity: 1, duration: 0.5 }, 0.2);',
           '    tl.to("#lr-img", { filter: "brightness(0.92) saturate(0.9)", duration: 1 }, 0.6);',
           '    tl.to(".lr-gl", { opacity: 1, duration: 1.2, stagger: 0.6 }, 1.0);',
@@ -586,6 +661,7 @@ def l_path(c, pal, d):
         rows += (f'<div class="cr" id="lw-r{i}" style="top: {top0 + i * 124:.0f}px; left: 1100px; width: 680px"><b style="background: linear-gradient(135deg, {a}, {cc})">{i + 1}</b>'
                  f'<div><div class="n">{E(p["n"])} <span style="font-size: 28px; color: #8e8ea3">({E(p["ref"])})</span></div><div class="s">{E(p["d"])}</div></div></div>')
         dots += f'<div class="cd" id="lw-d{i}" style="left: {pts[i][0]:.0f}px; top: {pts[i][1]:.0f}px; background: {col}"></div>'
+        dots += ping("lw", i, pts[i][0], pts[i][1], col)[0]
     path = "M" + " L".join(f"{x:.0f} {y:.0f}" for x, y in pts)
     shape = "border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; width: 26px; height: 34px; left: -13px; top: -18px" if pa.get("color", "water") == "water" else \
         "border-radius: 50%; width: 28px; height: 28px; left: -14px; top: -14px"
@@ -608,10 +684,10 @@ def l_path(c, pal, d):
           '    tl.fromTo("#lw-drop", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.5 }, 1.0);']
     for i in range(1, n):
         js += [f'    tl.to(wo, {{ p: {cum[i]:.4f}, duration: {step - 0.3:.2f}, ease: "power2.inOut", onUpdate: wput }}, {1.2 + (i - 1) * step + 0.3:.2f});',
-               f'    tl.fromTo("#lw-drop", {{ scaleX: 1.18, scaleY: 0.82, immediateRender: false }}, {{ scaleX: 1, scaleY: 1, duration: 0.35, ease: "back.out(1.7)" }}, {1.2 + i * step:.2f});']
+               f'    tl.fromTo("#lw-drop", {{ scaleX: 1.18, scaleY: 0.82 }}, {{ scaleX: 1, scaleY: 1, duration: 0.35, ease: "back.out(1.7)", immediateRender: false }}, {1.2 + i * step:.2f});']
     for i in range(n):
         t = 1.2 + i * step
-        js += [f'    tl.fromTo("#lw-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});',
+        js += [f'    tl.fromTo("#lw-d{i}", {{ scale: 0 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t:.2f});', ping("lw", i, *pts[i], col)[1](t + 0.2),
                f'    tl.to("#lw-r{i}", {{ opacity: 1, background: "{rgba(b, 0.14)}", duration: 0.4 }}, {t:.2f});']
         if i:
             js.append(f'    tl.to("#lw-r{i - 1}", {{ background: "rgba(0,0,0,0)", opacity: 0.75, duration: 0.4 }}, {t:.2f});')
@@ -669,6 +745,22 @@ def count_js(sel, text, t, dur=1.4, ease="power2.out"):
     return A.count_js(sel, text, t, dur, ease)
 
 
+def dna_helix(x0, x1, cy, amp, lam):
+    """A double helix between x0 and x1: two phase-shifted strands with base-pair rungs coloured by base (SVG).
+    The pattern is drawn one wavelength wider on the right so it can scroll left by `lam` without showing an end."""
+    bases = "ATGC"
+    def strand(ph):
+        pts = [(x, cy + amp * math.sin(2 * math.pi * (x - x0) / lam + ph)) for x in range(x0, x1 + lam + 1, 6)]
+        return "M" + " L".join(f"{x:.0f} {y:.1f}" for x, y in pts)
+    rungs = ""
+    for k, x in enumerate(range(x0 + 8, x1 + lam, 16)):
+        ya = cy + amp * math.sin(2 * math.pi * (x - x0) / lam)
+        rungs += (f'<line x1="{x}" y1="{ya:.1f}" x2="{x}" y2="{2 * cy - ya:.1f}" stroke="{BASE[bases[k % 4]]}" stroke-width="4" '
+                  f'stroke-opacity="{0.25 + 0.45 * abs(math.cos(2 * math.pi * (x - x0) / lam)):.2f}" />')
+    return (f'<g class="qs-hx">{rungs}<path d="{strand(math.pi)}" fill="none" stroke="rgba(232,232,240,0.45)" stroke-width="5" />'
+            f'<path d="{strand(0)}" fill="none" stroke="#e8e8f0" stroke-width="5" /></g>')
+
+
 def q_primers(c, pal, d):
     """Six primers type out their real bases, then fly to the target and light the eight regions they recognise."""
     a, b, cc = pal
@@ -680,7 +772,7 @@ def q_primers(c, pal, d):
     rw = (x1 - x0) / len(lay)
     rx = {r: x0 + i * rw for i, r in enumerate(lay)}
     regs = "".join(f'<div class="rg" id="qs-g{r}" style="left: {rx[r] + 8:.0f}px; width: {rw - 16:.0f}px; top: {ys - 34}px"><span>{r}</span></div>' for r in lay)
-    ticks = "".join(f'<line x1="{x:.0f}" y1="{ys + 30}" x2="{x:.0f}" y2="{ys + 44}" stroke="rgba(255,255,255,0.25)" stroke-width="2" />' for x in range(x0, x1, 18))
+    helix = dna_helix(x0, x1, ys + 44, 16, 128)
     def pcol(p):
         return PCOL.get(p["id"]) or RCOL[lay.index(p["regions"][0]) % len(RCOL)]
     rows = ""
@@ -693,26 +785,25 @@ def q_primers(c, pal, d):
                    f"left: 300px; top: -300px; background: radial-gradient(circle, {rgba(b, 0.26)} 0%, rgba(0,0,0,0) 65%)") + f"""
       <div style="position: absolute; left: {x0}px; top: {ys - 92}px; font-size: 28px; color: #8e8ea3">{E(sg["target"])} · {E(sg.get("target_note", "특이 부위 (모식도)"))}</div>
       <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>
-        <line id="qs-dna1" x1="{x0}" y1="{ys + 30}" x2="{x1}" y2="{ys + 30}" stroke="#e8e8f0" stroke-width="6" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />
-        <line id="qs-dna2" x1="{x0}" y1="{ys + 58}" x2="{x1}" y2="{ys + 58}" stroke="rgba(232,232,240,0.45)" stroke-width="6" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />
-        {ticks}
+        <defs><clipPath id="qs-hc"><rect id="qs-hcr" x="{x0 - 10}" y="{ys}" width="0" height="90" /></clipPath></defs>
+        <g clip-path="url(#qs-hc)">{helix}</g>
       </svg>
       {regs}
       <div id="qs-cnt" style="position: absolute; right: 160px; top: 120px; text-align: right"><div class="grad" style="font-size: 96px; font-weight: 800; line-height: 1"><span id="qs-n">0</span>/{len(lay)}</div>
         <div style="font-size: 28px; color: #a8a8bc">인식 부위</div></div>
       {rows}
       <div class="cap" style="position: absolute; left: 160px; top: 1010px; font-size: 28px; color: #8e8ea3">{E(sg.get("primers_cap", ""))}</div>"""
-    css = MONO + f"""
-    .rg {{ position: absolute; height: 48px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: center; }}
-    .rg span {{ font-size: 28px; font-weight: 800; color: #8e8ea3; }}
-    .pr {{ position: absolute; left: 160px; right: 160px; display: flex; align-items: center; gap: 24px; opacity: 0.35; }}
-    .pr b {{ height: 54px; border-radius: 27px; color: #04121f; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: none; }}
-    .pr .sq {{ font-family: "PlexMono", monospace; font-size: 29px; letter-spacing: 0.02em; white-space: nowrap; color: #6e6e82; }}
-    .pr .sq i {{ font-style: normal; opacity: 0.12; }}
-    .pr em {{ font-style: normal; font-size: 28px; color: #8e8ea3; margin-left: auto; }}"""
+    css = MONO + """
+    .rg { position: absolute; height: 48px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: center; }
+    .rg span { font-size: 28px; font-weight: 800; color: #8e8ea3; }
+    .pr { position: absolute; left: 160px; right: 160px; display: flex; align-items: center; gap: 24px; opacity: 0.35; }
+    .pr b { height: 54px; border-radius: 27px; color: #04121f; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .pr .sq { font-family: "PlexMono", monospace; font-size: 29px; letter-spacing: 0.02em; white-space: nowrap; color: #6e6e82; }
+    .pr .sq i { font-style: normal; opacity: 0.12; }
+    .pr em { font-style: normal; font-size: 28px; color: #8e8ea3; margin-left: auto; }"""
     step = (d - 2.4) / len(pr)
-    js = ['    tl.to("#qs-dna1", { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 0.4);',
-          '    tl.to("#qs-dna2", { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 0.55);',
+    js = [f'    tl.to("#qs-hcr", {{ attr: {{ width: {x1 - x0 + 20} }}, duration: 1.2, ease: "power2.inOut" }}, 0.4);',
+          f'    tl.fromTo(".qs-hx", {{ x: 0 }}, {{ x: -128, duration: {d - 0.4:.1f}, ease: "none" }}, 0.4);',
           '    tl.fromTo(".rg", { opacity: 0 }, { opacity: 1, duration: 0.4, stagger: 0.06 }, 0.9);',
           '    const cnt = document.querySelector("#qs-n"); const lit = { v: 0 }; const show = () => { cnt.textContent = String(Math.round(lit.v)); };']
     lit, done, flyers = 0, set(), ""
@@ -735,10 +826,10 @@ def q_primers(c, pal, d):
             js += [f'    tl.fromTo("#qs-f{i}-{fj}", {{ x: 0, opacity: 0 }}, {{ x: {dx:.0f}, opacity: 1, duration: 0.5, ease: "power1.inOut" }}, {tr - 0.5:.2f});',
                    f'    tl.fromTo("#qs-f{i}-{fj}", {{ y: 0 }}, {{ y: {dy:.0f}, duration: 0.5, ease: "power3.in" }}, {tr - 0.5:.2f});',
                    f'    tl.to("#qs-f{i}-{fj}", {{ opacity: 0, scale: 1.6, duration: 0.2 }}, {tr:.2f});',
-                   f'    tl.fromTo("#qs-cnt .grad", {{ scale: 1.12, immediateRender: false }}, {{ scale: 1, duration: 0.4, ease: "power3.out" }}, {tr:.2f});']
+                   f'    tl.fromTo("#qs-cnt .grad", {{ scale: 1.12 }}, {{ scale: 1, duration: 0.4, ease: "power3.out", immediateRender: false }}, {tr:.2f});']
             js += [f'    tl.to("#qs-g{r}", {{ borderStyle: "solid", borderColor: "{col}", background: "{col}", duration: 0.3 }}, {tr:.2f});',
                    f'    tl.to("#qs-g{r} span", {{ color: "#04121f", duration: 0.3 }}, {tr:.2f});',
-                   f'    tl.fromTo("#qs-g{r}", {{ scale: 1.25, immediateRender: false }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {tr:.2f});',
+                   f'    tl.fromTo("#qs-g{r}", {{ scale: 1.25 }}, {{ scale: 1, duration: 0.5, ease: "back.out(1.7)", immediateRender: false }}, {tr:.2f});',
                    f'    tl.to(lit, {{ v: {lit}, duration: 0.05, onUpdate: show }}, {tr:.2f});']
         js.append(f'    tl.to("#qs-r{i}", {{ opacity: 0.55, duration: 0.4 }}, {t + step - 0.1:.2f});')
     js.append(f'    tl.to(".pr", {{ opacity: 1, duration: 0.5 }}, {d - 1.6:.2f});')
@@ -782,7 +873,7 @@ def chart(sid, title, series, x0, y0, w, h, cycles, cutoff, note):
 def chart_reveal(sid, w, t, dur=2.4):
     """JS: sweep a chart drawn by chart() from cycle 0 to the end at constant speed (the time axis is linear)."""
     return [f'    tl.to("#{sid}-cr", {{ attr: {{ width: {w} }}, duration: {dur}, ease: "none" }}, {t:.2f});',
-            f'    tl.fromTo("#{sid}-cur", {{ x: 0, opacity: 1 }}, {{ x: {w}, duration: {dur}, ease: "none" }}, {t:.2f});',
+            f'    tl.fromTo("#{sid}-cur", {{ x: 0, opacity: 1 }}, {{ x: {w}, duration: {dur}, ease: "none", immediateRender: false }}, {t:.2f});',
             f'    tl.to("#{sid}-cur", {{ opacity: 0, duration: 0.3 }}, {t + dur:.2f});']
 
 
@@ -941,7 +1032,8 @@ def q_gel(c, pal, d):
     for k in range(len(lanes)):
         js.append(f'    tl.fromTo(".bd.b{k}", {{ y: (i, el) => {gy + 30} - el.getAttribute("y") }}, {{ y: 0, duration: 2.0, ease: "power2.out" }}, {1.3 + k * 0.06:.2f});')
         js.append(f'    tl.fromTo(".bd.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, ease: "none" }}, {1.3 + k * 0.06:.2f});')
-        js.append(f'    tl.fromTo(".bt.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.4 }}, {3.3 + k * 0.1:.2f});')
+        if len(lanes[k]["bands"]) == 1:  # only single-band lanes carry a bp label
+            js.append(f'    tl.fromTo(".bt.b{k}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.4 }}, {3.3 + k * 0.1:.2f});')
     js.append(f'    tl.fromTo(".fc", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, {min(d - 2.4, 4.2 + len(lanes) * 0.1):.2f});')
     return sc("qg", pal, css, body, js, d)
 
@@ -994,8 +1086,9 @@ def build(path):
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for sub in ("fonts", "sfx", "music"):
         dst = os.path.join(out, "assets", sub)
-        if not os.path.exists(dst) and os.path.isdir(os.path.join(ROOT, "assets", sub)):
-            shutil.copytree(os.path.join(ROOT, "assets", sub), dst)
+        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
+            shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     sg = c["signature"]
     for fn in {sg.get("figure"), (sg.get("run") or {}).get("figure"), (sg.get("path") or {}).get("figure"),
                c["proof"].get("figure") if c["proof"].get("kind") == "anatomy" else None} - {None}:
@@ -1005,6 +1098,7 @@ def build(path):
         s = open(os.path.join(ROOT, "template", fn), encoding="utf-8").read().replace("__SLUG__", slug + "-s")
         open(os.path.join(out, fn), "w", encoding="utf-8").write(s)
     slots, total = slots_for(c)
+    keep_dur = dict(A.DUR)  # A's frame scenes read their length from A.DUR; restored below so A builds stay untouched
     A.DUR.update({sid: du for sid, _, _, du in slots})
     frame = {"s1-teaser": lambda: A.s1(c, pal), "s4-proof": lambda: A.s4_anatomy(c, pal) if c["proof"].get("kind") == "anatomy" else A.s4_stats(c, pal),
              "s5-features": lambda: A.s5(c, pal), "s6-apps": lambda: A.s6(c, pal), "s7-outro": lambda: A.s7(c, pal)}
@@ -1017,6 +1111,8 @@ def build(path):
         open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(A.index(c))
     finally:
         A.SLOTS, A.TOTAL = keep
+        A.DUR.clear()
+        A.DUR.update(keep_dur)
     add_transitions(out, "A", slots, total, 1920, 1080)
     print(slug, f"built (S · {kind} · {total}s)")
     return out

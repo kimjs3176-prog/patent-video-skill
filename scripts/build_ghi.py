@@ -365,11 +365,11 @@ def g7(c, pal, d):
       <div style="position: absolute; left: 120px; top: 540px; width: 1680px; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 2px solid {RED}">{ch}</div>
       <div id="g7-m" style="position: absolute; left: 160px; top: 760px; font-size: 30px; font-weight: 600; color: #b5b5b5">특허권자 대한민국 ({E(c["institute"])})</div>
       <div id="g7-d" style="position: absolute; left: 160px; top: 830px; width: 1600px; font-size: 28px; font-weight: 500; color: #9a9a9a; line-height: 1.5">{DISCLAIMER}</div>"""
-    css = g_css() + f"""
-    .ec {{ padding: 34px 40px 0; height: 170px; border-right: 1px solid rgba(255, 255, 255, 0.14); }}
-    .ec:last-child {{ border: 0; }}
-    .ec span {{ display: block; font-size: 28px; font-weight: 700; color: #f2737b; }}
-    .ec b {{ display: block; margin-top: 12px; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }}"""
+    css = g_css() + """
+    .ec { padding: 34px 40px 0; height: 170px; border-right: 1px solid rgba(255, 255, 255, 0.14); }
+    .ec:last-child { border: 0; }
+    .ec span { display: block; font-size: 28px; font-weight: 700; color: #f2737b; }
+    .ec b { display: block; margin-top: 12px; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }"""
     js = gjs + ['    tl.fromTo("#g7-n", { yPercent: 105 }, { yPercent: 0, duration: 1.1, ease: "expo.out" }, 0.3);',
                 up("#g7-s", 0.9), up(".ec", 1.3, 0.2, 0.7, 24), up("#g7-m", 2.0), up("#g7-d", 2.3)]
     return scene("g7", 1920, 1080, css, body, "\n".join(js), "ink")

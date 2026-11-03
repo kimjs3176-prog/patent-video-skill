@@ -22,11 +22,15 @@ def service_key():
     key = os.environ.get("KIPRIS_API_KEY")
     if key:
         return key
-    with open(os.path.join(ROOT, ".env"), encoding="utf-8") as f:
-        for line in f:
-            if line.startswith("KIPRIS_API_KEY="):
-                return line.split("=", 1)[1].strip()
-    raise SystemExit("KIPRIS_API_KEY not set")
+    env = os.path.join(ROOT, ".env")
+    if os.path.exists(env):
+        with open(env, encoding="utf-8-sig") as f:  # -sig: Windows Notepad writes a BOM
+            for line in f:
+                if line.strip().startswith("KIPRIS_API_KEY="):
+                    key = line.split("=", 1)[1].strip().strip('"\'')
+                    if key:
+                        return key
+    raise SystemExit("KIPRIS_API_KEY not set (put KIPRIS_API_KEY=... in .env or the environment)")
 
 
 def fetch(appno):
@@ -66,6 +70,23 @@ def parse(root):
     return info
 
 
+def _kipris_url(url):
+    u = urllib.parse.urlparse(url)
+    return u.scheme in ("http", "https") and (u.hostname or "").endswith(PDF_HOSTS)
+
+
+class _KiprisOnly(urllib.request.HTTPRedirectHandler):
+    """Follow redirects only while they stay on a KIPRIS host (the first URL is checked by the caller)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _kipris_url(newurl):
+            raise RuntimeError("full-text redirect left KIPRIS: " + (urllib.parse.urlparse(newurl).hostname or "?"))
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_PDF_OPENER = urllib.request.build_opener(_KiprisOnly)
+MAX_PDF = 200 * 2**20
+
+
 def fulltext(num, outdir):
     """Download the registered (else published) full-text PDF; extract its text and figure images."""
     for op in ("getPubFullTextInfoSearch", "getAnnFullTextInfoSearch"):
@@ -78,13 +99,20 @@ def fulltext(num, outdir):
     else:
         return None
     u = urllib.parse.urlparse(path)
-    if u.scheme not in ("http", "https") or not (u.hostname or "").endswith(PDF_HOSTS):
+    if not _kipris_url(path):
         raise RuntimeError("unexpected full-text location: " + (u.hostname or u.scheme or "?"))
     if u.scheme == "http":
         path = urllib.parse.urlunparse(u._replace(scheme="https"))
     pdf = os.path.join(ROOT, "data", "raw", num + ".pdf")
-    with urllib.request.urlopen(path, timeout=60) as r, open(pdf, "wb") as f:
-        f.write(r.read())
+    os.makedirs(os.path.dirname(pdf), exist_ok=True)
+    with _PDF_OPENER.open(path, timeout=60) as r:
+        data = r.read(MAX_PDF + 1)
+    if len(data) > MAX_PDF:
+        raise RuntimeError(f"full-text PDF larger than {MAX_PDF // 2**20} MB")
+    if b"%PDF" not in data[:1024]:
+        raise RuntimeError("full-text download is not a PDF")
+    with open(pdf, "wb") as f:
+        f.write(data)
     return parse_pdf(pdf, outdir)
 
 
@@ -96,7 +124,7 @@ def parse_pdf(pdf, outdir):
         f.write("\n=====PAGE=====\n".join(p.extract_text() or "" for p in reader.pages))
     figs = []
     for i, page in enumerate(reader.pages):
-        xo = page["/Resources"].get("/XObject")
+        xo = (page.get("/Resources") or {}).get("/XObject")
         if not xo:
             continue
         for k, v in xo.get_object().items():
@@ -129,8 +157,13 @@ if __name__ == "__main__":
         sys.exit(0)
     if args == ["--all"]:
         master = json.load(open(os.path.join(ROOT, "data", "master.json"), encoding="utf-8"))
-        args = [m["appno"] for m in master
-                if not os.path.exists(os.path.join(ROOT, "data", "patents", m["appno"], "biblio.json"))]
+        def fetched(a):  # biblio.json with a full text; a failed full-text download is retried on the next run
+            p = os.path.join(ROOT, "data", "patents", a, "biblio.json")
+            try:
+                return bool(json.load(open(p, encoding="utf-8")).get("fulltext"))
+            except (OSError, ValueError):
+                return False
+        args = [m["appno"] for m in master if not fetched(m["appno"])]
         print(len(args), "to fetch", flush=True)
     for a in args:
         time.sleep(0.3)
