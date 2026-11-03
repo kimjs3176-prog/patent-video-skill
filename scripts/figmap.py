@@ -18,6 +18,9 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from validate import appno_ok, figure_ok  # noqa: E402  same file-name rules as the content check
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SIGN = re.compile(r"(?<![0-9A-Za-z])([0-9]{1,4}[a-z]?(?:[-_][0-9a-z]+)?|S[0-9]{2,4})\s*[:：.]\s*([^\n\[:：]+?)(?=\s{2,}|\s+[0-9]{1,4}[a-z]?\s*[:：]|\[|$)", re.M)
 
@@ -62,6 +65,9 @@ def norm(s):
 
 def report(path, figure=None):
     c = json.load(open(path, encoding="utf-8"))
+    if not appno_ok(c.get("appno")):
+        print(f"== {os.path.basename(path)}  appno는 숫자 13자리: {c.get('appno')!r} (건너뜀)")
+        return
     refs = ref_table(c["appno"])
     jobs = []
     if figure:
@@ -85,6 +91,9 @@ def report(path, figure=None):
         print("  " + " · ".join(f"{k} {v}" for k, v in list(refs.items())[:40]))
     for label, fn, parts in jobs:
         if not fn:
+            continue
+        if not figure_ok(fn):
+            print(f"  {label}: 파일명 형식 오류 {fn!r} (건너뜀)")
             continue
         print(f"  {label} on {fn}  grid: {grid(c['appno'], fn)}")
         for i, p in enumerate(parts):

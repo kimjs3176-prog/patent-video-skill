@@ -15,6 +15,9 @@ import sys
 
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from validate import appno_ok, figure_ok  # noqa: E402  same file-name rules as the content check
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, "data", "fig_trace")
 MAX_DIM = 900          # working resolution: enough for linework, small enough for a scene
@@ -157,6 +160,8 @@ def trace(path):
 
 def cached(appno, fn):
     """Trace from cache (or compute and cache). None for non-line-art; cached as {"skip": true}."""
+    if not (appno_ok(appno) and figure_ok(fn)):  # both come from content JSON / argv and become paths
+        return None
     out = os.path.join(CACHE, appno, fn + ".json")
     if os.path.exists(out):
         d = json.load(open(out, encoding="utf-8"))
@@ -184,6 +189,9 @@ def main(args):
     else:
         jobs = list(zip(args[0::2], args[1::2]))
     for appno, fn in jobs:
+        if not (appno_ok(appno) and figure_ok(fn)):
+            print(appno, fn, "skip (appno must be 13 digits, figure a fig-p<N>-<name>.jpg|png file name)")
+            continue
         d = cached(appno, fn)
         print(appno, fn, "skip (not line art)" if d is None else f'{len(d["paths"])} strokes · {d["w"]}x{d["h"]}')
 

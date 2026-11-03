@@ -1,7 +1,7 @@
 """Narration: a spoken script per section, synthesised with edge-tts and laid onto a built project's scene timeline.
 
 Script source: content["narration"] = {"hook", "overview", "process", "proof", "figures", "features", "apps", "outro"}
-(1–2 spoken sentences each; see CONTENT_SPEC "narration"). Without it, a plain script is assembled from the content fields.
+(1–2 spoken sentences each; see CONTENT_SPEC "narration"). Sections it leaves out get a plain line assembled from the content fields.
 
 Each scene of the built project is matched to a section by its composition file name. Sections a template has no scene for
 are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
@@ -183,7 +183,8 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
     if c.get("signature") and any(scene_key(f) in SIG_SCENES for _, f, _, _ in slots):
         texts, keyof = sig_script(c), scene_key
     else:
-        script = {k: v for k, v in dict(c.get("narration") or auto_script(c)).items() if k not in SILENT}
+        authored = {k: v for k, v in (c.get("narration") or {}).items() if v}
+        script = {k: v for k, v in {**auto_script(c), **authored}.items() if k not in SILENT}  # unwritten sections fall back
         if not pick_figures(c):  # the figures scene falls back to step pictograms: no line about drawings
             script.pop("figures", None)
         texts, keyof = assign(slots, script), section_of
@@ -211,7 +212,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
     html = re.sub(r'(<audio id="bgm"[^>]*data-volume=")[\d.]+(")', rf"\g<1>{bgm_volume}\2", html)
     html = html.replace('      <audio id="bgm"', "\n".join(clips) + '\n      <audio id="bgm"', 1)
     open(ip, "w", encoding="utf-8").write(html)
-    open(os.path.join(out, "narration.txt"), "w", encoding="utf-8").write("\n".join(report) + "\n")
+    open(os.path.join(out, "narration.txt"), "w", encoding="utf-8").write("\n".join([f"voice: {voice}"] + report) + "\n")
     return report
 
 

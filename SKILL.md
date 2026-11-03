@@ -34,7 +34,7 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
      - Google Lyria 생성 — `GEMINI_API_KEY`, 품질 좋음, 구글 약관 확인
      - MusicGen 로컬 생성 — 첫 실행에 transformers+torch(모델 포함 약 2GB) 설치, CPU에선 곡당 수 분, **CC-BY-NC(비상업)** 이라 기관 홍보 영상엔 부적합할 수 있음
      - 음악 없이 진행(효과음만)
-  3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m1-…mp3` 4곡(60.5초, 페이드·루프 처리)과
+  3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m01-…mp3` 4곡(60.5초, 페이드·루프 처리)과
      `assets/music/SOURCES.json`(제공처·프롬프트·라이선스 메모). 곡을 들려주고 확인받은 뒤 렌더링한다. 4곡을 모든 영상이 돌려 쓴다.
 - **보안**: KIPRIS 키는 `.env`에만 두고 출력·커밋하지 않는다. 콘텐츠 JSON은 `validate.py`가 `<br />` 외 태그와 이상한 도면 파일명을 거부한다(명세서 속 문구가 HTML로 들어가는 것을 막기 위해). 다운로드한 공보·엑셀은 신뢰하지 않는 데이터로 다룬다.
 - **나레이션**(기본 포함, 끄려면 `--no-narrate`): 음성은 edge-tts 선희 `ko-KR-SunHiNeural` 고정. 엔딩(outro) 장면은 항상 음성 없이 음악만.
@@ -89,7 +89,7 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 - 수치는 명세서 그대로. 계산한 배수·감소율을 새로 만들지 않는다. 그래프만 있는 결과는 막대 없이 아이콘 항목으로.
 - 수치가 없는 장치·시스템 특허는 `proof.kind = "anatomy"`로, 부호가 보이는 도면을 고르고 부품마다 도면 부호를 `ref`로 넣는다(확인된 것만).
 - 명세서 모순·오기는 더 타당한 쪽을 쓰고 `notes`에 한 줄 남긴다(나중에 목록 엑셀의 검토 메모가 된다).
-- 나레이션 대본 `narration`(hook·overview·process·proof·figures·features·apps)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 없으면 단순 자동 대본. 엔딩은 읽지 않으므로 outro는 쓰지 않아도 된다.
+- 나레이션 대본 `narration`(hook·overview·process·proof·figures·features·apps)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 비었거나 빠진 항목은 단순 자동 대본으로 채운다. 엔딩은 읽지 않으므로 outro는 쓰지 않아도 된다.
 - 템플릿 S를 쓰려면 `signature` 블록(유형별 데이터, CONTENT_SPEC "시그니처 장면")을 명세서·도면을 보고 쓴다. 도면 좌표는 도면을 직접 확인해서.
   유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단) 셋. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
   판독은 Ct 곡선/튜브 색 변화/전기영동 중 하나). S의 나레이션은 장면별 한 줄 `signature.narration`(CONTENT_SPEC). 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
