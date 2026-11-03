@@ -20,6 +20,7 @@ CACHE = os.path.join(ROOT, "data", "fig_trace")
 MAX_DIM = 900          # working resolution: enough for linework, small enough for a scene
 MIN_LEN = 10           # px: shorter fragments are noise
 MAX_PATHS = 700
+VERSION = 2  # bump when tracing changes so cached strokes are redone (2: closed loops kept)
 
 
 def _dims(path):
@@ -125,6 +126,12 @@ def simplify(pl, eps=1.2):
     """Douglas–Peucker on [(y, x), ...]."""
     if len(pl) < 3:
         return pl
+    if pl[0] == pl[-1]:  # closed loop (circle, frame): split at the point farthest from the start, simplify both halves
+        o = np.array(pl[0], float)
+        i = int(np.argmax([np.hypot(p[0] - o[0], p[1] - o[1]) for p in pl]))
+        if 0 < i < len(pl) - 1:
+            return simplify(pl[:i + 1], eps)[:-1] + simplify(pl[i:], eps)
+        return pl
     a, b = np.array(pl[0], float), np.array(pl[-1], float)
     ab = b - a
     n = np.hypot(*ab) or 1.0
@@ -159,8 +166,12 @@ def cached(appno, fn):
     """Trace from cache (or compute and cache). None for non-line-art; cached as {"skip": true}."""
     out = os.path.join(CACHE, appno, fn + ".json")
     if os.path.exists(out):
-        d = json.load(open(out, encoding="utf-8"))
-        return None if d.get("skip") else d
+        try:
+            d = json.load(open(out, encoding="utf-8"))
+        except (OSError, ValueError):  # half-written by a parallel build: trace again
+            d = {}
+        if d.get("v") == VERSION:
+            return None if d.get("skip") else d
     src = os.path.join(ROOT, "data", "patents", appno, fn)
     if not os.path.exists(src):
         return None
@@ -169,7 +180,10 @@ def cached(appno, fn):
     except Exception:  # an odd image must never break a build
         d = None
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    json.dump(d or {"skip": True}, open(out, "w", encoding="utf-8"))
+    tmp = f"{out}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(dict(d or {"skip": True}, v=VERSION), f)
+    os.replace(tmp, out)  # atomic: a parallel renderer never reads half a file
     return d
 
 

@@ -184,7 +184,6 @@ def c4(c, pal, d):
             for j, br in enumerate(bars[:3]):
                 hi = br.get("hi")
                 band_bg = (pal[0] if bg == DARK else DARK) if hi else ("rgba(255,255,255,0.18)" if bg == DARK else "rgba(13,13,18,0.14)")
-                band_fg = DARK if (hi and bg == DARK) else (PAPER if hi else fg)
                 track = "rgba(255,255,255,0.16)" if bg == DARK else "rgba(13,13,18,0.12)"
                 rows += (f'<div class="band" style="top: {j * 104}px"><span>{E(br["l"])}</span><em>{E(br.get("t", ""))}</em>'
                          f'<div class="trk" style="background: {track}"><div class="fill" id="c4-f{i}-{j}" style="background: {band_bg}"></div></div></div>')
@@ -201,11 +200,11 @@ def c4(c, pal, d):
       </div>""")
         if num:
             count_js.append(build_count(f"#c4-n{i}", it["big"], T[i] + 0.15, 0.9, "expo.out"))
-    extra = f"""    .band {{ position: absolute; left: 0; right: 0; height: 96px; }}
-    .band span {{ position: absolute; left: 0; top: 0; font-size: 32px; font-weight: 800; white-space: nowrap; }}
-    .band em {{ position: absolute; right: 0; top: 0; font-style: normal; font-size: 32px; font-weight: 900; }}
-    .band .trk {{ position: absolute; left: 0; right: 0; top: 50px; height: 38px; }}
-    .band .fill {{ position: absolute; left: 0; top: 0; width: 100%; height: 38px; transform-origin: 0% 50%; }}"""
+    extra = """    .band { position: absolute; left: 0; right: 0; height: 96px; }
+    .band span { position: absolute; left: 0; top: 0; font-size: 32px; font-weight: 800; white-space: nowrap; }
+    .band em { position: absolute; right: 0; top: 0; font-style: normal; font-size: 32px; font-weight: 900; }
+    .band .trk { position: absolute; left: 0; right: 0; top: 50px; height: 38px; }
+    .band .fill { position: absolute; left: 0; top: 0; width: 100%; height: 38px; transform-origin: 0% 50%; }"""
     src = f'<div class="k" style="top: 1226px; font-size: 28px; font-weight: 600; line-height: 1.4; color: {PAPER}; z-index: 5" id="c4-src">{E(c.get("source", ""))}</div>'
     # source line follows the field it sits on (beat 0 dark, then light fields)
     if len(T) > 1:
@@ -345,8 +344,9 @@ def build(path, out_root="videos_c"):
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for sub in ("fonts", "sfx", "music"):
         dst = os.path.join(out, "assets", sub)
-        if not os.path.exists(dst) and os.path.isdir(os.path.join(ROOT, "assets", sub)):
-            shutil.copytree(os.path.join(ROOT, "assets", sub), dst)
+        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
+            shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     if c["proof"].get("kind") == "anatomy":
         shutil.copy(os.path.join(ROOT, "data", "patents", c["appno"], c["proof"]["figure"]), os.path.join(out, "assets", "fig", c["proof"]["figure"]))
     for fn in ("package.json", "hyperframes.json"):

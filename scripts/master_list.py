@@ -13,7 +13,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAT = re.compile(r"(?<![0-9])(10-\d{4}-\d{7})(?![0-9])")
+PAT = re.compile(r"(?<![0-9])(10-?\d{4}-?\d{7})(?![0-9])")  # 10-2019-0145266 or 1020190145266 (Excel numbers)
 TITLE = re.compile(r"(?:\[[^\]]*\]\s*)?([^\n()\[\]]{4,120}?)\s*\(\s*(?:출원\s*)?$")
 
 items, seen = [], {}
@@ -21,6 +21,7 @@ items, seen = [], {}
 
 def add(appno, source, title="", context=""):
     num = appno.replace("-", "")
+    appno = f"{num[:2]}-{num[2:6]}-{num[6:]}"
     if num in seen:
         if source not in items[seen[num]]["sources"]:
             items[seen[num]]["sources"].append(source)
@@ -45,7 +46,7 @@ for arg in sys.argv[1:]:
         wb = openpyxl.load_workbook(arg, read_only=True, data_only=True)
         for ws in wb.worksheets:
             for r, row in enumerate(ws.iter_rows(values_only=True), 1):
-                cells = [str(v) for v in row if v not in (None, "")]
+                cells = [str(int(v)) if isinstance(v, float) and v.is_integer() else str(v) for v in row if v not in (None, "")]
                 if cells:
                     scan_text("\n".join(cells), f"{os.path.basename(arg)}:{ws.title}:{r}")
     elif os.path.exists(arg):
@@ -53,6 +54,8 @@ for arg in sys.argv[1:]:
     else:
         scan_text(arg, "arg")
 
+if not items:  # never replace an existing production order with an empty one
+    sys.exit("no application numbers (10-YYYY-NNNNNNN) found; data/master.json left unchanged")
 for n, it in enumerate(items, 1):
     it["order"] = n
 os.makedirs(os.path.join(ROOT, "data"), exist_ok=True)

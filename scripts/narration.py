@@ -123,7 +123,10 @@ def sig_script(c):
 
 def duration(path):
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
-    return float(r.stdout.strip() or 0)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:  # a 0 s clip would "fit" every scene and overlap the next line
+        raise RuntimeError(f"ffprobe could not read {os.path.basename(path)}: {r.stderr.strip()[-200:]}") from None
 
 
 def synth(text, voice, rate):
@@ -131,7 +134,7 @@ def synth(text, voice, rate):
     h = hashlib.sha1(f"{voice}|{rate}|{text}".encode("utf-8")).hexdigest()[:16]
     mp3 = os.path.join(CACHE, h + ".mp3")
     if not os.path.exists(mp3):
-        tmp = mp3 + ".part.mp3"
+        tmp = f"{mp3}.{os.getpid()}.part.mp3"  # per process: two renderers may synthesize the same line at once
         subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", "--text", text, "--write-media", tmp],
                        check=True, capture_output=True, timeout=300)
         os.replace(tmp, mp3)
@@ -209,7 +212,13 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
         report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == texts[sec] else ' (shortened)'}: {t}")
     html = re.sub(r'(<audio id="bgm"[^>]*data-volume=")[\d.]+(")', rf"\g<1>{bgm_volume}\2", html)
-    html = html.replace('      <audio id="bgm"', "\n".join(clips) + '\n      <audio id="bgm"', 1)
+    block = "\n".join(clips)
+    if '      <audio id="bgm"' in html:
+        html = html.replace('      <audio id="bgm"', block + '\n      <audio id="bgm"', 1)
+    elif clips:  # no music (postprocess dropped the bgm tag): close the voice clips into the main composition instead
+        html, k = re.subn(r'(\n\s*</div>\s*\n\s*<script>)', lambda m: "\n" + block + m.group(1), html, count=1)
+        if not k:
+            raise RuntimeError("index.html: no place to mount the narration clips")
     open(ip, "w", encoding="utf-8").write(html)
     open(os.path.join(out, "narration.txt"), "w", encoding="utf-8").write("\n".join(report) + "\n")
     return report

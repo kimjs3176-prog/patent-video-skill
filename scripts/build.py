@@ -717,8 +717,9 @@ def build(path):
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for sub in ("fonts", "sfx", "music"):
         dst = os.path.join(out, "assets", sub)
-        if not os.path.exists(dst) and os.path.isdir(os.path.join(ROOT, "assets", sub)):
-            shutil.copytree(os.path.join(ROOT, "assets", sub), dst)
+        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
+            shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     if c["proof"].get("kind") == "anatomy":
         src = os.path.join(ROOT, "data", "patents", c["appno"], c["proof"]["figure"])
         shutil.copy(src, os.path.join(out, "assets", "fig", c["proof"]["figure"]))

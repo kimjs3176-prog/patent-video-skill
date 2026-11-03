@@ -128,8 +128,8 @@ def j_route(c, pal, d):
     .rp.rm {{ border-color: rgba(255, 90, 90, 0.7); color: #ffb4b4; }}
     .ra {{ position: absolute; font-size: 34px; color: #6e6e82; }}
     .rl {{ position: absolute; left: 0; right: 0; text-align: center; font-size: 34px; font-weight: 700; color: #a8a8bc; }}"""
-    js = [f'    tl.fromTo(".rp", {{ opacity: 0, y: 30 }}, {{ opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.14 }}, 0.6);',
-          f'    tl.fromTo(".ra", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, stagger: 0.14 }}, 0.8);',
+    js = ['    tl.fromTo(".rp", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.14 }, 0.6);',
+          '    tl.fromTo(".ra", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.14 }, 0.8);',
           '    tl.fromTo("#jr-lab", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.5);',
           f'    tl.to("#jr-p{rm}", {{ scale: 1.12, boxShadow: "0 0 40px rgba(255,90,90,0.55)", duration: 0.4, ease: "back.out(1.7)" }}, 2.4);',
           '    tl.to("#jr-strike line", { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, 2.9);',
@@ -157,9 +157,9 @@ def material(key, a, b, cc, name=""):
     if key == "puff":
         grains = "".join(f'<ellipse class="gr0" cx="{150 + (i % 6) * 52}" cy="{250 + (i // 6) * 46}" rx="16" ry="9" fill="#efe6d2" />' for i in range(18))
         puffs = "".join(f'<path class="gr1" transform="translate({150 + (i % 6) * 52} {250 + (i // 6) * 46})" d="M-22 4 C-26 -14 -10 -24 2 -18 C14 -26 28 -12 22 2 C30 14 12 26 0 18 C-12 26 -30 16 -22 4 Z" fill="#fff6e4" stroke="{a}" stroke-width="2" opacity="0" />' for i in range(18))
-        gauge = (f'<g transform="translate(450 110)"><circle r="62" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10" />'
-                 f'<path d="M -44 44 A 62 62 0 1 1 44 44" fill="none" stroke="url(#jj-lg)" stroke-width="10" stroke-linecap="round" />'
-                 f'<line id="jj-needle" x1="0" y1="0" x2="0" y2="-48" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(-130)" /><circle r="8" fill="#fff" /></g>')
+        gauge = ('<g transform="translate(450 110)"><circle r="62" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10" />'
+                 '<path d="M -44 44 A 62 62 0 1 1 44 44" fill="none" stroke="url(#jj-lg)" stroke-width="10" stroke-linecap="round" />'
+                 '<line id="jj-needle" x1="0" y1="0" x2="0" y2="-48" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(-130)" /><circle r="8" fill="#fff" /></g>')
         return grains + puffs + gauge
     if key == "mash":
         bubbles = "".join(f'<circle class="bb" cx="{170 + i * 40}" cy="330" r="{6 + i % 3 * 2}" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="3" />' for i in range(6))
@@ -298,13 +298,13 @@ def j_journey(c, pal, d):
       <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
       {labels}
       <div style="position: absolute; right: {1920 - x1 - 40}px; top: {yt - 40}px; font-size: 28px; color: #8e8ea3">온도 조건(명세서) ℃</div>"""
-    css = f"""    .jc {{ position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }}
-    .jc .k {{ font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }}
-    .jc .n {{ font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }}
-    .jc .v {{ font-weight: 800; margin-top: 10px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }}
-    .jc .s {{ font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }}
-    .tl {{ position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }}
-    .tl b {{ display: block; color: #e8e8f0; font-weight: 700; }}"""
+    css = """    .jc { position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }
+    .jc .k { font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }
+    .jc .n { font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }
+    .jc .v { font-weight: 800; margin-top: 10px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }
+    .jc .s { font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }
+    .tl { position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }
+    .tl b { display: block; color: #e8e8f0; font-weight: 700; }"""
     js = ['    tl.fromTo(".tl", { opacity: 0 }, { opacity: 0.45, duration: 0.4 }, 0.3);']
     # the pen moves only when a stage with a temperature comes up: the segment and the dot travel together on one ease,
     # then the stated range opens around the point and earlier ranges step back
@@ -477,7 +477,7 @@ def l_run(c, pal, d):
         for k in range(per):
             parts += (f'<i class="pf" id="lr-f{fi}-{k}" style="left: {-sz / 2:.0f}px; top: {-sz / 2:.0f}px; width: {sz}px; height: {sz}px; '
                       f'border-radius: {rad}; background: {col}; border: 2px solid rgba(0,0,0,0.35); box-shadow: 0 0 14px {col}"></i>')
-        lines += (f'<path class="lr-fl" d="M' + " L".join(f"{x:.0f} {y:.0f}" for x, y in paths[fi]) +
+        lines += ('<path class="lr-fl" d="M' + " L".join(f"{x:.0f} {y:.0f}" for x, y in paths[fi]) +
                   f'" fill="none" stroke="{col}" stroke-width="4" stroke-dasharray="3 12" stroke-linecap="round" opacity="0" />')
     for gi, g in enumerate(rn.get("glows", [])):
         if "ref" in g:
@@ -545,12 +545,12 @@ def l_run(c, pal, d):
       {parts}
       {side}
       <div class="cap" style="left: 140px; top: 1004px">{" &nbsp; ".join(legend)}</div>"""
-    css = FIG_CSS + f"""
-    .pf {{ position: absolute; opacity: 0; }}
-    .pd {{ position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }}
-    .ln {{ position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
-      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }}
-    .ru {{ font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }}"""
+    css = FIG_CSS + """
+    .pf { position: absolute; opacity: 0; }
+    .pd { position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }
+    .ln { position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }
+    .ru { font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }"""
     js = ['    tl.fromTo(["#lr-plate", "#lr-img"], { opacity: 0.6 }, { opacity: 1, duration: 0.5 }, 0.2);',
           '    tl.to("#lr-img", { filter: "brightness(0.92) saturate(0.9)", duration: 1 }, 0.6);',
           '    tl.to(".lr-gl", { opacity: 1, duration: 1.2, stagger: 0.6 }, 1.0);',
@@ -702,14 +702,14 @@ def q_primers(c, pal, d):
         <div style="font-size: 28px; color: #a8a8bc">인식 부위</div></div>
       {rows}
       <div class="cap" style="position: absolute; left: 160px; top: 1010px; font-size: 28px; color: #8e8ea3">{E(sg.get("primers_cap", ""))}</div>"""
-    css = MONO + f"""
-    .rg {{ position: absolute; height: 48px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: center; }}
-    .rg span {{ font-size: 28px; font-weight: 800; color: #8e8ea3; }}
-    .pr {{ position: absolute; left: 160px; right: 160px; display: flex; align-items: center; gap: 24px; opacity: 0.35; }}
-    .pr b {{ height: 54px; border-radius: 27px; color: #04121f; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: none; }}
-    .pr .sq {{ font-family: "PlexMono", monospace; font-size: 29px; letter-spacing: 0.02em; white-space: nowrap; color: #6e6e82; }}
-    .pr .sq i {{ font-style: normal; opacity: 0.12; }}
-    .pr em {{ font-style: normal; font-size: 28px; color: #8e8ea3; margin-left: auto; }}"""
+    css = MONO + """
+    .rg { position: absolute; height: 48px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: center; }
+    .rg span { font-size: 28px; font-weight: 800; color: #8e8ea3; }
+    .pr { position: absolute; left: 160px; right: 160px; display: flex; align-items: center; gap: 24px; opacity: 0.35; }
+    .pr b { height: 54px; border-radius: 27px; color: #04121f; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .pr .sq { font-family: "PlexMono", monospace; font-size: 29px; letter-spacing: 0.02em; white-space: nowrap; color: #6e6e82; }
+    .pr .sq i { font-style: normal; opacity: 0.12; }
+    .pr em { font-style: normal; font-size: 28px; color: #8e8ea3; margin-left: auto; }"""
     step = (d - 2.4) / len(pr)
     js = ['    tl.to("#qs-dna1", { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 0.4);',
           '    tl.to("#qs-dna2", { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 0.55);',
@@ -994,8 +994,9 @@ def build(path):
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
     for sub in ("fonts", "sfx", "music"):
         dst = os.path.join(out, "assets", sub)
-        if not os.path.exists(dst) and os.path.isdir(os.path.join(ROOT, "assets", sub)):
-            shutil.copytree(os.path.join(ROOT, "assets", sub), dst)
+        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
+            shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     sg = c["signature"]
     for fn in {sg.get("figure"), (sg.get("run") or {}).get("figure"), (sg.get("path") or {}).get("figure"),
                c["proof"].get("figure") if c["proof"].get("kind") == "anatomy" else None} - {None}:
@@ -1005,6 +1006,7 @@ def build(path):
         s = open(os.path.join(ROOT, "template", fn), encoding="utf-8").read().replace("__SLUG__", slug + "-s")
         open(os.path.join(out, fn), "w", encoding="utf-8").write(s)
     slots, total = slots_for(c)
+    keep_dur = dict(A.DUR)  # A's frame scenes read their length from A.DUR; restored below so A builds stay untouched
     A.DUR.update({sid: du for sid, _, _, du in slots})
     frame = {"s1-teaser": lambda: A.s1(c, pal), "s4-proof": lambda: A.s4_anatomy(c, pal) if c["proof"].get("kind") == "anatomy" else A.s4_stats(c, pal),
              "s5-features": lambda: A.s5(c, pal), "s6-apps": lambda: A.s6(c, pal), "s7-outro": lambda: A.s7(c, pal)}
@@ -1017,6 +1019,8 @@ def build(path):
         open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(A.index(c))
     finally:
         A.SLOTS, A.TOTAL = keep
+        A.DUR.clear()
+        A.DUR.update(keep_dur)
     add_transitions(out, "A", slots, total, 1920, 1080)
     print(slug, f"built (S · {kind} · {total}s)")
     return out

@@ -17,7 +17,7 @@ import openpyxl
 from openpyxl.styles import Alignment
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAT = re.compile(r"(?<![0-9])(10-\d{4}-\d{7})(?![0-9])")
+PAT = re.compile(r"(?<![0-9])(10-?\d{4}-?\d{7})(?![0-9])")
 
 args = sys.argv[1:]
 tpl = None
@@ -25,17 +25,25 @@ if "--template" in args:
     tpl = args[args.index("--template") + 1].upper()
     args = [a for i, a in enumerate(args) if a != "--template" and (i == 0 or args[i - 1] != "--template")]
 master = json.load(open(os.path.join(ROOT, "data", "master.json"), encoding="utf-8"))
-if tpl:
+if tpl:  # the working copy produce.py wrote: renders[_x]/<order>-<appno>[_x][_nar].mp4 (narrated one preferred)
+    d = "renders" if tpl == "A" else f"renders_{tpl.lower()}"
     suffix = "" if tpl == "A" else f"_{tpl.lower()}"
-    SLUG = {m["appno"]: f'{m["order"]:03d}-{m["appno"]}{suffix}.mp4' for m in master}
+    SLUG = {}
+    for m in master:
+        base = f'{d}/{m["order"]:03d}-{m["appno"]}{suffix}'
+        SLUG[m["appno"]] = next((f for f in (base + "_nar.mp4", base + ".mp4") if os.path.exists(os.path.join(ROOT, f))), None)
 else:
     SLUG = {m["appno"]: f'patents/{m["appno"]}.mp4' for m in master}
+missing = sorted(a for a, f in SLUG.items() if not f or not os.path.exists(os.path.join(ROOT, f)))
+SLUG = {a: f for a, f in SLUG.items() if a not in missing}  # only videos that exist (SKIPped patents get no file name)
+if missing:
+    print(f"no video yet for {len(missing)} patent(s), left blank:", ", ".join(missing[:10]) + (" …" if len(missing) > 10 else ""))
 
 
 def files_in(texts):
     out = []
     for t in texts:
-        t = str(t or "")
+        t = str(int(t)) if isinstance(t, float) and t.is_integer() else str(t or "")
         for m in PAT.finditer(t):
             if "제외" in t[max(0, m.start() - 8):m.start()]:
                 continue
