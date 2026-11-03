@@ -23,7 +23,7 @@ def tiff_ccitt(data, w, h, k, black_is_1):
     entries = [(256, 4, 1, w), (257, 4, 1, h), (258, 3, 1, 1), (259, 3, 1, comp), (262, 3, 1, photometric),
                (273, 4, 1, 0), (277, 3, 1, 1), (278, 4, 1, h), (279, 4, 1, len(data))]
     if comp == 3:
-        entries.append((292, 4, 1, 0))
+        entries.append((292, 4, 1, 1 if k > 0 else 0))  # T4Options bit 0: 2-D coding (Group 3, K > 0)
     entries.sort()
     ifd_off = 8
     data_off = ifd_off + 2 + 12 * len(entries) + 4
@@ -33,6 +33,29 @@ def tiff_ccitt(data, w, h, k, black_is_1):
             val = data_off
         out += struct.pack("<HHI", tag, typ, cnt) + (struct.pack("<HH", val, 0) if typ == 3 else struct.pack("<I", val))
     out += struct.pack("<I", 0) + data
+    return bytes(out)
+
+
+def png_unpredict(raw, row, bpp=1):
+    """Undo PNG predictors (/Predictor >= 10): every row of `row` bytes is preceded by its filter type."""
+    out, prev = bytearray(), bytearray(row)
+    for i in range(0, len(raw) - row, row + 1):
+        ft, cur = raw[i], bytearray(raw[i + 1:i + 1 + row])
+        for x in range(row) if ft else ():
+            a = cur[x - bpp] if x >= bpp else 0
+            b = prev[x]
+            c = prev[x - bpp] if x >= bpp else 0
+            if ft == 1:
+                cur[x] = (cur[x] + a) & 255
+            elif ft == 2:
+                cur[x] = (cur[x] + b) & 255
+            elif ft == 3:
+                cur[x] = (cur[x] + (a + b) // 2) & 255
+            elif ft == 4:
+                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                cur[x] = (cur[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        out += cur
+        prev = cur
     return bytes(out)
 
 
@@ -58,7 +81,8 @@ def extract(appno):
         for name, ref in xo.get_object().items():
             v = ref.get_object()
             w, h = int(v.get("/Width", 0)), int(v.get("/Height", 0))
-            if w < 300 or int(v.get("/BitsPerComponent", 8)) != 1:
+            bpc = 1 if v.get("/ImageMask") else int(v.get("/BitsPerComponent", 8))  # image masks are 1-bit, BPC optional
+            if w < 300 or bpc != 1:
                 continue
             filt = v.get("/Filter")
             filt = filt[0] if isinstance(filt, list) else filt
@@ -75,6 +99,11 @@ def extract(appno):
                     open(tmp, "wb").write(tiff_ccitt(v._data, int(p.get("/Columns", w)), int(p.get("/Rows", h)), k, black1))
                 elif filt == "/FlateDecode":
                     raw = zlib.decompress(v._data)
+                    p = v.get("/DecodeParms") or {}
+                    p = p[0] if isinstance(p, list) else p
+                    if int(p.get("/Predictor", 1)) >= 10:
+                        colors, pbpc = int(p.get("/Colors", 1)), int(p.get("/BitsPerComponent", 8))
+                        raw = png_unpredict(raw, (int(p.get("/Columns", 1)) * colors * pbpc + 7) // 8, max(1, colors * pbpc // 8))
                     # PDF 1-bit gray: 0 = black; PBM: 1 = black
                     open(tmp, "wb").write(pbm(raw, w, h, invert=not inverted))
                 else:
