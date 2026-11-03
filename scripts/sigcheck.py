@@ -13,7 +13,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-KEYS = {"soak", "cut", "steam", "heat", "boil", "dry", "roast", "fry", "freeze", "ferment", "mix", "extract", "filter", "puff", "mash", "cold"}
+KEYS = {"soak", "cut", "steam", "heat", "boil", "dry", "roast", "fry", "freeze", "ferment", "mix", "extract", "filter", "puff", "mash", "cold",
+        "mill", "form", "inoculate", "sterilize", "coat", "pack", "concentrate", "harvest", "extrude"}
 MEDIA = {"air", "water", "heat", "cold", "gas", "uv", "light", "solid", "power"}
 FRAME = {"teaser", "proof", "features", "apps", "outro"}
 SCENES = {"journey": {"route", "journey"}, "loop": {"parts", "run", "path"},

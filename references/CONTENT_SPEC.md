@@ -133,7 +133,8 @@
   `stages[{n, key, cond, t:[최저,최고]℃ 또는 label}]` 4~6개(온도는 음수 가능, 축 범위는 자동). 온도가 2단계 미만이면 온도 그래프 대신 단계 레일과 각 단계의 label(시간·비율 등)로 보여 주므로, 온도가 없는 공정도 journey로 쓴다.
   key(그림): soak(침지·당침) · cut(절단) · steam(증숙) · heat(가열·데침·효소처리) · boil(끓임+홉) · dry(건조) · roast(로스팅) ·
   fry(유탕) · freeze(동결·냉각) · ferment(발효) · mix(혼합·배합) · extract/filter(추출·여과·농축) · puff(팽화) · mash(당화) ·
-  cold(저온 숙성 → 완제품 잔). 없으면 단계 이름으로 아이콘을 고른다.
+  cold(저온 숙성 → 완제품 잔) · mill(분쇄·제분·도정) · form(성형·분할·고형화·겔화) · inoculate(접종) · sterilize(살균·멸균) ·
+  coat(코팅·분무·도포) · pack(포장·충진·실링) · concentrate(농축·증발) · harvest(수확·채취) · extrude(압출). 없으면 단계 이름으로 아이콘을 고른다.
   선택: 명세서가 기존 공정의 한 단계를 없앤다고 **명시**할 때만 `conventional` · `removed` · `removed_note` · `route_note` · `route_label`
   (공정 비교 장면이 추가되고, 없으면 강점 장면이 들어간다).
 - `loop` (장치): `figure` · `figcap` · `parts_title`(선택) · `callouts[{ref, n, d, x, y}]` 3~5개 ·

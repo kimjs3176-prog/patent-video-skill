@@ -25,6 +25,7 @@ import build as A  # noqa: E402
 from build import E, PALETTES, ROOT, fit, gtext, rgba  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import _dims, add_transitions, copy_figures, step_icon  # noqa: E402
+import stage_art as _art  # noqa: E402  (more stage illustrations)
 
 MONO = '@font-face {{ font-family: "PlexMono"; src: url("assets/fonts/ref/IBMPlexMono-500.woff2") format("woff2"); font-weight: 500; }}'
 
@@ -237,6 +238,8 @@ def material(key, a, b, cc, name=""):
         return (f'<rect x="170" y="40" width="220" height="110" rx="18" {vessel} /><rect x="186" y="80" width="188" height="56" rx="12" fill="#c9a36a" />'
                 f'<path d="M150 160 L410 160 L300 250 L260 250 Z" {vessel} /><line x1="170" y1="176" x2="390" y2="176" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-dasharray="8 8" />'
                 f'<rect x="190" y="300" width="180" height="120" rx="16" {vessel} /><rect class="lq" x="204" y="330" width="152" height="80" rx="10" fill="{rgba(b, 0.55)}" />{drops}')
+    if key in _art.ART:
+        return _art.ART[key][0](a, b, cc)
     return f'<g transform="translate(130 70)">{icon(step_icon(name), 300, "url(#jj-lg)", 3)}</g>'
 
 
@@ -429,6 +432,8 @@ def j_journey(c, pal, d):
         elif k in ("extract", "filter"):
             js += [f'    tl.fromTo("#jj-m{i} .dp", {{ y: 0, opacity: 0 }}, {{ y: 70, opacity: 1, duration: 0.5, ease: "power2.in", stagger: {{ each: 0.3, repeat: 1 }} }}, {t + 0.4:.2f});',
                    f'    tl.fromTo("#jj-m{i} .lq", {{ scaleY: 0.3, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 2.0, ease: "power1.out" }}, {t + 0.5:.2f});']
+        elif k in _art.ART:
+            js += _art.ART[k][1](i, t)
         if i == n - 1:
             tf = t + (2.2 if k == "cold" else 1.6)  # finale: the whole chart lights up and the product lands
             js += [f'    tl.fromTo("#jj-prod", {{ opacity: 0, y: 24, scale: 0.92 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "back.out(1.7)" }}, {tf:.2f});',
