@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 SLOTS = [("b1", "b1-cover", 0.0, 5.0), ("b2", "b2-summary", 4.5, 6.5), ("b3", "b3-process", 10.5, 10.0),
@@ -173,11 +173,12 @@ def b4(c, pal, d):
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
         parts = pr["parts"][:6]
+        fm_html, fm_js = fig_markers(c, pr, "b4", (20, 16, 800, 408), 1.2, 0.45, acc)
         cells = "".join(f'<div class="b4-p" id="b4-p{i}" style="left: {60 + (i % 2) * 430}px; top: {690 + (i // 2) * 74}px">'
                         + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b class="dot"></b>')
                         + f'<span>{E(p["n"])}</span></div>' for i, p in enumerate(parts))
         body = f"""<div class="eyebrow">{E(pr.get("eyebrow", "ANATOMY"))}</div><div class="ttl">{emph(pr.get("title", "핵심 |구성"), acc)}</div>
-        <div id="b4-fig"><img src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" /></div>{cells}
+        <div id="b4-fig"><img src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" />{fm_html}</div>{cells}
         <div class="b4-src">{E(c.get("source", ""))}</div>"""
         extra = f"""#b4-fig {{ position: absolute; left: 60px; top: 220px; width: 840px; height: 440px; border-radius: 28px; background: #f7f7f9; overflow: hidden; }}
     #b4-fig img {{ position: absolute; left: 20px; top: 16px; width: 800px; height: 408px; object-fit: contain; }}
@@ -187,8 +188,9 @@ def b4(c, pal, d):
     .b4-src {{ position: absolute; left: 60px; right: 60px; bottom: 26px; font-size: 28px; color: {MUTED}; white-space: nowrap; overflow: hidden; }}"""
         script = """
     tl.fromTo("#b4-fig", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0.4);
-    tl.fromTo("#b4-fig img", { scale: 1 }, { scale: 1.06, duration: 9, ease: "none" }, 0.5);
+    tl.fromTo(["#b4-fig img", "#b4-fm"], { scale: 1 }, { scale: 1.06, duration: 9, ease: "none" }, 0.5);
     tl.fromTo(".b4-p", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.45 }, 1.2);"""
+        script += "\n" + "\n".join(fm_js)
         return wrap("b4", css, top, body, script, d, extra)
     items = pr["items"][:3]
     k = len(items)

@@ -409,6 +409,8 @@ def s4_anatomy(c, pal):
     pr = c["proof"]
     parts = pr["parts"][:6]
     n = len(parts)
+    from visuals import fig_markers
+    fm_html, fm_js = fig_markers(c, pr, "s4", (30, 30, 640, 600), 1.2, min(1.6, 9.5 / max(1, n)), b)
     rh = 112
     top = 560 - (n * rh) // 2 + 20
     # show the drawing's own reference number when known, otherwise a neutral dot (never an invented 1..N)
@@ -435,7 +437,7 @@ def s4_anatomy(c, pal):
       <div class="glow" id="s4-glow" data-layout-ignore></div>
       <div id="s4-eyebrow" class="eyebrow">{E(pr.get("eyebrow", "ANATOMY"))}</div>
       <div id="s4-title">{gtext(pr.get("title", "핵심 |구성"))}</div>
-      <div id="s4-card" data-layout-allow-overflow><img id="s4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "대표 도면"))}" /></div>
+      <div id="s4-card" data-layout-allow-overflow><img id="s4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "대표 도면"))}" />{fm_html}</div>
       <div id="s4-list">{rows}</div>
       <div id="s4-src">{E(c.get("source", ""))}</div>
     </div>
@@ -445,9 +447,10 @@ def s4_anatomy(c, pal):
     {enter("s4")}
     tl.fromTo("#s4-glow", {{ x: -40 }}, {{ x: 160, duration: {DUR["s4"]}, ease: "none" }}, 0);
     tl.fromTo(["#s4-eyebrow", "#s4-title", "#s4-src"], {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.1 }}, 0.2);
-    tl.fromTo("#s4-card", {{ opacity: 0, scale: 0.94, filter: "blur(14px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: "expo.out" }}, 0.5);
-    tl.fromTo("#s4-img", {{ scale: 1 }}, {{ scale: 1.08, duration: {DUR["s4"] - 1}, ease: "none" }}, 0.8);
-    tl.fromTo(".s4-part", {{ opacity: 0, x: 40, filter: "blur(10px)" }}, {{ opacity: 1, x: 0, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: {min(1.6, 9.5 / max(1, n)):.2f} }}, 1.2);
+    tl.fromTo("#s4-card", {{ opacity: 0, scale: 0.96 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }}, 0.2);
+    {chr(10).join(fm_js)}
+    tl.fromTo(["#s4-img", "#s4-fm"], {{ scale: 1 }}, {{ scale: 1.08, duration: {DUR["s4"] - 1}, ease: "none" }}, 0.8);
+    tl.fromTo(".s4-part", {{ opacity: 0, x: 40 }}, {{ opacity: 1, x: 0, duration: 0.7, ease: "expo.out", stagger: {min(1.6, 9.5 / max(1, n)):.2f} }}, 1.2);
     window.__timelines["s4"] = tl;
   </script>
 </template>

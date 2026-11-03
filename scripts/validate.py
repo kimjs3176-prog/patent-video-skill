@@ -109,6 +109,9 @@ def check(path):
                    ("signature.run.figure", (sig.get("run") or {}).get("figure")), ("signature.path.figure", (sig.get("path") or {}).get("figure"))]:
         if fn is not None and not re.fullmatch(r"fig-p\d+-[A-Za-z0-9_-]+\.(jpg|png)", fn):
             errs.append(f"{at} 파일명 형식 오류: {fn}")
+    for i, part in enumerate(c["proof"].get("parts", [])):  # markers on the drawing: fractions of the figure image
+        if ("x" in part) != ("y" in part) or any(not (isinstance(part.get(k), (int, float)) and 0 <= part[k] <= 1) for k in ("x", "y") if k in part):
+            errs.append(f"proof.parts[{i}]: x·y는 함께, 도면 비율 0~1")
     errs += [f"signature: {e}" for e in sigcheck.problems(c)]  # template S: is the technology's own structure there?
     nar = c.get("narration") or {}
     budget = {"hook": 30, "overview": 30, "process": 45, "proof": 50, "figures": 25, "features": 30, "apps": 30, "outro": 25}

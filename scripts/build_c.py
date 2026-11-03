@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
-from visuals import bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 DARK, PAPER = "#0d0d12", "#f3efe6"
@@ -152,6 +152,7 @@ def c4(c, pal, d):
     fl = fields(pal)
     if pr.get("kind") == "anatomy":
         parts = pr["parts"][:6]
+        fm_html, fm_js = fig_markers(c, pr, "c4", (16, 12, 892, 434), 1.95, 0.55, DARK, PAPER)
         ticker = "".join(f'<div class="tk pop" style="top: {i * 58}px">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b>•</b>') + f'{E(p["n"])}</div>'
                          for i, p in enumerate(parts))
         body = f"""
@@ -159,14 +160,15 @@ def c4(c, pal, d):
         <div class="k pop" style="top: 220px; font-size: 34px; font-weight: 800; letter-spacing: 0.16em">{E(pr.get("eyebrow", "ANATOMY"))}</div>
         <div class="k pop" style="top: 276px; font-size: 64px">{E(pr.get("title", "핵심 구성").replace("|", ""))}</div>
         <div id="c4-fig" class="pop" style="position: absolute; left: 72px; top: 400px; width: 936px; height: 470px; border: 6px solid {DARK}; background: #fff">
-          <img src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 16px; top: 12px; width: 892px; height: 434px; object-fit: contain" /></div>
+          <img src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 16px; top: 12px; width: 892px; height: 434px; object-fit: contain" />{fm_html}</div>
         <div class="k" style="top: 884px; font-size: 28px; font-weight: 600; line-height: 1.4">{E(c.get("source", ""))}</div>
         <div style="position: absolute; left: 72px; right: 72px; top: 984px; height: 350px">{ticker}</div>
       </div>"""
         js = ['    tl.fromTo("#c4-b0 .pop", { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.35, ease: "expo.out", stagger: 0.55 }, 0.3);',
-              '    tl.fromTo("#c4-fig img", { scale: 1 }, { scale: 1.08, duration: 10, ease: "none" }, 0.4);']
+              '    tl.fromTo(["#c4-fig img", "#c4-fm"], { scale: 1 }, { scale: 1.08, duration: 10, ease: "none" }, 0.4);']
         extra = f"""    .tk {{ position: absolute; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 16px; font-size: 34px; font-weight: 900; white-space: nowrap; }}
     .tk b {{ min-width: 60px; height: 46px; padding: 0 10px; background: {DARK}; color: {PAPER}; font-size: 28px; text-align: center; line-height: 46px; }}"""
+        js += fm_js
         return page("c4", body, "\n".join(js), PAPER, extra)
     items = pr["items"][:3]
     divs, count_js = [], []

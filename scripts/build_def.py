@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
+from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
 
 FONT = """    @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-Medium.woff2") format("woff2"); font-weight: 500; }
     @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
@@ -219,19 +219,21 @@ def d4(c, pal, d):
     .pl .n {{ font-size: 36px; font-weight: 700; white-space: nowrap; }}
     .pl .s {{ font-size: 28px; color: #5d6862; white-space: nowrap; }}"""
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "d4", (30, 60, 700, 700), 1.4, 0.7)
         parts = "".join(f'<div class="pl" id="d4-p{i}">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b class="dot"></b>')
                         + f'<div><div class="n">{E(p["n"])}</div><div class="s">{E(p["d"])}</div></div></div>' for i, p in enumerate(pr["parts"][:6]))
         body = f"""
       <div class="card" id="d4-ph" style="position: absolute; left: 140px; top: 140px; width: 760px; height: 800px; overflow: hidden; background: #fff">
-        <img id="d4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 30px; top: 60px; width: 700px; height: 700px; object-fit: contain" />
+        <img id="d4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 30px; top: 60px; width: 700px; height: 700px; object-fit: contain" />{fm_html}
         <div style="position: absolute; left: 30px; top: 26px; font-size: 28px; font-weight: 700; color: #5d6862">{E(pr.get("figcap", "대표 도면"))}</div></div>
       <div style="position: absolute; left: 990px; top: 150px; width: 800px">
         <div class="eye" id="d4-e">{E(pr.get("eyebrow", "ANATOMY"))}</div>
         <div class="h" id="d4-t" style="margin-top: 18px; font-size: 66px">{grad_text(pr.get("title", "핵심 |구성"))}</div>
         <div style="margin-top: 26px">{parts}</div></div>
       <div class="foot2" style="left: 990px">{E(c.get("source", ""))}</div>"""
-        js = [pop("#d4-ph", 0.3), '    tl.fromTo("#d4-img", { scale: 1 }, { scale: 1.07, duration: 13, ease: "none" }, 0.4);',
+        js = [pop("#d4-ph", 0.3), '    tl.fromTo(["#d4-img", "#d4-fm"], { scale: 1 }, { scale: 1.07, duration: 13, ease: "none" }, 0.4);',
               up("#d4-e", 0.5), up("#d4-t", 0.65), up(".pl", 1.4, 0.7, 0.7, 24)]
+        js = js + fm_js
         return scene("d4", 1920, 1080, css, body, "\n".join(js), "light")
     items = pr["items"][:3]
     k = len(items)
@@ -464,11 +466,12 @@ def e4(c, pal, d):
     a, b, cc = pal
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "e4", (40, 40, 740, 740), 1.3, 0.75)
         parts = "".join(f'<div class="pl" id="e4-p{i}">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b class="dot"></b>')
                         + f'<span>{E(p["n"])}</span><small>{E(p["d"])}</small></div>' for i, p in enumerate(pr["parts"][:6]))
         body = f"""
       <div class="card" id="e4-ph" style="position: absolute; left: 130px; top: 130px; width: 820px; height: 820px; overflow: hidden">
-        <img id="e4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 40px; top: 40px; width: 740px; height: 740px; object-fit: contain" /></div>
+        <img id="e4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 40px; top: 40px; width: 740px; height: 740px; object-fit: contain" />{fm_html}</div>
       <div style="position: absolute; left: 1030px; top: 170px; width: 760px">
         <div class="eye" id="e4-e" style="justify-content: flex-start">{E(pr.get("eyebrow", "ANATOMY"))}</div>
         <div class="h" id="e4-t" style="text-align: left; margin-top: 16px; font-size: 68px">{grad_text(pr.get("title", "핵심 |구성"))}</div>
@@ -480,7 +483,8 @@ def e4(c, pal, d):
     .pl b.dot {{ width: 20px; height: 20px; margin-left: 30px; background: linear-gradient(135deg, {a}, {cc}); }}
     .pl span {{ font-size: 36px; font-weight: 700; white-space: nowrap; }}
     .pl small {{ font-size: 28px; color: #6e6e73; white-space: nowrap; }}"""
-        js = [pop("#e4-ph", 0.3), '    tl.fromTo("#e4-img", { scale: 1 }, { scale: 1.07, duration: 12, ease: "none" }, 0.4);', up("#e4-e", 0.5), up("#e4-t", 0.65), up(".pl", 1.3, 0.75, 0.7, 24)]
+        js = [pop("#e4-ph", 0.3), '    tl.fromTo(["#e4-img", "#e4-fm"], { scale: 1 }, { scale: 1.07, duration: 12, ease: "none" }, 0.4);', up("#e4-e", 0.5), up("#e4-t", 0.65), up(".pl", 1.3, 0.75, 0.7, 24)]
+        js = js + fm_js
         return scene("e4", 1920, 1080, css, body, "\n".join(js), "mist")
     items = pr["items"][:3]
     k = len(items)
@@ -699,17 +703,19 @@ def f4(c, pal, d):
     a, b, cc = pal
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "f4", (40, 36, 820, 480), 1.0, 0.45)
         parts = "".join(f'<div class="pr">' + (f'<b>{E(str(p["ref"]))}</b>' if p.get("ref") else '<b>•</b>') + f'{E(p["n"])}</div>' for p in pr["parts"][:6])
         body = f"""
       <div class="t" id="f4-t" style="top: 230px; font-size: 64px">{grad_text(pr.get("title", "핵심 |구성"), "acc")}</div>
       <div class="card" id="f4-c" style="top: 400px; height: 900px">
-        <img id="f4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 40px; top: 36px; width: 820px; height: 480px; object-fit: contain" />
+        <img id="f4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 40px; top: 36px; width: 820px; height: 480px; object-fit: contain" />{fm_html}
         <div style="position: absolute; left: 50px; right: 40px; top: 550px">{parts}</div></div>"""
         css = f_css(pal) + f"""
     .pr {{ display: flex; align-items: center; gap: 18px; height: 54px; font-size: 32px; font-weight: 800; white-space: nowrap; }}
     .pr b {{ min-width: 64px; height: 44px; padding: 0 10px; border-radius: 22px; background: {darken(b, 0.3)}; color: #fff; font-size: 28px; text-align: center; line-height: 44px; }}"""
-        js = "\n".join([up("#f4-t", 0.3), pop("#f4-c", 0.5), '    tl.fromTo("#f4-img", { scale: 1 }, { scale: 1.06, duration: 7, ease: "none" }, 0.6);',
+        js = "\n".join([up("#f4-t", 0.3), pop("#f4-c", 0.5), '    tl.fromTo(["#f4-img", "#f4-fm"], { scale: 1 }, { scale: 1.06, duration: 7, ease: "none" }, 0.6);',
                         up(".pr", 1.0, 0.45, 0.5, 20)])
+        js = js + "\n" + "\n".join(fm_js)
         return scene("f4", 1080, 1920, css, body, js, "gry")
     it = pr["items"][0]
     bars = it.get("bars") or []

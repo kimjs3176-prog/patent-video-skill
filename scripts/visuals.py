@@ -108,6 +108,80 @@ def cover_figure(c, size, radius="50%", pad=0.78):
             f'style="max-width: {pad * 100:.0f}%; max-height: {pad * 100:.0f}%; object-fit: contain" /></div>')
 
 
+IMG_SEL = {"s4": "#s4-img", "b4": "#b4-fig img", "c4": "#c4-fig img"}  # anatomy <img> per scene id (default "#<sid>-img")
+
+
+def fig_drawing(c, pr, sid, ox, oy, iw, ih, t0):
+    """The drawing inked stroke by stroke from its own linework (figtrace), then the original fades in under it.
+    Line art only; photos and renders return nothing and simply appear as before."""
+    try:
+        import figtrace
+        tr = figtrace.cached(c["appno"], pr["figure"])
+    except Exception:
+        tr = None
+    if not tr or not tr.get("paths"):
+        return "", []
+    W, H = tr["w"], tr["h"]
+    sw = max(1.6, W / 420)
+    paths = []
+    for pl in tr["paths"]:
+        pts = [(x * W, y * H) for x, y in pl]
+        L = sum(((pts[k][0] - pts[k - 1][0]) ** 2 + (pts[k][1] - pts[k - 1][1]) ** 2) ** 0.5 for k in range(1, len(pts)))
+        d = "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in pts)
+        paths.append(f'<path d="{d}" stroke-dasharray="{L:.1f} {L:.1f}" stroke-dashoffset="{L:.1f}" />')
+    t_draw = 0.3
+    span = 1.6  # long enough to watch the drawing form; the rows and markers arrive over the last strokes
+    html = (f'<svg id="{sid}-tr" viewBox="0 0 {W} {H}" preserveAspectRatio="none" style="position: absolute; left: {ox:.0f}px; top: {oy:.0f}px; '
+            f'width: {iw:.0f}px; height: {ih:.0f}px; overflow: visible" fill="none" stroke="#2b2f3a" stroke-width="{sw:.1f}" stroke-linecap="round" '
+            f'stroke-linejoin="round" data-layout-ignore>{"".join(paths)}</svg>')
+    img = IMG_SEL.get(sid, f"#{sid}-img")
+    js = [f'    tl.set("{img}", {{ opacity: 0 }}, 0);',
+          f'    tl.to("#{sid}-tr path", {{ strokeDashoffset: 0, duration: 0.6, ease: "power1.inOut", stagger: {{ amount: {span:.2f} }} }}, {t_draw:.2f});',
+          f'    tl.to("{img}", {{ opacity: 1, duration: 0.5, ease: "power2.out" }}, {t_draw + span - 0.15:.2f});',
+          f'    tl.to("#{sid}-tr", {{ opacity: 0, duration: 0.5, ease: "power2.in" }}, {t_draw + span + 0.15:.2f});']
+    return html, js
+
+
+def fig_markers(c, pr, sid, box, t0, step, color=None, text="#ffffff"):
+    """The anatomy drawing's overlay: the figure is first drawn from its own strokes (fig_drawing), then a marker per
+    part that has x/y (fractions of the figure image) shows the drawing's reference numeral, popping in time with its row
+    (t0 + i*step) with one ring pulse. box = (left, top, width, height) of the <img> (object-fit: contain) in its parent.
+    The layer has the box's geometry and joins the image's zoom, so everything stays registered. Returns (html, js_lines)."""
+    parts = pr.get("parts", [])[:6]
+    dims = _dims(os.path.join(ROOT, "data", "patents", c["appno"], pr.get("figure", "")))
+    if not dims:
+        return "", []
+    from build import PALETTES  # local: build imports visuals
+    col = color or PALETTES.get(c.get("palette", "blue"), PALETTES["blue"])[1]
+    bx, by, bw, bh = box
+    fw, fh = dims
+    s = min(bw / fw, bh / fh)
+    iw, ih = fw * s, fh * s
+    ox, oy = (bw - iw) / 2, (bh - ih) / 2
+    html, js = "", []
+    for i, p in enumerate(parts):
+        if "x" not in p or "y" not in p:
+            continue
+        px, py = ox + p["x"] * iw, oy + p["y"] * ih
+        lab = str(p.get("ref", "")) if p.get("ref") not in (None, "") else ""
+        w = max(48, 18 * len(lab) + 22)
+        html += (f'<i id="{sid}-fr{i}" style="position: absolute; left: {px - 24:.0f}px; top: {py - 24:.0f}px; width: 48px; height: 48px; border-radius: 50%; '
+                 f'border: 3px solid {col}; opacity: 0"></i>'
+                 f'<div id="{sid}-fm{i}" style="position: absolute; left: {px - w / 2:.0f}px; top: {py - 24:.0f}px; width: {w}px; height: 48px; border-radius: 24px; '
+                 f'background: {col}; border: 3px solid #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.35); color: {text}; font-size: 28px; font-weight: 800; '
+                 f'line-height: 42px; text-align: center; white-space: nowrap; opacity: 0">{lab}</div>')
+        t = t0 + i * step
+        js += [f'    tl.fromTo("#{sid}-fm{i}", {{ opacity: 0, scale: 0.3 }}, {{ opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }}, {t:.2f});',
+               f'    tl.set("#{sid}-fr{i}", {{ opacity: 0.85, scale: 1 }}, {t + 0.1:.2f});',  # set, not fromTo: hidden until its moment, even when seeking back
+               f'    tl.to("#{sid}-fr{i}", {{ opacity: 0, scale: 2.2, duration: 0.7, ease: "power2.out" }}, {t + 0.1:.2f});']
+    draw_html, draw_js = fig_drawing(c, pr, sid, ox, oy, iw, ih, t0)
+    if not html and not draw_html:
+        return "", []
+    layer = (f'<div id="{sid}-fm" style="position: absolute; left: {bx}px; top: {by}px; width: {bw}px; height: {bh}px; pointer-events: none" '
+             f'data-layout-ignore>{draw_html}{html}</div>')
+    return layer, draw_js + js
+
+
 def bar_at(base, j, bars, gap=0.12, last=0.25):
     """Start time of bar j: comparison bars first on a quick stagger, the patent's own (hi) bar lands last."""
     rest = [k for k, b in enumerate(bars) if not b.get("hi")]

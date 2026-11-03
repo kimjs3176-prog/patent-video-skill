@@ -17,7 +17,7 @@ import build_def  # noqa: E402
 from build import CONTACT, DISCLAIMER, E, fit, rgba  # noqa: E402
 from build_def import count, darken, grad_text, plain, pop, scene, up  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon, clean_steps  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon, clean_steps  # noqa: E402
 
 
 def oneline(s):
@@ -203,18 +203,20 @@ def g4(c, pal, d):
     foot = (f'<div class="foot" id="g4-ft"><span>{E(c.get("source", ""))}</span>'
             f'<span>{E(c.get("patlabel", "등록특허"))} {E(c["regno"])}</span></div>')
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "g4", (30, 30, 676, 676), 1.4, 0.7, "#d62f3a")
         parts = "".join(f'<div class="pr" id="g4-p{i}">' + (f'<b class="ar">{E(str(p["ref"]))}</b>' if p.get("ref") else "<i></i>")
                         + f'<div><div class="n">{E(p["n"])}</div><div class="s">{E(p["d"])}</div></div></div>' for i, p in enumerate(pr["parts"][:6]))
         body = f"""{grid}
       <div id="g4-ph" style="position: absolute; left: 160px; top: 160px; width: 740px; height: 740px; background: #fff; border: 2px solid #0e0e0e; overflow: hidden">
-        <img id="g4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; inset: 30px; width: 676px; height: 676px; object-fit: contain" /></div>
+        <img id="g4-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; inset: 30px; width: 676px; height: 676px; object-fit: contain" />{fm_html}</div>
       <div id="g4-cap" style="position: absolute; left: 160px; top: 920px; font-size: 28px; font-weight: 600; color: #5c5c5c">{E(pr.get("figcap", "대표 도면"))}</div>
       <div style="position: absolute; left: 1000px; top: 160px; width: 780px">
         <div class="lab" id="g4-l"><span class="ar">03</span> — 핵심 구성</div>
         <div class="h" id="g4-t" style="margin-top: 22px; margin-bottom: 34px; font-size: {fit(plain(pr.get("title", "핵심 구성")), 60, 780)}px">{accent(pr.get("title", "핵심 |구성"), "red")}</div>{parts}</div>
       {foot}"""
-        js = gjs + [pop("#g4-ph", 0.3), '    tl.fromTo("#g4-img", { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);', up("#g4-cap", 0.9),
+        js = gjs + [pop("#g4-ph", 0.3), '    tl.fromTo(["#g4-img", "#g4-fm"], { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);', up("#g4-cap", 0.9),
                     up("#g4-l", 0.5), up("#g4-t", 0.65), up(".pr", 1.4, 0.7, 0.7, 24), up("#g4-ft", 1.2)]
+        js = js + fm_js
         return scene("g4", 1920, 1080, css, body, "\n".join(js), "paper")
     items, T = items_of(pr, d)
     blocks, js = "", list(gjs)
@@ -538,18 +540,20 @@ def h3(c, pal, d):
     .src {{ position: absolute; left: 120px; bottom: 40px; font-size: 28px; color: #6c675d; }}"""
     src = f'<div class="src" id="h3-src">{E(c.get("source", ""))}</div>'
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "h3", (50, 90, 700, 700), 1.4, 0.7)
         parts = "".join(f'<div class="pp pill" id="h3-p{i}"><b class="mr">{E(str(p["ref"])) if p.get("ref") else "•"}</b>'
                         f'<div><div class="n">{E(p["n"])}</div><div class="s">{E(p["d"])}</div></div></div>' for i, p in enumerate(pr["parts"][:6]))
         body = f"""
       <div class="card" id="h3-ph" style="position: absolute; left: 120px; top: 110px; width: 800px; height: 840px; overflow: hidden; background: #fffdf9">
-        <img id="h3-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 50px; top: 90px; width: 700px; height: 700px; object-fit: contain" />
+        <img id="h3-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; left: 50px; top: 90px; width: 700px; height: 700px; object-fit: contain" />{fm_html}
         <div class="eye" style="position: absolute; left: 50px; top: 40px; letter-spacing: 0">{E(pr.get("figcap", "대표 도면"))}</div></div>
       <div style="position: absolute; left: 1000px; top: 120px; width: 800px">
         <div class="eye" id="h3-e"><span class="mr">ANATOMY</span></div>
         <div class="h" id="h3-t" style="margin: 16px 0 34px; font-size: {fit(plain(pr.get("title", "핵심 구성")), 60, 800)}px">{accent(pr.get("title", "핵심 |구성"), "ct")}</div>{parts}</div>
       {src}"""
-        js = [pop("#h3-ph", 0.3), '    tl.fromTo("#h3-img", { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);',
+        js = [pop("#h3-ph", 0.3), '    tl.fromTo(["#h3-img", "#h3-fm"], { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);',
               up("#h3-e", 0.5), up("#h3-t", 0.65), up(".pp", 1.4, 0.7, 0.7, 24), up("#h3-src", 1.0)]
+        js = js + fm_js
         return hscene("h3", c, d, css, body, "\n".join(js))
     items, T = items_of(pr, d)
     blocks, js = "", []
@@ -839,18 +843,20 @@ def i3(c, pal, d):
     .lg .n {{ font-size: 34px; font-weight: 800; white-space: nowrap; }}
     .lg .s {{ font-size: 28px; color: #4d4d4d; white-space: nowrap; }}"""
     if pr.get("kind") == "anatomy":
+        fm_html, fm_js = fig_markers(c, pr, "i3", (30, 30, 760, 660), 1.4, 0.7, "#121212")
         parts = "".join(f'<div class="lg" id="i3-p{i}"><b>{E(str(p["ref"])) if p.get("ref") else "•"}</b>'
                         f'<div><div class="n">{E(p["n"])}</div><div class="s">{E(p["d"])}</div></div></div>' for i, p in enumerate(pr["parts"][:6]))
         body = f"""{fr}
       <div id="i3-ph" style="position: absolute; left: 120px; top: 150px; width: 820px; height: 720px; background: #fff; border: 1px solid #d8d3c7; overflow: hidden">
-        <img id="i3-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; inset: 30px; width: 760px; height: 660px; object-fit: contain" /></div>
+        <img id="i3-img" src="assets/fig/{E(pr["figure"])}" alt="{E(pr.get("figcap", "도면"))}" style="position: absolute; inset: 30px; width: 760px; height: 660px; object-fit: contain" />{fm_html}</div>
       <div id="i3-cap" class="serif" style="position: absolute; left: 120px; top: 888px; width: 820px; font-size: 28px; color: #4d4d4d"><b class="acc">그림 2.</b> {E(pr.get("figcap", "대표 도면"))}</div>
       <div style="position: absolute; left: 1020px; top: 150px; width: 780px">
         <div class="kick" id="i3-k">ANATOMY</div>
         <div class="hd" id="i3-t" style="margin: 14px 0 30px; font-size: {fit(plain(pr.get("title", "핵심 구성")), 58, 780)}px">{accent(pr.get("title", "핵심 |구성"), "acc")}</div>{parts}</div>
       {i_foot("i3", c)}"""
-        js = fjs + [pop("#i3-ph", 0.3), '    tl.fromTo("#i3-img", { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);', up("#i3-cap", 0.9),
+        js = fjs + [pop("#i3-ph", 0.3), '    tl.fromTo(["#i3-img", "#i3-fm"], { scale: 1 }, { scale: 1.06, duration: 13, ease: "none" }, 0.4);', up("#i3-cap", 0.9),
                     up("#i3-k", 0.5), up("#i3-t", 0.65), up(".lg", 1.4, 0.7, 0.7, 24), up("#i3-ft", 1.0)]
+        js = js + fm_js
         return iscene("i3", css, body, "\n".join(js))
     items, T = items_of(pr, d)
     blocks, js = "", list(fjs)

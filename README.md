@@ -10,6 +10,8 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
   공정 특허는 재료 여정, 장치 특허는 도면 위 매질 흐름, 진단 특허는 서열 인식과 판독이 화면의 주인공이 됩니다.
 - **구조 검사.** `validate.py`가 글자 수·마크업과 함께 시그니처 구조(단계 그림, 매질 흐름, 도면 좌표, 염기 서열)를 검사하고,
   `sigcheck.py`가 여러 건 사이에 같은 구성으로 보일 영상을 알려 줍니다.
+- **도면을 그래픽으로.** 어떤 특허든 흑백 선 도면은 선을 자동으로 뽑아 펜으로 그리듯 그린 뒤 원본이 떠오르고(`figtrace.py`),
+  "부호의 설명" 대조표와 측정 격자(`figmap.py`)로 찍은 부품 위치에 도면 부호 표식이 목록과 함께 나타납니다.
 - **템플릿 10종.** A 언팩 · B 카드뉴스(9:16) · C 키네틱(9:16) · D 그린 에디토리얼 · E 모노 콘트라스트 · F 스테이트먼트(9:16) ·
   G 스위스 그리드 · H 오가닉 소프트테크 · I 뉴스룸 에디토리얼 · **S 시그니처(기본 권장)**. 같은 콘텐츠 JSON으로 모두 뽑을 수 있습니다.
 - **한국어 나레이션 기본 포함.** edge-tts 선희(`ko-KR-SunHiNeural`) 음성으로 장면마다 한 줄씩 읽고, 엔딩은 음악만 둡니다.
@@ -71,9 +73,17 @@ PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template S     # → pate
 | 조성물·배합 | 제조 공정이 있으면 journey |
 | 위에 맞지 않는 것(예: 분자마커 없는 품종) | signature 없이 A~I |
 
+## 도면 분석 — 어떤 특허든 도면이 그래픽이 된다
+
+장치·시스템 특허의 구성 장면(모든 템플릿 공통). 흑백 선 도면이면 선을 자동으로 뽑아 펜으로 그리듯 그리고(`figtrace.py`),
+원본 도면이 떠오른 뒤 부품마다 도면 부호 표식이 목록과 같은 순서로 그 자리에 나타납니다. 부품 위치는 `figmap.py`가 만든
+"부호의 설명" 대조표와 10×10 측정 격자를 보고 찍습니다([`references/FIGURE_ANALYSIS.md`](references/FIGURE_ANALYSIS.md)).
+사진·컬러 렌더 도면은 선 그리기 없이 원본과 표식만 나옵니다.
+![도면 분석](docs/previews/figure-analysis.jpg)
+
 ## 템플릿 A~I 미리보기
 
-같은 특허(등록특허 10-2336838 팽화미 쌀맥주 제조 기술) 하나로 만든 장면입니다.
+같은 특허(등록특허 10-2336838 팽화미 쌀맥주 제조 기술) 하나로 만든 장면입니다(현재 버전으로 렌더).
 
 ### A 언팩 · 16:9 · 60초
 검은 무대에 그라디언트 코드네임, 스펙 칩, 명세서 도면 스포트라이트. 발표회·전시용. S의 바탕 무대이기도 합니다.
@@ -119,7 +129,7 @@ python -m pip install -r ~/.claude/skills/patent-tech-video/requirements.txt
 ```
 
 필요한 것: Node.js 18+(`npx hyperframes@0.8.207`, 첫 실행 때 내려받음), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
-`openpyxl` `pypdf` `fonttools` `brotli`, 나레이션용 `uv`(`uvx edge-tts`). `setup_project.py`가 끝나면 빠진 도구를 알려 줍니다.
+`openpyxl` `pypdf` `fonttools` `brotli` `numpy`, 나레이션용 `uv`(`uvx edge-tts`). `setup_project.py`가 끝나면 빠진 도구를 알려 줍니다.
 Windows에서는 한글 출력이 깨지지 않게 `PYTHONIOENCODING=utf-8`을 붙여 실행합니다.
 
 ## 이 저장소에 없는 것

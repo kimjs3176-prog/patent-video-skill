@@ -51,7 +51,7 @@ def doctor():
     """Report missing prerequisites (nothing is installed automatically)."""
     import importlib.util
     missing = [t for t in ("node", "npx", "ffmpeg", "ffprobe") if not shutil.which(t)]
-    missing += [f"python package {m}" for m in ("openpyxl", "pypdf", "fontTools", "brotli") if importlib.util.find_spec(m) is None]
+    missing += [f"python package {m}" for m in ("openpyxl", "pypdf", "fontTools", "brotli", "numpy") if importlib.util.find_spec(m) is None]
     if sys.version_info < (3, 10):
         missing.append("Python 3.10+")
     if missing:
