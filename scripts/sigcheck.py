@@ -164,7 +164,7 @@ def describe(c):
 
 
 def main(paths):
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     groups, missing, bad = collections.defaultdict(list), [], 0
     for p in paths:
         c = json.load(open(p, encoding="utf-8"))
@@ -185,7 +185,8 @@ def main(paths):
     if missing:
         print(f"시그니처 없음 {len(missing)}건(템플릿 S에서 SKIP):", ", ".join(missing[:12]) + (" …" if len(missing) > 12 else ""))
     print(f"검사 {len(paths) - len(missing)}건 · 구조 오류 {bad}건 · 구성 중복 {sum(len(v) for v in dup)}건")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    sys.exit(main(sys.argv[1:]))

@@ -74,7 +74,7 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 네트워크 오류로 빠진 건은 `--all` 재실행으로 채운다.
 
 ## 3. 특징 구조화 → 콘텐츠 작성 (핵심)
-`tools/CONTENT_SPEC.md`(규칙·스키마·글자 수 한도·아이콘 목록)와 `tools/examples/*.json` 3개를 먼저 읽는다.
+`tools/CONTENT_SPEC.md`(규칙·스키마·글자 수 한도·아이콘 목록)와 `tools/examples/*.json` 3개를 먼저 읽는다(프로젝트 폴더 기준. `setup_project.py`가 스킬의 `references/`에서 복사해 둔다).
 특허마다 `data/content/<순번 3자리>-<출원번호>.json`을 쓴다.
 
 **먼저 특징 구조화**(CONTENT_SPEC "특징 구조화"): 문구보다 먼저 그 기술의 구조를 뽑는다.
@@ -94,7 +94,8 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
   유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단) 셋. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
   판독은 Ct 곡선/튜브 색 변화/전기영동 중 하나). S의 나레이션은 장면별 한 줄 `signature.narration`(CONTENT_SPEC). 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
 - **도면 분석**(장치·시스템 특허, `references/FIGURE_ANALYSIS.md`): 흑백 선 도면은 빌드 때 자동으로 선을 뽑아 펜으로 그리듯 그려진다(`figtrace.py`).
-  부품 표식을 위해 `python -I tools/figmap.py data/content/<파일>.json`으로 "부호의 설명" 대조표와 10×10 격자 도면을 만들고,
+  부품 표식을 위해 `python -I tools/figmap.py data/content/<파일>.json`으로 "부호의 설명" 대조표와 10×10 격자 도면을 만들고
+  (아직 도면을 정하지 않았으면 모든 도면의 격자를, `--figure <파일>`로 특정 도면을, 시그니처의 두 번째 도면도 함께 만든다),
   격자 도면을 Read로 보며 `proof.parts[].x/y`(장치 시그니처는 `callouts`)를 찍는다. 확신이 없는 부품은 비워 둔다.
 - 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다(시그니처 구조 검사 포함: 단계 그림이 모두 같거나,
   흐르는 매질이 없거나, 도면 좌표가 0~1 밖이거나, 서열이 염기가 아니면 오류).

@@ -1,7 +1,7 @@
 # 특허 기술소개영상 콘텐츠 작성 규칙 (content JSON)
 
 각 특허마다 `data/content/<order 3자리>-<appno>.json` 1개를 작성한다. 생성기(`tools/build.py`)가 이 JSON으로
-60초 언팩(신제품 발표회) 스타일 영상을 만든다. 예시: `data/content/007-1020190166418.json`(장치형, anatomy),
+60초 언팩(신제품 발표회) 스타일 영상을 만든다. 예시(프로젝트의 `tools/examples/`, 스킬 폴더에서는 `references/examples/`): `007-1020190166418.json`(장치형, anatomy),
 `137-1020190145266.json`(공정+수치형, stats), `146-1020210079188.json`(바이오 소재형, stats).
 **작성 전에 예시 3개를 반드시 읽는다.**
 
@@ -19,6 +19,7 @@
    각 부품에 `x`·`y`(그 도면 이미지의 가로·세로 비율 0~1)를 넣으면 모든 템플릿의 구성 장면에서 **도면 위 그 부품 자리에 부호 표식**이
    목록과 같은 순서로 나타난다. 도면을 Read로 직접 열어, 부호의 지시선을 따라간 끝 **부품 위**(부호 글자가 아니라)를 찍는다.
    확신이 없는 부품은 x·y를 빼면 표식만 생략된다(틀린 표식보다 낫다). 시그니처 loop의 callouts와 같은 도면이면 같은 좌표를 쓴다.
+   블록도·순서도처럼 상자 안에 글자가 있는 도면은 상자 오른쪽 위 모서리 안쪽에 찍어 글자를 가리지 않게 한다.
    찍는 방법은 `references/FIGURE_ANALYSIS.md`(스킬) — `python -I tools/figmap.py <파일>`이 부호 대조표와 10×10 격자 도면을 만들어 준다.
    흑백 선 도면은 빌드 때 선이 자동 추출되어 그려지므로(`figtrace.py`), 구성 장면에는 부호가 잘 보이는 **선 도면**을 고르는 편이 좋다.
 5. 수치 데이터가 있으면 proof.kind = "stats", items 1~3개. 대조군 대비 막대(bars)는 표에 있는 값만. 그래프만 있고 수치가 본문에 없으면 그 막대는 넣지 않는다.
@@ -138,14 +139,33 @@
   `run{figure?, eyebrow, title, flows[{label, color, pts}], glows[{x, y | ref | at_flow, color}], logic+rules 또는 steps[{n, d}], drip?}` ·
   `path{figure, figcap, eyebrow, title, color, points[{ref, n, d, x, y}]}`(선택, 두 번째 도면 위 이동 경로).
   color: air · water · heat · cold · gas · uv · light · solid · power. `logic`(4단계 제어 루프)은 청구항에 센서→제어→구동이 있을 때만, 아니면 `steps`.
+  색의 뜻: `power`는 **전기·데이터 신호**(SW·제어 시스템의 데이터 흐름도 이것), `light`는 **실제 빛**(LED·자외선 외 광원, 분광), `uv`는 자외선.
+  선택 키: `source`(근거 표기), `flows[].legend: false`(같은 이름 흐름을 범례에 한 번만), `run.drip` `[x, y]` + `drip_label`(응축수처럼 맺혀 떨어지는 방울),
+  `glows[]`는 `x, y` 대신 `ref`(그 부호의 callout 자리)나 `at_flow`(0부터 센 흐름 번호, 그 흐름의 두 번째 점)로 자리를 줄 수 있다.
+  `path.points[].ref`는 도면 부호 대신 순서도 단계 번호(S210 등)도 된다.
 - `sequence` (프라이머·진단): `problem{title, cards[{v, l, s}] 2~3개, src}` · `target` · `target_note` · `layout`(표적 부위 순서) ·
   `primers[{id, seq, regions}]`(서열번호의 실제 염기, 8개 이하) · `primers_title`/`primers_cap`(선택) · `field`(칩 2~4개) ·
   `result` 중 하나: `{kind: "tubes", tubes[{l, pos}], pos_color, neg_color, note, cap}`(육안 색 판독) ·
   `{kind: "gel", ladder[bp], lanes[{l, bands[bp]}], note, cap}`(전기영동) ·
   `{kind: "ct", sensitivity/specificity[{l, ct}], *_title, *_note}` + 최상위 `cycles` · `cutoff`(실시간 PCR).
   선택: `probe{seq, dye, sybr_pos{l, ct}, sybr_ntc[], pos[{l, ct}], ntc_n, left_title, right_title}`(프로브 비교 장면).
-- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel ·
-  proof · features · apps 중 그 영상에 있는 장면(엔딩 outro는 읽지 않음). 장면 길이(초) × 약 6음절 이내(예: journey 18.8초 → 100음절, teaser 6초 → 28음절).
+- **개수·글자 한도**(넘으면 validate/sigcheck 오류 또는 화면 잘림):
+  | 항목 | 개수 | 글자(한글 기준) |
+  |---|---|---|
+  | journey `stages` | 4~6 | `n` 10 · `cond` 24 · `label` 12 |
+  | loop `callouts` | 3~5 | `n` 10 · `d` 22 |
+  | loop `run.flows` / `pts` | 1~3 / 3~6점 | `label` 8 |
+  | loop `run.steps` | 3~5 | `n` 9 · `d` 18 |
+  | loop `run.logic` / `rules` | 4 / 1~2 | 노드 8 · 규칙 22 |
+  | loop `path.points` | 3~5 | `n` 12 · `d` 22 |
+  | sequence `problem.cards` · `primers` · `field` | 2~3 · ≤8 · 2~4 | 카드 `l` 14 · `s` 20 |
+  | `title`·`parts_title`·`run.title`·`path.title` | — | `|`로 두 덩이, 합쳐 22 이내(`|` 뒤가 강조색) |
+- **장면과 길이**(나레이션 키 = 장면, 6초 × 약 6음절 = 28음절 식으로 쓴다. 엔딩은 읽지 않음):
+  - journey: teaser 6 · (route 7.5, 공정 편집이 있을 때) · journey 2.6+2.7×단계 수(최소 14) · proof 12 · (features 7, 공정 편집이 없을 때) · apps 6.5
+  - loop: teaser 6 · parts 2.4+1.5×부품 수(최소 8) · run 13 · (path 8.5, 있을 때) · features 7 · apps 6.5 — **proof 장면은 없다**(써도 읽히지 않음)
+  - sequence: teaser 6 · problem 6 · primers 2.6+1.9×프라이머 수(12~16) · (probe 9, 있을 때) · result 9.5 / tubes 8.5 / gel 9.5 · (features 7, 프로브가 없을 때) · apps 6.5
+- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel ·
+  proof · features · apps 중 그 영상에 있는 것). 장면 길이(초) × 약 6음절 이내(예: journey 18.8초 → 100음절, teaser 6초 → 28음절).
   숫자·단위는 읽히는 대로(“100에서 105도”, “퍼센트”). 없으면 시그니처 데이터로 자동 대본.
 - 모식도인 부분(부위 배치, 물방울 경로)은 화면에 "모식"이라고 표기된다. 곡선은 Ct 값에서 문턱선을 지나도록 그린다.
 

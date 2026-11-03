@@ -126,6 +126,7 @@ def check(path):
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Korean messages on a legacy console code page
     bad = 0
     for p in sys.argv[1:]:
         e = check(p)
@@ -135,3 +136,4 @@ if __name__ == "__main__":
             for x in e:
                 print("   -", x)
     print(f"{len(sys.argv) - 1 - bad}/{len(sys.argv) - 1} OK")
+    sys.exit(1 if bad else 0)  # scripts can rely on the exit code

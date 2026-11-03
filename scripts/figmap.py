@@ -9,6 +9,8 @@ For each content JSON (anatomy proof, or a loop signature) this
 Nothing in the content file is changed; coordinates are written after looking at the grid image.
 
 Usage: python -I tools/figmap.py data/content/<order>-<appno>.json [...]
+       python -I tools/figmap.py data/content/<file>.json --figure fig-p11-IM42.jpg   (a figure not yet in the content)
+With no anatomy proof and no loop signature yet, it grids every drawing of the patent so one can be chosen and measured.
 """
 import json
 import os
@@ -58,16 +60,29 @@ def norm(s):
     return re.sub(r"[\s·()\-]", "", s or "")
 
 
-def report(path):
+def report(path, figure=None):
     c = json.load(open(path, encoding="utf-8"))
     refs = ref_table(c["appno"])
     jobs = []
+    if figure:
+        jobs.append(("figure", figure, []))
     if c["proof"].get("kind") == "anatomy":
         jobs.append(("proof.parts", c["proof"].get("figure"), c["proof"].get("parts", [])))
     sg = c.get("signature") or {}
     if sg.get("type") == "loop":
         jobs.append(("signature.callouts", sg.get("figure"), sg.get("callouts", [])))
+        if (sg.get("run") or {}).get("figure") and sg["run"]["figure"] != sg.get("figure"):
+            jobs.append(("signature.run", sg["run"]["figure"], []))
+        if (sg.get("path") or {}).get("figure"):
+            jobs.append(("signature.path.points", sg["path"]["figure"], sg["path"].get("points", [])))
+    if not jobs:  # nothing placed yet: grid every drawing so one can be chosen and measured
+        d = os.path.join(ROOT, "data", "patents", c["appno"])
+        for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            if fn.startswith("fig-") and os.path.getsize(os.path.join(d, fn)) > 3000:
+                jobs.append(("drawing", fn, []))
     print(f"== {os.path.basename(path)}  부호의 설명 {len(refs)}개")
+    if refs:
+        print("  " + " · ".join(f"{k} {v}" for k, v in list(refs.items())[:40]))
     for label, fn, parts in jobs:
         if not fn:
             continue
@@ -85,6 +100,11 @@ def report(path):
 
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
-    for p in sys.argv[1:]:
-        report(p)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    args = sys.argv[1:]
+    fig = None
+    if "--figure" in args:
+        fig = args[args.index("--figure") + 1]
+        args = [a for i, a in enumerate(args) if a != "--figure" and (i == 0 or args[i - 1] != "--figure")]
+    for p in args:
+        report(p, fig)
