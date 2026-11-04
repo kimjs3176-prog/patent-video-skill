@@ -286,7 +286,7 @@ def j_journey(c, pal, d):
             lab = s.get("label", "")
         labels += f'<div class="tl" id="jj-l{i}" style="left: {cx[i] - lw / 2:.0f}px; width: {lw:.0f}px; top: {yb + 8:.0f}px">{E(s["n"])}<b>{E(lab)}</b></div>'
     # a temperature profile: each stated stage holds its range over a plateau, sloped connectors carry the pen between them
-    pen = 'fill="none" stroke="url(#jj-lg)" stroke-width="5" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"'
+    pen = 'fill="none" stroke="url(#jj-lg)" stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"'
     segs = "".join((f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1] + hw:.0f} {pts[k - 1][2]:.0f} L{x - hw:.0f} {y:.0f}" {pen} />' if k else "")
                    + f'<path class="jj-sg" id="jj-p{k}" d="M{x - hw:.0f} {y:.0f} L{x + hw:.0f} {y:.0f}" {pen} />' for k, (i, x, y) in enumerate(pts))
     # temperature guides: a few round values inside the strip, labelled on the left

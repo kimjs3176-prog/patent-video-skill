@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, ROOT  # noqa: E402
@@ -143,11 +144,15 @@ def sig_script(c):
 
 
 def duration(path):
-    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
-    try:
-        return float(r.stdout.strip())
-    except ValueError:  # a 0 s clip would "fit" every scene and overlap the next line
-        raise RuntimeError(f"ffprobe could not read {os.path.basename(path)}: {r.stderr.strip()[-200:]}") from None
+    # a busy machine can fail to start ffprobe at all (no output, no message); wait and try again before giving up
+    for wait in (0, 2, 5, 15):
+        time.sleep(wait)
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+        try:
+            return float(r.stdout.strip())
+        except ValueError:  # a 0 s clip would "fit" every scene and overlap the next line
+            pass
+    raise RuntimeError(f"ffprobe could not read {os.path.basename(path)} (exit {r.returncode}): {r.stderr.strip()[-200:]}")
 
 
 def synth(text, voice, rate):

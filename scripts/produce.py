@@ -15,6 +15,9 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# python -I ignores PYTHONIOENCODING: keep progress output (Korean, CLI bars) printable on a cp949 console
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from build import build as build_a  # noqa: E402
 import build_b  # noqa: E402
 import build_c  # noqa: E402
