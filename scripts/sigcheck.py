@@ -14,7 +14,8 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KEYS = {"soak", "cut", "steam", "heat", "boil", "dry", "roast", "fry", "freeze", "ferment", "mix", "extract", "filter", "puff", "mash", "cold",
-        "mill", "form", "inoculate", "sterilize", "coat", "pack", "concentrate", "harvest", "extrude"}
+        "mill", "form", "inoculate", "sterilize", "coat", "pack", "concentrate", "harvest", "extrude",
+        "bake", "sprout", "grow", "wash", "char", "thaw", "light", "sonicate"}
 MEDIA = {"air", "water", "heat", "cold", "gas", "uv", "light", "solid", "power"}
 FRAME = {"teaser", "proof", "features", "apps", "outro"}
 SCENES = {"journey": {"route", "journey"}, "loop": {"parts", "run", "path"},
@@ -269,9 +270,9 @@ def fingerprint(c):
         tree = tuple(len(d["of"]) if isinstance(d.get("of"), list) else int(d.get("of") is not None and str(d["of"]) != str(cl["no"])) for d in sg["deps"])
         return ("claim", len(cl["elements"]), tuple(cl["feature"]["idx"]), bool(sg.get("figure")), tree, bool(sg.get("evidence")))
     if sg["type"] == "formula":
-        return ("formula", len(sg.get("components", [])), len(sg.get("effects", [])))
+        return ("formula", len(sg.get("components", [])), tuple(e.get("better", "up") for e in sg.get("effects", [])))
     if sg["type"] == "lineage":
-        return ("lineage", bool(sg.get("cross")), len(sg.get("steps", [])), len(sg.get("traits", [])))
+        return ("lineage", bool(sg.get("cross")), len(sg.get("steps", [])), tuple(t.get("better", "up") for t in sg.get("traits", [])))
     return ("sequence", sg["result"]["kind"], bool(sg.get("probe")), len(sg.get("layout", [])))
 
 

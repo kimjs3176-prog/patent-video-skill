@@ -159,6 +159,123 @@ def _extrude_js(i, t):
             f'    tl.fromTo("#jj-m{i} .es", {{ scaleX: 0, transformOrigin: "0% 50%" }}, {{ scaleX: 1, duration: 1.6, ease: "power1.out" }}, {t + 0.7:.2f});']
 
 
+def _bake(a, b, cc):
+    """An oven: the elements glow, the dough rises and browns behind the window."""
+    els = "".join(f'<path class="be" d="M150 {y} q 30 -14 60 0 t 60 0 t 60 0 t 60 0 t 30 0" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6" stroke-linecap="round" />' for y in (176, 384))
+    loaf = f'<path class="bl" d="M190 360 Q190 270 280 270 Q370 270 370 360 Z" fill="#efe1c0" stroke="{a}" stroke-width="3" />'
+    return (f'<rect x="110" y="140" width="340" height="270" rx="26" {V} /><rect x="136" y="196" width="288" height="176" rx="16" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.3)" stroke-width="3" />'
+            f'{els}{loaf}<rect x="200" y="118" width="160" height="16" rx="8" fill="{cc}" />')
+
+
+def _bake_js(i, t):
+    return [f'    tl.to("#jj-m{i} .be", {{ stroke: "#ff7a3c", duration: 0.6, stagger: 0.15 }}, {t + 0.4:.2f});',
+            f'    tl.fromTo("#jj-m{i} .bl", {{ scaleY: 0.55, transformOrigin: "50% 100%" }}, {{ scaleY: 1, fill: "#c98b4a", duration: 1.8, ease: "power1.out" }}, {t + 0.6:.2f});']
+
+
+def _sprout(a, b, cc):
+    """Seeds on a wet tray split and send up shoots."""
+    xs = [170 + k * 55 for k in range(6)]
+    seeds = "".join(f'<ellipse cx="{x}" cy="352" rx="16" ry="10" fill="#c9a36a" stroke="#6b3d16" stroke-width="2" />' for x in xs)
+    shoots = "".join(f'<g class="sp" transform="translate({x} 346)"><path d="M0 0 C -6 -40, 8 -70, 0 -110" fill="none" stroke="#7cbf52" stroke-width="6" stroke-linecap="round" />'
+                     f'<path d="M0 -104 q -26 -16 -34 4 q 22 8 34 -4 Z M0 -104 q 26 -16 34 4 q -22 8 -34 -4 Z" fill="#9ccc65" /></g>' for x in xs)
+    return f'<rect x="120" y="350" width="320" height="50" rx="16" fill="{rgba(b, 0.35)}" stroke="rgba(255,255,255,0.5)" stroke-width="4" />{shoots}{seeds}'
+
+
+def _sprout_js(i, t):
+    return [f'    tl.fromTo("#jj-m{i} .sp", {{ scaleY: 0, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 1.2, ease: "back.out(1.4)", stagger: 0.12 }}, {t + 0.5:.2f});']
+
+
+def _grow(a, b, cc):
+    """Plants in a bed grow tall under the light."""
+    def leaves(j):
+        s = 1 if j % 2 else -1
+        return f'<path d="M0 {-40 - j * 38} q {34 * s} -22 {50 * s} 4 q {-26 * s} 14 {-50 * s} -4 Z" fill="#7cbf52" />'
+    plants = "".join(f'<g class="gp" transform="translate({170 + k * 74} 360)"><path d="M0 0 L0 -150" stroke="#6fa34a" stroke-width="7" stroke-linecap="round" />'
+                     + "".join(leaves(j) for j in range(3)) + '</g>' for k in range(4))
+    rays = "".join(f'<line class="gr" x1="{180 + k * 66}" y1="96" x2="{170 + k * 70}" y2="180" stroke="#ffe08a" stroke-width="4" stroke-linecap="round" opacity="0" />' for k in range(4))
+    return (f'<rect x="150" y="70" width="260" height="26" rx="10" fill="{cc}" />{rays}{plants}'
+            f'<rect x="120" y="356" width="320" height="56" rx="14" fill="#6b4a2e" stroke="rgba(255,255,255,0.35)" stroke-width="3" />')
+
+
+def _grow_js(i, t):
+    return [f'    tl.fromTo("#jj-m{i} .gr", {{ opacity: 0 }}, {{ opacity: 0.9, duration: 0.4, stagger: 0.08, yoyo: true, repeat: 3 }}, {t + 0.4:.2f});',
+            f'    tl.fromTo("#jj-m{i} .gp", {{ scale: 0.35, transformOrigin: "50% 100%" }}, {{ scale: 1, duration: 1.8, ease: "power2.out", stagger: 0.1 }}, {t + 0.5:.2f});']
+
+
+def _wash(a, b, cc):
+    """Water sprays down on the pieces in a basin; they bob clean."""
+    items = "".join(f'<ellipse class="wi" cx="{190 + k * 60}" cy="{312 + (k % 2) * 20}" rx="24" ry="14" fill="#c9a36a" stroke="{a}" stroke-width="2" />' for k in range(4))
+    drops = "".join(f'<path class="wd" d="M{180 + (k % 6) * 40} {120 + (k // 6) * 30} l 0 18" stroke="#9fd8ff" stroke-width="4" stroke-linecap="round" opacity="0" />' for k in range(12))
+    head = f'<rect x="200" y="70" width="160" height="30" rx="12" fill="{cc}" /><rect x="272" y="30" width="16" height="44" fill="#dfe6ee" />'
+    return (f'<path d="M100 230 L460 230 Q450 400 280 410 Q110 400 100 230 Z" {V} />'
+            f'<path d="M112 262 L448 262 Q436 390 280 398 Q124 390 112 262 Z" fill="rgba(140,200,255,0.35)" />{items}{drops}{head}')
+
+
+def _wash_js(i, t):
+    return [f'    tl.fromTo("#jj-m{i} .wd", {{ y: 0, opacity: 0 }}, {{ y: 120, opacity: 0.9, duration: 0.5, ease: "power1.in", stagger: {{ each: 0.05, repeat: 2 }} }}, {t + 0.4:.2f});',
+            f'    tl.to("#jj-m{i} .wi", {{ y: -10, fill: "#efe1c0", duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 2, stagger: 0.1 }}, {t + 0.6:.2f});']
+
+
+def _char(a, b, cc):
+    """Pieces in a closed kiln darken to char while smoke leaves the vent."""
+    pcs = "".join(f'<rect class="ch" x="{170 + (k % 4) * 56}" y="{280 + (k // 4) * 40}" width="44" height="26" rx="8" fill="#b98a52" stroke="rgba(0,0,0,0.3)" stroke-width="2" />' for k in range(8))
+    smoke = "".join(f'<circle class="cm" cx="{394 + k * 6}" cy="120" r="{14 + k * 4}" fill="rgba(200,200,210,0.35)" opacity="0" />' for k in range(4))
+    flame = "".join(f'<path class="cf" d="M{200 + k * 80} 432 C {184 + k * 80} 410, {204 + k * 80} 392, {200 + k * 80} 372 C {222 + k * 80} 394, {218 + k * 80} 414, {200 + k * 80} 432 Z" fill="#ff7a3c" />' for k in range(3))
+    return (f'<rect x="130" y="200" width="300" height="170" rx="22" {V} /><path d="M380 200 L380 150 L410 150 L410 200" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="5" />'
+            f'{pcs}{smoke}{flame}')
+
+
+def _char_js(i, t):
+    return [f'    tl.to("#jj-m{i} .ch", {{ fill: "#2e2420", duration: 1.8, ease: "power1.in", stagger: 0.06 }}, {t + 0.4:.2f});',
+            f'    tl.fromTo("#jj-m{i} .cm", {{ y: 0, opacity: 0 }}, {{ y: -90, opacity: 0.8, duration: 1.0, ease: "sine.out", stagger: {{ each: 0.2, repeat: 1 }} }}, {t + 0.6:.2f});',
+            f'    tl.fromTo("#jj-m{i} .cf", {{ scaleY: 0.7, transformOrigin: "50% 100%" }}, {{ scaleY: 1.15, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7, stagger: 0.1 }}, {t + 0.2:.2f});']
+
+
+def _thaw(a, b, cc):
+    """The frost on the pieces melts away and drips off."""
+    items = "".join(f'<ellipse cx="{200 + k * 56}" cy="290" rx="22" ry="13" fill="#efe1c0" stroke="{a}" stroke-width="2" />' for k in range(4))
+    frost = '<rect class="tf" x="160" y="250" width="240" height="80" rx="18" fill="rgba(190,230,255,0.6)" stroke="#bfe6ff" stroke-width="3" />'
+    drops = "".join(f'<path class="td" d="M{200 + k * 56} 336 C {194 + k * 56} 346, {194 + k * 56} 354, {200 + k * 56} 356 C {206 + k * 56} 354, {206 + k * 56} 346, {200 + k * 56} 336 Z" fill="#9fd8ff" opacity="0" />' for k in range(4))
+    return f'<rect x="130" y="380" width="300" height="24" rx="10" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.4)" stroke-width="3" />{items}{frost}{drops}'
+
+
+def _thaw_js(i, t):
+    return [f'    tl.to("#jj-m{i} .tf", {{ opacity: 0, scaleY: 0.6, transformOrigin: "50% 100%", duration: 1.6, ease: "power1.in" }}, {t + 0.5:.2f});',
+            f'    tl.fromTo("#jj-m{i} .td", {{ y: 0, opacity: 0 }}, {{ y: 30, opacity: 1, duration: 0.6, ease: "power2.in", stagger: {{ each: 0.2, repeat: 1 }} }}, {t + 0.8:.2f});']
+
+
+def _light(a, b, cc):
+    """An LED panel switches on and its light falls on the tray in pulses."""
+    leds = "".join(f'<circle class="ll" cx="{170 + k * 44}" cy="96" r="10" fill="rgba(255,255,255,0.25)" />' for k in range(6))
+    beam = f'<path class="lb" d="M150 108 L410 108 L460 340 L100 340 Z" fill="{rgba(b, 0.22)}" opacity="0" />'
+    items = "".join(f'<path class="lt" transform="translate({180 + k * 66} 346)" d="M0 0 C -4 -26, 6 -40, 0 -56 M0 -50 q -16 -10 -22 2 q 14 6 22 -2 Z" fill="#7cbf52" stroke="#7cbf52" stroke-width="5" stroke-linecap="round" />' for k in range(4))
+    return (f'<rect x="140" y="76" width="280" height="40" rx="12" fill="{cc}" />{leds}{beam}{items}'
+            f'<rect x="120" y="344" width="320" height="40" rx="14" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.4)" stroke-width="3" />')
+
+
+def _light_js(i, t):
+    return [f'    tl.to("#jj-m{i} .ll", {{ fill: "#ffffff", duration: 0.3, stagger: 0.06 }}, {t + 0.4:.2f});',
+            f'    tl.fromTo("#jj-m{i} .lb", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5, yoyo: true, repeat: 3, ease: "sine.inOut" }}, {t + 0.7:.2f});',
+            f'    tl.fromTo("#jj-m{i} .lt", {{ scale: 0.8, transformOrigin: "50% 100%" }}, {{ scale: 1.1, duration: 1.6, ease: "power1.out" }}, {t + 0.7:.2f});']
+
+
+def _sonicate(a, b, cc):
+    """A probe in the liquid sends out pressure rings; the particles break up."""
+    rings = "".join('<ellipse class="sr" cx="280" cy="300" rx="40" ry="24" fill="none" stroke="#9fd8ff" stroke-width="4" opacity="0" />' for _ in range(3))
+    parts = "".join(f'<circle class="sq" cx="{180 + (k * 47) % 200}" cy="{250 + (k * 31) % 120}" r="{9 - k % 3 * 2}" fill="{b}" />' for k in range(10))
+    probe = f'<rect x="266" y="40" width="28" height="230" rx="10" fill="#dfe6ee" /><rect x="244" y="30" width="72" height="36" rx="10" fill="{cc}" />'
+    return (f'<rect x="130" y="180" width="300" height="230" rx="30" {V} /><rect x="146" y="214" width="268" height="180" rx="22" fill="{rgba(a, 0.4)}" />'
+            f'{parts}{rings}{probe}')
+
+
+def _sonicate_js(i, t):
+    return [f'    tl.fromTo("#jj-m{i} .sr", {{ scale: 0.5, opacity: 0.9, transformOrigin: "50% 50%" }}, {{ scale: 3, opacity: 0, duration: 0.8, ease: "power1.out", stagger: {{ each: 0.27, repeat: 1 }} }}, {t + 0.4:.2f});',
+            f'    tl.to("#jj-m{i} .sq", {{ x: (k) => (k % 2 ? 5 : -5), duration: 0.08, ease: "none", yoyo: true, repeat: 15 }}, {t + 0.4:.2f});',
+            f'    tl.to("#jj-m{i} .sq", {{ scale: 0.5, transformOrigin: "50% 50%", duration: 1.2, ease: "power1.in" }}, {t + 0.9:.2f});']
+
+
 ART = {"mill": (_mill, _mill_js), "form": (_form, _form_js), "inoculate": (_inoculate, _inoculate_js),
        "sterilize": (_sterilize, _sterilize_js), "coat": (_coat, _coat_js), "pack": (_pack, _pack_js),
-       "concentrate": (_concentrate, _concentrate_js), "harvest": (_harvest, _harvest_js), "extrude": (_extrude, _extrude_js)}
+       "concentrate": (_concentrate, _concentrate_js), "harvest": (_harvest, _harvest_js), "extrude": (_extrude, _extrude_js),
+       "bake": (_bake, _bake_js), "sprout": (_sprout, _sprout_js), "grow": (_grow, _grow_js), "wash": (_wash, _wash_js),
+       "char": (_char, _char_js), "thaw": (_thaw, _thaw_js), "light": (_light, _light_js), "sonicate": (_sonicate, _sonicate_js)}
