@@ -11,6 +11,7 @@ it (teaser, proof, features, applications, outro) is template A's black Unpacked
   sequence  primer / gene patents    the problem in numbers → primers type out their real bases and dock on the
                                      target's regions → probe check (optional) → the readout: amplification curves from
                                      the Ct tables, reaction tubes changing colour, or a multiplex gel with real band sizes
+  formula · lineage · claim          build_sig_types.py (claim: the independent claim's own structure, for any patent)
 
 Usage: python -I tools/build_sig.py data/content/<order>-<appno>.json [...]   (needs a `signature` block)
 """
@@ -262,7 +263,7 @@ def j_journey(c, pal, d):
     art = "".join(f'<svg class="jm" id="jj-m{i}" width="560" height="440" viewBox="0 0 560 440" style="position: absolute; left: 190px; top: 262px; width: 560px; height: 440px; opacity: 0">{material(s.get("key", ""), a, b, cc, s["n"])}</svg>'
                   for i, s in enumerate(st))
     # thermograph: bands for each stated range, a line through their middles
-    x0, x1, yb, yt = 220, 1700, 945, 790
+    x0, x1, yb, yt = 220, 1700, 925, 752
     cx = [x0 + (x1 - x0) * (i + 0.5) / n for i in range(n)]
 
     temps = [v for s in st if s.get("t") for v in s["t"]]
@@ -272,18 +273,22 @@ def j_journey(c, pal, d):
     def ty(t):  # the stated range of this process onto the strip
         return yb - (yb - yt) * (t - lo_t + pad_t) / (hi_t - lo_t + 2 * pad_t)
     lw = min(260, (x1 - x0) / n - 12)
+    hw = min(110, (x1 - x0) / n * 0.32)  # half width of a stage's plateau
     bands, pts, labels = "", [], ""  # pts: (stage, x, y) for the stages that state a temperature
     for i, s in enumerate(st):
         if s.get("t"):
             lo, hi = s["t"]
-            bands += f'<rect class="tb" id="jj-b{i}" x="{cx[i] - 70:.0f}" y="{ty(hi):.0f}" width="140" height="{max(8, ty(lo) - ty(hi)):.0f}" rx="10" fill="{rgba(b, 0.28)}" stroke="{rgba(b, 0.7)}" stroke-width="2" />'
+            bands += (f'<rect class="tb" id="jj-b{i}" x="{cx[i] - hw:.0f}" y="{ty(hi) - 5:.0f}" width="{2 * hw:.0f}" height="{max(10, ty(lo) - ty(hi) + 10):.0f}" rx="8" '
+                      f'fill="{rgba(b, 0.22)}" stroke="{rgba(b, 0.6)}" stroke-width="2" />')
             pts.append((i, cx[i], ty((lo + hi) / 2)))
             lab = trange(s["t"])
         else:
             lab = s.get("label", "")
         labels += f'<div class="tl" id="jj-l{i}" style="left: {cx[i] - lw / 2:.0f}px; width: {lw:.0f}px; top: {yb + 8:.0f}px">{E(s["n"])}<b>{E(lab)}</b></div>'
-    segs = "".join(f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1]:.0f} {pts[k - 1][2]:.0f} L{pts[k][1]:.0f} {pts[k][2]:.0f}" fill="none" stroke="url(#jj-lg)" '
-                   f'stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />' for k in range(1, len(pts)))
+    # a temperature profile: each stated stage holds its range over a plateau, sloped connectors carry the pen between them
+    pen = 'fill="none" stroke="url(#jj-lg)" stroke-width="5" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"'
+    segs = "".join((f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1] + hw:.0f} {pts[k - 1][2]:.0f} L{x - hw:.0f} {y:.0f}" {pen} />' if k else "")
+                   + f'<path class="jj-sg" id="jj-p{k}" d="M{x - hw:.0f} {y:.0f} L{x + hw:.0f} {y:.0f}" {pen} />' for k, (i, x, y) in enumerate(pts))
     # temperature guides: a few round values inside the strip, labelled on the left
     tick = next((v for v in (5, 10, 20, 25, 50, 100, 200, 250, 500) if (hi_t - lo_t) / v <= 4), 1000)
     guides = "".join(f'<line x1="{x0 - 40}" y1="{ty(v):.0f}" x2="{x1 + 40}" y2="{ty(v):.0f}" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="4 8" />'
@@ -295,11 +300,11 @@ def j_journey(c, pal, d):
     # area under the pen line, revealed with the pen (its clip rect grows to the dot)
     area = ""
     if len(pts) >= 2:
-        poly = " ".join(f"{x:.0f},{y:.0f}" for _, x, y in pts)
+        poly = " ".join(f"{x - hw:.0f},{y:.0f} {x + hw:.0f},{y:.0f}" for _, x, y in pts)
         area = (f'<defs><linearGradient id="jj-ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{b}" stop-opacity="0.32" />'
                 f'<stop offset="1" stop-color="{b}" stop-opacity="0" /></linearGradient>'
-                f'<clipPath id="jj-ac"><rect id="jj-acr" x="{pts[0][1]:.0f}" y="{yt - 80}" width="0" height="{yb - yt + 80}" /></clipPath></defs>'
-                f'<polygon clip-path="url(#jj-ac)" points="{pts[0][1]:.0f},{yb} {poly} {pts[-1][1]:.0f},{yb}" fill="url(#jj-ag)" />')
+                f'<clipPath id="jj-ac"><rect id="jj-acr" x="{pts[0][1] - hw:.0f}" y="{yt - 80}" width="0" height="{yb - yt + 80}" /></clipPath></defs>'
+                f'<polygon clip-path="url(#jj-ac)" points="{pts[0][1] - hw:.0f},{yb} {poly} {pts[-1][1] + hw:.0f},{yb}" fill="url(#jj-ag)" />')
     # progress rail on the axis with one node per stage
     rail = (f'<rect x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="rgba(255,255,255,0.2)" />'
             f'<rect id="jj-rail" x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="url(#jj-lg)" />'
@@ -349,23 +354,28 @@ def j_journey(c, pal, d):
                f'    tl.fromTo("#jj-n{i}", {{ scale: 1.8, svgOrigin: "{cx[i]:.0f} {yb}" }}, {{ scale: 1, svgOrigin: "{cx[i]:.0f} {yb}", duration: 0.5, ease: "back.out(2)", immediateRender: false }}, {T[i] + 0.55:.2f});']
     # the pen moves only when a stage with a temperature comes up: the segment and the dot travel together on one ease,
     # then the stated range opens around the point and earlier ranges step back
-    glide = min(0.9, span * 0.35)
+    glide = min(0.9, span * 0.3)
+    hold = min(1.4, span * 0.45)
+    x_a = pts[0][1] - hw if pts else 0  # the area clip grows from the first plateau with the pen
     for k, (i, x, y) in enumerate(pts):
         t = T[i]
         if k == 0:
-            js += [f'    tl.set("#jj-dot", {{ x: {x:.0f}, y: {y:.0f} }}, 0);',
+            js += [f'    tl.set("#jj-dot", {{ x: {x - hw:.0f}, y: {y:.0f} }}, 0);',
                    f'    tl.fromTo("#jj-dot", {{ opacity: 0, scale: 0.2 }}, {{ opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }}, {t + 0.1:.2f});']
             arrive = t + 0.35
         else:
             tp = t + 0.15  # the value shows on the card first, then the pen carries it onto the graph
             js += [f'    tl.to("#jj-s{k}", {{ strokeDashoffset: 0, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});',
-                   f'    tl.to("#jj-dot", {{ x: {x:.0f}, y: {y:.0f}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});']
-            arrive = tp + glide * 0.8
+                   f'    tl.to("#jj-dot", {{ x: {x - hw:.0f}, y: {y:.0f}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});',
+                   f'    tl.to("#jj-acr", {{ attr: {{ width: {x - hw - x_a:.0f} }}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});']
+            arrive = tp + glide
+        # then the pen holds the stage's temperature across its plateau while the range opens around it
+        js += [f'    tl.to("#jj-p{k}", {{ strokeDashoffset: 0, duration: {hold:.2f}, ease: "sine.inOut" }}, {arrive:.2f});',
+               f'    tl.to("#jj-dot", {{ x: {x + hw:.0f}, duration: {hold:.2f}, ease: "sine.inOut" }}, {arrive:.2f});',
+               f'    tl.to("#jj-acr", {{ attr: {{ width: {x + hw - x_a:.0f} }}, duration: {hold:.2f}, ease: "sine.inOut" }}, {arrive:.2f});']
         js.append(f'    tl.fromTo("#jj-b{i}", {{ scaleY: 0, opacity: 0, transformOrigin: "50% 50%" }}, {{ scaleY: 1, opacity: 1, duration: 0.7, ease: "power3.out" }}, {arrive:.2f});')
-        js += [f'    tl.set("#jj-halo", {{ x: {x:.0f}, y: {y:.0f} }}, {arrive - 0.05:.2f});',
+        js += [f'    tl.set("#jj-halo", {{ x: {x - hw:.0f}, y: {y:.0f} }}, {arrive - 0.05:.2f});',
                f'    tl.fromTo("#jj-halo", {{ scale: 0.4, opacity: 0.9 }}, {{ scale: 2.2, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }}, {arrive:.2f});']
-        if k:
-            js.append(f'    tl.to("#jj-acr", {{ attr: {{ width: {x - pts[0][1]:.0f} }}, duration: {glide:.2f}, ease: "power2.inOut" }}, {tp:.2f});')
         if k:
             js.append(f'    tl.to("#jj-b{pts[k - 1][0]}", {{ opacity: 0.5, duration: 0.5 }}, {arrive:.2f});')
     for i, s in enumerate(st):
@@ -1051,7 +1061,7 @@ SIG = {"jr-route": j_route, "jj-journey": j_journey, "lp-parts": l_parts, "lr-ru
        "qp-problem": q_problem, "qs-primers": q_primers, "qb-probe": q_probe, "qr-result": q_result, "qv-tubes": q_tubes, "qg-gel": q_gel}
 
 
-import build_sig_types as _types  # noqa: E402  (formula · lineage)
+import build_sig_types as _types  # noqa: E402  (formula · lineage · claim)
 
 SIG.update(_types.SCENES)
 
@@ -1071,7 +1081,7 @@ def narrative(c):
         mid = [("lp", "lp-parts", round(max(8.0, 2.4 + 1.5 * len(sg["callouts"])), 1)), ("lr", "lr-run", 13.0)]
         mid += [("lw", "lw-path", 8.5)] if sg.get("path") else []
         mid.append(("s5", "s5-features", 7.0))
-    elif kind in ("formula", "lineage"):
+    elif kind in ("formula", "lineage", "claim"):
         mid = _types.narrative_mid(sg)
     else:
         rk = sg["result"]["kind"]

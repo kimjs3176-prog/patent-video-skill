@@ -115,7 +115,7 @@
    | 조성물·배합 | 제조 공정이 핵심이면 journey(mix·heat·dry …), **배합 비율과 효능**이 핵심이면 formula | 성분이 비율대로 채워지고, 효능이 대조군 대비 막대로 |
    | SW·제어 시스템 | 구성도가 있으면 loop(데이터·전력 흐름 `power`/`light`, 청구항 제어 루프) | |
    | 품종·육종(분자마커 없음) | **lineage** | 교배 부모(또는 분리원) → 세대·선발 단계 → 신품종, 형질이 대비 품종과 나란히 |
-   | 위 어디에도 안 맞는 것(드묾) | signature 없이 A~I 템플릿, `notes`에 사유 | |
+   | 다른 유형이 맞지 않으면 | **claim** — 모든 특허에 쓸 수 있는 범용 유형 (항원·화합물·용도 발명, 공정·장치·서열·배합·계보가 없는 특허) | 독립항이 구성요소별로 조립되며 도면 위 표식(또는 구성 블록)과 이어지고, 특징부가 빛난 뒤 종속항이 가지로 자란다 |
 4. **차별화 규칙**:
    - 단계 그림(`key`)은 재료가 실제로 겪는 변화로 고른다. 같은 그림이 이어지면 조건 차이(온도·시간)를 `cond`·`t`로 보이게 한다.
    - 도면 좌표·경로는 도면을 직접 열어 찍는다(추정 금지). 경로는 매질이 지나는 순서대로.
@@ -123,7 +123,9 @@
    - 그림이 안 맞으면 대표 아이콘으로 때우지 말고 뺀다.
    - 여러 건을 만들면 `python -I tools/sigcheck.py data/content/*.json`을 돌린다. **구조 오류 0건**이어야 하고,
      "같은 구성으로 보일 수 있음" 경고가 나온 묶음은 그 특허만의 요소(단계 그림·매질·판독·두 번째 도면·공정 편집) 하나 이상을 바꾼다.
-5. **나레이션도 같은 구조로**: 재료 여정은 변화 순서대로, 장치는 매질이 지나는 순서대로, 서열은 문제 → 인식 → 판독 순서로 말한다.
+     claim끼리는 도면 표식·특징부 구성·인용 관계·실시예 수치로 갈린다.
+5. **나레이션도 같은 구조로**: 재료 여정은 변화 순서대로, 장치는 매질이 지나는 순서대로, 서열은 문제 → 인식 → 판독 순서로,
+   청구항은 구성 → 특징부 → 종속항(→ 실시예 수치) 순서로 말한다.
 
 ## 시그니처 장면 (signature — 템플릿 S, 특허마다 다른 영상의 핵심)
 기술 자체가 움직이는 장면. `type`에 따라 이야기 순서와 핵심 장면이 바뀐다. **모든 값은 명세서·청구항·도면에서 확인한 것만.**
@@ -158,6 +160,16 @@
   `{kind: "gel", ladder[bp], lanes[{l, bands[bp]}], note, cap}`(전기영동) ·
   `{kind: "ct", sensitivity/specificity[{l, ct}], *_title, *_note}` + 최상위 `cycles` · `cutoff`(실시간 PCR).
   선택: `probe{seq, dye, sybr_pos{l, ct}, sybr_ntc[], pos[{l, ct}], ntc_n, left_title, right_title}`(프로브 비교 장면).
+- `claim` (범용 — 다른 유형이 맞지 않는 모든 특허): 독립항의 구조 자체를 움직인다. **값은 등록 청구범위(biblio.json `claims`)가 먼저**, 없으면 공보 청구범위.
+  `claim{no, preamble, elements[{n, d, ref?, x?, y?}], feature{idx, l}}` — `preamble`은 전제부(청구 대상, 짧게: "항원 단백질"),
+  `elements` 3~5개는 독립항의 구성요소 순서대로(`ref`는 도면 부호가 있을 때, 없으면 순번이 표식이 됨),
+  `feature.idx`는 특징부("~을 특징으로 하는" 부분, 신규한 구성)인 elements 번호(0부터, **일부만** — 나머지가 물러나야 특징부가 보임), `feature.l`은 특징부 한 줄 요약 ·
+  `figure`(선택, 구성요소를 짚을 도면 하나) + `figcap` — 도면이 있으면 x·y가 있는 구성요소마다 도면 위 표식과 선으로 이어지고(x·y는 figmap 격자로 측정, 도면에 없는 구성요소는 x·y 없이),
+  도면이 없으면 청구 대상의 틀 안에 구성 블록이 조립된다(화면에 "모식" 표기) ·
+  `deps[{no, l, of?}]` 2~5개(종속항·인용항, 청구항 번호 순; `of`는 독립항이 아닌 앞의 항을 인용할 때 그 번호 또는 목록 — 그 행에서 가지가 나옴, 묶을 때 `no`는 "3·4"도 됨) ·
+  `evidence{l, control, treated, u?, better, control_label?, treated_label?, src?}`(선택, 실시예의 대표 수치 하나 — 값 그대로, 새로 계산하지 않음) ·
+  선택 제목: `anatomy_title`(기본 "청구항 N의 |구성") · `tree_title`(기본 "<전제부>의 |권리 범위") · `tree_note`(기본 "등록 청구범위 · 종속항은 요약").
+  장면: teaser · anatomy · tree · features · apps.
 - **개수·글자 한도**(넘으면 validate/sigcheck 오류 또는 화면 잘림):
   | 항목 | 개수 | 글자(한글 기준) |
   |---|---|---|
@@ -170,14 +182,16 @@
   | sequence `problem.cards` · `primers` · `field` | 2~3 · ≤8 · 2~4 | 카드 `l` 14 · `s` 20 |
   | formula `components` / `effects` | 2~6 / 1~4 | 성분 `n` 14 · `role` 18 · 효능 `l` 10 · `note` 12 |
   | lineage `steps` / `traits` | 3~6 / 1~5 | `gen` 8 · `l` 14 · 형질 `l` 10 · 품종명 10 |
+  | claim `elements` / `deps` | 3~5 / 2~5 | `preamble` 14 · 구성 `n` 10 · `d` 20 · `feature.l` 24 · 종속 `l` 16 · `evidence.l` 12 · 라벨 10 · `src` 16 |
   | `title`·`parts_title`·`run.title`·`path.title` | — | `|`로 두 덩이, 합쳐 22 이내(`|` 뒤가 강조색) |
 - **장면과 길이**(나레이션 키 = 장면, 6초 × 약 6음절 = 28음절 식으로 쓴다. 엔딩은 읽지 않음):
   - journey: teaser 6 · (route 7.5, 공정 편집이 있을 때) · journey 2.6+2.7×단계 수(최소 14) · proof 12 · (features 7, 공정 편집이 없을 때) · apps 6.5
   - loop: teaser 6 · parts 2.4+1.5×부품 수(최소 8) · run 13 · (path 8.5, 있을 때) · features 7 · apps 6.5 — **proof 장면은 없다**(써도 읽히지 않음)
   - formula: teaser 6 · mix 2.8+1.7×성분 수(9~13) · effect 3+1.8×효능 수(8.5~12) · features 7 · apps 6.5
   - lineage: teaser 6 · tree 3.2+1.6×단계 수(9~13) · traits 3+1.6×형질 수(8.5~12) · features 7 · apps 6.5
+  - claim: teaser 6 · anatomy 3+1.8×구성 수(9~13) · tree 3+1.4×종속항 수(+1.6, evidence가 있을 때; 8~12) · features 7 · apps 6.5 (전체 41~47초)
   - sequence: teaser 6 · problem 6 · primers 2.6+1.9×프라이머 수(12~16) · (probe 9, 있을 때) · result 9.5 / tubes 8.5 / gel 9.5 · (features 7, 프로브가 없을 때) · apps 6.5
-- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel · mix/effect · tree/traits ·
+- `narration`(시그니처 안, 권장): 장면별 한 줄 대본. 키는 위 장면 이름(teaser · route/journey · parts/run/path · problem/primers/probe/result/tubes/gel · mix/effect · tree/traits · anatomy/tree(claim) ·
   proof · features · apps 중 그 영상에 있는 것). 장면 길이(초) × 약 6음절 이내(예: journey 18.8초 → 100음절, teaser 6초 → 28음절).
   6음절은 상한이다. 표지(teaser)·짧은 장면은 5음절 안쪽으로 쓰고, `python -I tools/narration.py --check <파일>`로 확인한다.
   숫자·단위는 읽히는 대로(“100에서 105도”, “퍼센트”). 없으면 시그니처 데이터로 자동 대본.

@@ -1,6 +1,6 @@
 """Help place parts on any patent's drawing: reference signs from the specification + a measuring grid over the figure.
 
-For each content JSON (anatomy proof, or a loop signature) this
+For each content JSON (anatomy proof, or a loop / claim signature) this
   - reads "부호의 설명" from data/patents/<appno>/fulltext.txt into a sign → name table,
   - matches each listed part to its sign (by `ref`, or by name when `ref` is missing — printed as a suggestion),
   - writes data/fig_map/<appno>/<figure>_grid.png: the drawing with a 10 × 10 grid (bold every 5), so a model reading it
@@ -75,6 +75,8 @@ def report(path, figure=None):
     if c["proof"].get("kind") == "anatomy":
         jobs.append(("proof.parts", c["proof"].get("figure"), c["proof"].get("parts", [])))
     sg = c.get("signature") or {}
+    if sg.get("type") == "claim" and sg.get("figure"):  # claim elements marked on one drawing
+        jobs.append(("signature.claim.elements", sg["figure"], (sg.get("claim") or {}).get("elements", [])))
     if sg.get("type") == "loop":
         jobs.append(("signature.callouts", sg.get("figure"), sg.get("callouts", [])))
         if (sg.get("run") or {}).get("figure") and sg["run"]["figure"] != sg.get("figure"):

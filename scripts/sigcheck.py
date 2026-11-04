@@ -19,7 +19,7 @@ MEDIA = {"air", "water", "heat", "cold", "gas", "uv", "light", "solid", "power"}
 FRAME = {"teaser", "proof", "features", "apps", "outro"}
 SCENES = {"journey": {"route", "journey"}, "loop": {"parts", "run", "path"},
           "sequence": {"problem", "primers", "probe", "result", "tubes", "gel"},
-          "formula": {"mix", "effect"}, "lineage": {"tree", "traits"}}
+          "formula": {"mix", "effect"}, "lineage": {"tree", "traits"}, "claim": {"anatomy", "tree"}}
 BASES = re.compile(r"[ACGTURYKMSWBDHVNI]+")
 
 
@@ -46,6 +46,78 @@ def _points(pts, at, errs, lo=3, hi=6, named=False):
             errs.append(f"{at}[{i}]: 좌표는 도면 비율 0~1")
 
 
+def _num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _text(v, lim, at, errs):
+    """A required string of at most `lim` characters (the claim scenes set it on one line)."""
+    if not isinstance(v, str) or not v.strip():
+        errs.append(f"{at} 필요")
+    elif len(v) > lim:
+        errs.append(f"{at} {lim}자 이내({len(v)}자): {v}")
+
+
+def _claim(c, sg, errs):
+    """claim: the independent claim's elements (on the figure or as blocks), its characterizing part, the claim map."""
+    cl = sg.get("claim") or {}
+    if not cl:
+        errs.append("claim{no, preamble, elements, feature} 필요(등록 청구범위의 독립항)")
+        return
+    if not isinstance(cl.get("no"), (int, str)) or not str(cl.get("no")).strip():
+        errs.append("claim.no(독립항 번호) 필요")
+    _text(cl.get("preamble"), 14, "claim.preamble(전제부, 짧게)", errs)
+    els = cl.get("elements") or []
+    if not 3 <= len(els) <= 5:
+        errs.append(f"claim.elements 3~5개({len(els)}개): 독립항의 구성요소")
+    placed = 0
+    for i, e in enumerate(els):
+        _text(e.get("n"), 10, f"claim.elements[{i}].n", errs)
+        _text(e.get("d"), 20, f"claim.elements[{i}].d", errs)
+        if ("x" in e) != ("y" in e) or any(not _frac(e[k]) for k in ("x", "y") if k in e):
+            errs.append(f"claim.elements[{i}]: x·y는 함께, 도면 비율 0~1")
+        placed += "x" in e and "y" in e
+    if sg.get("figure"):
+        _figure(c, sg["figure"], "signature.figure", errs)
+        if not placed:
+            errs.append("figure가 있으면 elements 중 1개 이상 x·y(도면 위 위치)")
+    elif placed:
+        errs.append("elements에 x·y가 있으면 signature.figure(그 도면) 필요")
+    ft = cl.get("feature") or {}
+    idx = ft.get("idx")
+    if not isinstance(idx, list) or not idx or any(not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < len(els) for i in idx) or len(set(idx)) != len(idx):
+        errs.append("claim.feature.idx: elements 번호(0부터) 목록, 중복 없이")
+    elif len(idx) >= len(els):
+        errs.append("claim.feature.idx는 구성 일부(특징부) — 전부면 나머지가 물러나는 장면이 없음")
+    _text(ft.get("l"), 24, "claim.feature.l(특징부 요약)", errs)
+    deps = sg.get("deps") or []
+    if not 2 <= len(deps) <= 5:
+        errs.append(f"deps 2~5개({len(deps)}개): 종속항·인용항")
+    seen = {str(cl.get("no"))}
+    for i, dp in enumerate(deps):
+        if not isinstance(dp.get("no"), (int, str)) or not str(dp.get("no")).strip():
+            errs.append(f"deps[{i}].no(청구항 번호) 필요")
+        _text(dp.get("l"), 16, f"deps[{i}].l", errs)
+        of = dp.get("of")
+        for p in (of if isinstance(of, list) else [] if of is None else [of]):
+            if str(p) not in seen:
+                errs.append(f"deps[{i}].of {p}: 독립항이나 앞의 deps 번호")
+        seen.add(str(dp.get("no")))
+    ev = sg.get("evidence")
+    if ev is not None:
+        if not isinstance(ev, dict):
+            errs.append("evidence는 {l, control, treated, u, better} 객체")
+            return
+        _text(ev.get("l"), 12, "evidence.l", errs)
+        if not all(_num(ev.get(k)) for k in ("control", "treated")):
+            errs.append("evidence: 숫자 control·treated(실시예 값 그대로) 필요")
+        if ev.get("better", "up") not in ("up", "down"):
+            errs.append("evidence.better는 up 또는 down")
+        for k, lim in (("u", 6), ("control_label", 10), ("treated_label", 10), ("src", 16)):
+            if ev.get(k) is not None and (not isinstance(ev[k], str) or len(ev[k]) > lim):
+                errs.append(f"evidence.{k}: {lim}자 이내 문자열")
+
+
 def problems(c):
     """Structural errors in c['signature'] (empty list when it can carry a distinctive film)."""
     try:
@@ -61,7 +133,7 @@ def _problems(c):
     errs = []
     kind = sg.get("type")
     if kind not in SCENES:
-        return [f"signature.type은 journey·loop·sequence·formula·lineage 중 하나({kind})"]
+        return [f"signature.type은 journey·loop·sequence·formula·lineage·claim 중 하나({kind})"]
     for k in (sg.get("narration") or {}):
         if k not in SCENES[kind] | FRAME:
             errs.append(f"signature.narration 알 수 없는 장면: {k} ({kind}에는 {', '.join(sorted(SCENES[kind] | FRAME))})")
@@ -115,6 +187,8 @@ def _problems(c):
         if sg.get("path"):
             _figure(c, sg["path"].get("figure"), "path.figure", errs)
             _points(sg["path"].get("points") or [], "path.points", errs, 3, 5, named=True)
+    elif kind == "claim":
+        _claim(c, sg, errs)
     elif kind == "formula":
         comps, eff = sg.get("components") or [], sg.get("effects") or []
         if not 2 <= len(comps) <= 6:
@@ -190,6 +264,10 @@ def fingerprint(c):
     if sg["type"] == "loop":
         run = sg["run"]
         return ("loop", tuple(sorted(f.get("color") for f in run.get("flows", []))), "logic" if run.get("logic") else "steps", bool(sg.get("path")))
+    if sg["type"] == "claim":
+        cl = sg["claim"]
+        tree = tuple(len(d["of"]) if isinstance(d.get("of"), list) else int(d.get("of") is not None and str(d["of"]) != str(cl["no"])) for d in sg["deps"])
+        return ("claim", len(cl["elements"]), tuple(cl["feature"]["idx"]), bool(sg.get("figure")), tree, bool(sg.get("evidence")))
     if sg["type"] == "formula":
         return ("formula", len(sg.get("components", [])), len(sg.get("effects", [])))
     if sg["type"] == "lineage":
@@ -207,6 +285,11 @@ def describe(c):
         media = ", ".join(f'{f["label"]}({f["color"]})' for f in run.get("flows", []))
         side = "제어 루프" if run.get("logic") else f'단계 {len(run.get("steps", []))}'
         return f'부품 {len(sg["callouts"])} · 흐름 {media} · {side}' + (" · 두 번째 도면 경로" if sg.get("path") else "")
+    if sg["type"] == "claim":
+        cl = sg["claim"]
+        feat = ", ".join(cl["elements"][i]["n"] for i in cl["feature"]["idx"])
+        return (f'청구항 {cl["no"]} {cl["preamble"]} · 구성 {len(cl["elements"])}' + (" · 도면 표식" if sg.get("figure") else " · 구성 블록") +
+                f' · 특징부 {feat} → 종속 {len(sg["deps"])}' + (f' · 실시예 {sg["evidence"]["l"]}' if sg.get("evidence") else ""))
     if sg["type"] == "formula":
         return f'성분 {len(sg["components"])}(' + ", ".join(p["n"] for p in sg["components"][:3]) + f') → 효능 {len(sg["effects"])}'
     if sg["type"] == "lineage":
@@ -237,12 +320,13 @@ def main(paths):
             print("   ✗", e)
         if not errs:
             groups[fingerprint(c)].append(slug)
-    dup = [v for v in groups.values() if len(v) > 1]
-    for v in dup:
-        print("⚠ 같은 구성으로 보일 수 있음:", ", ".join(v), "→ 단계 그림·매질·판독 중 하나 이상을 그 특허만의 것으로")
+    dup = [(k, v) for k, v in groups.items() if len(v) > 1]
+    for k, v in dup:
+        hint = "도면 표식·특징부 구성·인용 관계·실시예 수치" if k[0] == "claim" else "단계 그림·매질·판독"
+        print("⚠ 같은 구성으로 보일 수 있음:", ", ".join(v), f"→ {hint} 중 하나 이상을 그 특허만의 것으로")
     if missing:
         print(f"시그니처 없음 {len(missing)}건(템플릿 S에서 SKIP):", ", ".join(missing[:12]) + (" …" if len(missing) > 12 else ""))
-    print(f"검사 {len(paths) - len(missing)}건 · 구조 오류 {bad}건 · 구성 중복 {sum(len(v) for v in dup)}건")
+    print(f"검사 {len(paths) - len(missing)}건 · 구조 오류 {bad}건 · 구성 중복 {sum(len(v) for _, v in dup)}건")
     return 1 if bad else 0
 
 

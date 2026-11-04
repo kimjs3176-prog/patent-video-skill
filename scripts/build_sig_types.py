@@ -1,12 +1,18 @@
-"""Template S — two more signature types, for patents with no process, device or sequence to animate.
+"""Template S — three more signature types, for patents with no process, device or sequence to animate.
 
   formula   compositions · extracts · functional materials   the components pour into a vessel in their stated shares
                                                              → each effect: control vs treated bars, values as stated
   lineage   plant varieties · selected strains               the cross (or the source) and the selection steps draw down
                                                              to the new variety → its traits beside the check variety
+  claim     any patent (the fallback when no type fits)      the independent claim assembles element by element, each
+                                                             tied to its marker on the figure (or a block) → the
+                                                             characterizing part glows → the claim map of dependent claims
+                                                             grows from it, one stated result of the examples at the end
 
 Scenes plug into build_sig (SIG, narrative()); the data contract is in CONTENT_SPEC "시그니처 장면".
 """
+import json
+
 import build as A
 from build import E, fit, rgba
 
@@ -232,11 +238,272 @@ def ln_traits(c, pal, d):
     return B.sc("lt", pal, css, body, js, d)
 
 
-SCENES = {"fx-mix": fx_mix, "fe-effect": fx_effect, "ln-tree": ln_tree, "lt-traits": ln_traits}
+# ====================================================================== claim (any patent)
+def _label(e, i):
+    """The marker/badge text of a claim element: its drawing numeral when it has one, else its place in the claim."""
+    return str(e["ref"]) if e.get("ref") not in (None, "") else str(i + 1)
+
+
+def cl_anatomy(c, pal, d):
+    """The independent claim assembles element by element: each chip of the claim card draws a line to that element's
+    marker on the spec figure (or to its block in an assembling block diagram); then the characterizing elements glow
+    with a 특징부 tag while the others dim."""
+    B = _sc()
+    a, b, cc = pal
+    sg = c["signature"]
+    cl = sg["claim"]
+    els = cl["elements"][:5]
+    n = len(els)
+    feat = [i for i in cl["feature"]["idx"] if 0 <= i < n]
+    fig = sg.get("figure")
+    # claim card on the right: header, one chip per element, the characterizing line under them
+    cx0, cw = 1040, 740
+    rh = min(124, 500 / n)
+    chh = rh - 16
+    top0 = 392
+    yc = [top0 + i * rh + chh / 2 for i in range(n)]  # chip centres: the leader lines start here
+    labs = [_label(e, i) for i, e in enumerate(els)]
+    chips = ""
+    for i, e in enumerate(els):
+        chips += (f'<div class="cl-c" id="cl-c{i}" style="top: {top0 + i * rh:.0f}px; height: {chh:.0f}px">'
+                  f'<b style="font-size: {fit(labs[i], 30, 44)}px; background: linear-gradient(135deg, {a}, {cc})">{E(labs[i])}</b>'
+                  f'<div><div class="n" style="font-size: {fit(e["n"], 38 if chh >= 96 else 34, 560)}px">{E(e["n"])}</div>'
+                  f'<div class="s" style="font-size: {fit(e.get("d", ""), 28, 600)}px">{E(e.get("d", ""))}</div></div>'
+                  + (f'<span class="cl-tag" id="cl-t{i}">특징부</span>' if i in feat else "") + '</div>')
+    yf = top0 + n * rh + 12
+    pre = cl.get("preamble", "")
+    card = (f'<div id="cl-h" style="position: absolute; left: {cx0}px; top: 258px; width: {cw}px">'
+            f'<div class="cl-no">청구항 {E(str(cl["no"]))} · 독립항</div><div class="cl-pre" style="font-size: {fit(pre, 50, cw)}px">{E(pre)}</div></div>'
+            f'{chips}<div id="cl-f" style="top: {yf:.0f}px"><span class="cl-fk">특징</span>'
+            f'<span class="grad" style="font-size: {fit(cl["feature"]["l"], 36, cw - 150)}px">{E(cl["feature"]["l"])}</span></div>')
+    left, lines, marks, js_el, cap = "", "", "", {}, ""
+    if fig:  # the elements on the spec figure: chip → line → marker, as the loop parts scene does for callouts
+        pl, m = B.plate(c, fig, "cl", 120, 230, 840, 760)
+        sc_html, sc_js = B.scan("cl", 120, 230, 840, 760, b, 0.7)
+        left = pl + sc_html
+        for i, e in enumerate(els):
+            if "x" not in e or "y" not in e:
+                continue  # an element the drawing does not show: its chip lights alone
+            px, py = m(e["x"], e["y"])
+            w = max(46, 18 * len(labs[i]) + 22)
+            marks += (f'<div class="cl-mk" id="cl-m{i}" style="left: {px - w / 2:.0f}px; top: {py - 23:.0f}px; width: {w}px; background: {b}">{E(labs[i])}</div>')
+            ph, pj = B.ping("cl", i, px, py, b)
+            marks += ph
+            lines += (f'<path class="cl-ln" id="cl-l{i}" d="M{cx0} {yc[i]:.0f} C {cx0 - 120} {yc[i]:.0f}, {px + 180:.0f} {py:.0f}, {px + w / 2 + 2:.0f} {py:.0f}" '
+                      f'fill="none" stroke="{b}" stroke-width="3" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0.85" />')
+            js_el[i] = (lambda t, i=i, pj=pj: [f'    tl.fromTo("#cl-m{i}", {{ opacity: 0, scale: 0 }}, {{ opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }}, {t:.2f});', pj(t + 0.1)])
+        js0 = ['    tl.fromTo(["#cl-plate", "#cl-img"], { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out" }, 0.3);',
+               f'    tl.fromTo("#cl-img", {{ scale: 1.04 }}, {{ scale: 1, duration: {d - 0.5:.1f}, ease: "power1.out" }}, 0.3);', *sc_js]
+        cap = f'{E(sg.get("figcap", "명세서 도면"))} · 표식은 청구항 구성'
+    else:  # no drawing to point at: the claimed subject is a frame and the elements assemble inside it as blocks
+        fx0, fx1, fy0, fy1 = 170, 910, 310, 950
+        gap = 20
+        bh = min(130, (fy1 - fy0 - 80 - gap * (n - 1)) / n)
+        by0 = (fy0 + fy1) / 2 - (n * bh + gap * (n - 1)) / 2
+        left = (f'<div id="cl-fr" style="left: {fx0}px; top: {fy0}px; width: {fx1 - fx0}px; height: {fy1 - fy0}px"></div>'
+                f'<div id="cl-fl" style="left: {fx0 + 30}px; top: {fy0 - 24}px; font-size: {fit(pre, 34, fx1 - fx0 - 100)}px">{E(pre)}</div>')
+        for i, e in enumerate(els):
+            ybc = by0 + i * (bh + gap) + bh / 2
+            left += (f'<div class="cl-bk" id="cl-b{i}" style="top: {ybc - bh / 2:.0f}px; height: {bh:.0f}px">'
+                     f'<b style="font-size: {fit(labs[i], 28, 40)}px">{E(labs[i])}</b>'
+                     f'<span style="font-size: {fit(e["n"], 40, 500)}px">{E(e["n"])}</span></div>')
+            lines += (f'<path class="cl-ln" id="cl-l{i}" d="M{cx0} {yc[i]:.0f} C {cx0 - 90} {yc[i]:.0f}, {fx1 + 60} {ybc:.0f}, 862 {ybc:.0f}" '
+                      f'fill="none" stroke="{b}" stroke-width="3" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0.85" />')
+            js_el[i] = (lambda t, i=i: [f'    tl.fromTo("#cl-b{i}", {{ opacity: 0, x: -70 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }}, {t - 0.2:.2f});',
+                                        f'    tl.fromTo("#cl-b{i}", {{ scale: 1.05 }}, {{ scale: 1, duration: 0.35, ease: "back.out(2)", immediateRender: false }}, {t + 0.35:.2f});'])
+        js0 = ['    tl.fromTo(["#cl-fr", "#cl-fl"], { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.7, ease: "expo.out", stagger: 0.1 }, 0.35);']
+        cap = "구성도는 청구항 구성의 모식"
+    body = B.heading("cl", sg.get("anatomy_eyebrow", f'CLAIM {cl["no"]}'), sg.get("anatomy_title") or f'청구항 {cl["no"]}의 |구성',
+                     f"left: 900px; top: -300px; background: radial-gradient(circle, {rgba(b, 0.28)} 0%, rgba(0,0,0,0) 65%)") + f"""
+      {left}
+      <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>{lines}</svg>
+      {marks}{card}
+      <div class="cap" style="left: 140px; top: 1004px">{cap}</div>"""
+    css = B.FIG_CSS + f"""
+    .cl-no {{ font-size: 28px; font-weight: 700; letter-spacing: 0.08em; color: {b}; white-space: nowrap; }}
+    .cl-pre {{ font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; white-space: nowrap; }}
+    .cl-c {{ position: absolute; left: {cx0}px; width: {cw}px; display: grid; grid-template-columns: 74px 1fr; align-items: center; padding: 0 24px;
+      box-sizing: border-box; border-radius: 22px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); opacity: 0; }}
+    .cl-c b {{ width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; }}
+    .cl-c .n {{ font-weight: 700; white-space: nowrap; }}
+    .cl-c .s {{ color: #a8a8bc; white-space: nowrap; margin-top: 2px; }}
+    .cl-tag {{ position: absolute; right: 18px; top: -20px; height: 40px; line-height: 40px; padding: 0 16px; border-radius: 20px; font-size: 28px; font-weight: 800;
+      color: #000; background: linear-gradient(90deg, {a}, {cc}); white-space: nowrap; opacity: 0; }}
+    #cl-f {{ position: absolute; left: {cx0}px; width: {cw}px; display: flex; align-items: baseline; gap: 18px; font-weight: 800; white-space: nowrap; opacity: 0; }}
+    .cl-fk {{ font-size: 28px; font-weight: 700; color: #000; background: {b}; border-radius: 10px; padding: 2px 12px; }}
+    .cl-mk {{ position: absolute; height: 46px; border-radius: 23px; border: 3px solid #fff; box-sizing: border-box; box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      color: #000; font-size: 28px; font-weight: 800; line-height: 40px; text-align: center; white-space: nowrap; opacity: 0; }}
+    #cl-fr {{ position: absolute; border-radius: 34px; border: 3px dashed rgba(255,255,255,0.32); opacity: 0; }}
+    #cl-fl {{ position: absolute; padding: 0 16px; background: #000; font-weight: 800; color: #e8e8f0; white-space: nowrap; line-height: 48px; opacity: 0; }}
+    .cl-bk {{ position: absolute; left: 220px; width: 640px; display: flex; align-items: center; gap: 22px; padding: 0 28px; box-sizing: border-box;
+      border-radius: 20px; background: #15151d; border: 2px solid rgba(255,255,255,0.22); font-weight: 700; white-space: nowrap; opacity: 0; }}
+    .cl-bk b {{ width: 52px; height: 52px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000;
+      background: linear-gradient(135deg, {a}, {cc}); font-weight: 800; }}"""
+    step = (d - 3.6) / n
+    js = js0 + ['    tl.fromTo("#cl-h", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.6);']
+    for i in range(n):
+        t = 1.2 + i * step
+        js.append(f'    tl.fromTo("#cl-c{i}", {{ opacity: 0, x: 24 }}, {{ opacity: 1, x: 0, background: "{rgba(b, 0.14)}", duration: 0.5, ease: "expo.out" }}, {t:.2f});')
+        if i in js_el:
+            js += [f'    tl.to("#cl-l{i}", {{ strokeDashoffset: 0, duration: 0.6, ease: "power2.inOut" }}, {t + 0.25:.2f});', *js_el[i](t + 0.75)]
+        if i:
+            js.append(f'    tl.to("#cl-c{i - 1}", {{ background: "rgba(255,255,255,0.04)", opacity: 0.8, duration: 0.4 }}, {t:.2f});')
+            if i - 1 in js_el:
+                js.append(f'    tl.to("#cl-l{i - 1}", {{ opacity: 0.4, duration: 0.4 }}, {t:.2f});')
+    # the characterizing part: the feature elements light, the rest step back
+    tf = 1.2 + n * step
+    rest = [i for i in range(n) if i not in feat]
+    js.append(f'    tl.to("#cl-c{n - 1}", {{ background: "rgba(255,255,255,0.04)", duration: 0.4 }}, {tf - 0.4:.2f});')
+    if not fig:
+        js.append(f'    tl.to("#cl-fr", {{ borderColor: "{rgba(b, 0.6)}", duration: 0.5 }}, {tf - 0.5:.2f});')
+    if rest:
+        dim = [f"#cl-c{i}" for i in rest] + [f"#cl-l{i}" for i in rest if i in js_el] + [f"#cl-{'m' if fig else 'b'}{i}" for i in rest if i in js_el]
+        js.append(f'    tl.to({json.dumps(dim)}, {{ opacity: 0.45, duration: 0.5 }}, {tf:.2f});')
+    for k, i in enumerate(feat):
+        tk = tf + 0.1 + k * 0.15
+        js += [f'    tl.to("#cl-c{i}", {{ opacity: 1, background: "{rgba(b, 0.2)}", borderColor: "{b}", boxShadow: "0 0 36px {rgba(b, 0.4)}", duration: 0.5 }}, {tk:.2f});',
+               f'    tl.fromTo("#cl-t{i}", {{ opacity: 0, y: 12 }}, {{ opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }}, {tk + 0.1:.2f});']
+        if i in js_el:
+            js.append(f'    tl.to("#cl-l{i}", {{ opacity: 1, duration: 0.4 }}, {tk:.2f});')
+            if fig:
+                js += [f'    tl.fromTo("#cl-m{i}", {{ scale: 1.35 }}, {{ scale: 1, duration: 0.5, ease: "back.out(2)", immediateRender: false }}, {tk:.2f});',
+                       B.ping("cl", i, 0, 0, b)[1](tk)]
+            else:
+                js.append(f'    tl.to("#cl-b{i}", {{ borderColor: "{b}", background: "{B.over(b, 0.24, "#15151d")}", boxShadow: "0 0 40px {rgba(b, 0.45)}", duration: 0.5 }}, {tk:.2f});')
+    js.append(f'    tl.fromTo("#cl-f", {{ opacity: 0, y: 16 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }}, {tf + 0.4:.2f});')
+    return B.sc("cl", pal, css, body, js, d)
+
+
+def _deps_tree(sg):
+    """Rows of the claim map: (dep, parent row indices, depth). A dependent claim hangs from the earlier rows it cites
+    (`of`); one that cites only the independent claim, or rows not shown, hangs from the root."""
+    deps = sg["deps"][:5]
+    nos = [str(x["no"]) for x in deps]
+    out = []
+    for i, dp in enumerate(deps):
+        of = dp.get("of")
+        of = of if isinstance(of, list) else ([] if of is None else [of])
+        ps = [nos.index(str(p)) for p in of if str(p) in nos[:i]]
+        depth = 1 + max((out[p][2] for p in ps), default=0)
+        out.append((dp, ps, min(depth, 3)))
+    return out
+
+
+def ct_tree(c, pal, d):
+    """The claim map: the independent claim as the root, the dependent claims growing from it as branches with their
+    short labels (a claim citing another hangs from that row); then, when given, one result of the examples lands as a
+    control-vs-treated pair."""
+    B = _sc()
+    a, b, cc = pal
+    sg = c["signature"]
+    cl = sg["claim"]
+    rows = _deps_tree(sg)
+    k = len(rows)
+    ev = sg.get("evidence")
+    xr = 1420 if ev else 1780
+    cy = 610
+    rh = min(130, 640 / k)
+    h = min(96, rh - 18)
+    yc = [cy + (i - (k - 1) / 2) * rh for i in range(k)]
+    xs = [700 + (dep - 1) * 70 for _, _, dep in rows]
+    pre = cl.get("preamble", "")
+    root = (f'<div id="ct-root" style="top: {cy - 130}px"><div class="no">청구항 {E(str(cl["no"]))}</div>'
+            f'<div class="pre" style="font-size: {fit(pre, 56, 380)}px">{E(pre)}</div>'
+            f'<div class="sub">독립항 · 구성 {len(cl["elements"])}</div></div>')
+    html, paths = "", ""
+    for i, (dp, ps, dep) in enumerate(rows):
+        x = xs[i]
+        cite = ""
+        if dp.get("of") is not None and str(dp.get("of")) != str(cl["no"]):
+            of = dp["of"] if isinstance(dp["of"], list) else [dp["of"]]
+            cite = " · ".join(str(p) for p in of) + "항 인용"
+        wl = xr - x - 150 - 40  # the citation rides on the row's corner, not in the label's width
+        html += (f'<div class="ct-r" id="ct-r{i}" style="left: {x}px; top: {yc[i] - h / 2:.0f}px; width: {xr - x}px; height: {h:.0f}px">'
+                 f'<b>제{E(str(dp["no"]))}항</b><span class="l" style="font-size: {fit(dp["l"], 36, wl)}px">{E(dp["l"])}</span>'
+                 + (f'<span class="ci">{E(cite)}</span>' if cite else "") + '</div>')
+        if ps:  # elbow from the nearest cited row, down its left side into this row
+            p = max(ps)
+            px = xs[p] + 34
+            paths += (f'<path class="ct-br" id="ct-b{i}" d="M{px} {yc[p] + h / 2:.0f} L{px} {yc[i]:.0f} L{x} {yc[i]:.0f}" fill="none" stroke="{rgba(b, 0.75)}" '
+                      f'stroke-width="4" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />')
+        else:
+            paths += (f'<path class="ct-br" id="ct-b{i}" d="M580 {cy} C 650 {cy}, {x - 70} {yc[i]:.0f}, {x} {yc[i]:.0f}" fill="none" stroke="{rgba(b, 0.75)}" '
+                      f'stroke-width="4" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" />')
+    panel, ev_js = "", []
+    step = (d - 2.6 - (2.2 if ev else 0.4)) / k
+    te = 1.3 + k * step
+    if ev:  # one result of the examples: control first, then the treated value lands (values as stated)
+        x0, base, H = 1470, 850, 330
+        mx = max(abs(float(ev["control"])), abs(float(ev["treated"]))) or 1.0
+        hc, ht = H * abs(float(ev["control"])) / mx, H * abs(float(ev["treated"])) / mx
+        u = ev.get("u", "")
+        clab, tlab = ev.get("control_label", "대조"), ev.get("treated_label", "이 기술")
+        arrow = "▲" if ev.get("better", "up") == "up" else "▼"
+        panel = (f'<div id="ct-ev" style="left: {x0}px; top: 290px; width: 320px; height: 680px"></div>'
+                 f'<div id="ct-evh" style="left: {x0 + 24}px; top: 312px; width: 272px"><div class="k">실시예 결과</div>'
+                 f'<div class="l" style="font-size: {fit(ev["l"], 34, 272)}px">{E(ev["l"])}</div></div>'
+                 f'<div class="ct-bar c" id="ct-ec" style="left: {x0 + 40}px; top: {base - hc:.0f}px; height: {hc:.0f}px"></div>'
+                 f'<div class="ct-bar t" id="ct-et" style="left: {x0 + 186}px; top: {base - ht:.0f}px; height: {ht:.0f}px; background: linear-gradient(180deg, {b}, {a})"></div>'
+                 f'<div class="ct-v" id="ct-vc" style="left: {x0 + 12}px; top: {base - hc - 52:.0f}px">{E(_num(ev["control"]) + u)}</div>'
+                 f'<div class="ct-v hi" id="ct-vt" style="left: {x0 + 158}px; top: {base - ht - 52:.0f}px">{arrow} {E(_num(ev["treated"]) + u)}</div>'
+                 f'<div class="ct-x" style="left: {x0 + 12}px; top: {base + 14}px; font-size: {fit(clab, 28, 140)}px">{E(clab)}</div>'
+                 f'<div class="ct-x hi" style="left: {x0 + 158}px; top: {base + 14}px; font-size: {fit(tlab, 28, 140)}px">{E(tlab)}</div>'
+                 + (f'<div class="ct-x" style="left: {x0 + 24}px; width: 272px; text-align: left; top: {base + 62}px; font-size: {fit(ev["src"], 28, 272)}px">{E(ev["src"])}</div>' if ev.get("src") else ""))
+        ev_js = [f'    tl.fromTo(["#ct-ev", "#ct-evh"], {{ opacity: 0, x: 30 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.1 }}, {te:.2f});',
+                 f'    tl.fromTo(".ct-x", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.4 }}, {te + 0.3:.2f});',
+                 f'    tl.fromTo("#ct-ec", {{ scaleY: 0, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 0.8, ease: "power3.out" }}, {te + 0.3:.2f});',
+                 f'    tl.fromTo("#ct-vc", {{ opacity: 0, y: 10 }}, {{ opacity: 1, y: 0, duration: 0.4 }}, {te + 0.9:.2f});',
+                 f'    tl.fromTo("#ct-et", {{ scaleY: 0, transformOrigin: "50% 100%" }}, {{ scaleY: 1, duration: 1.1, ease: "expo.out" }}, {te + 0.8:.2f});',
+                 f'    tl.fromTo("#ct-vt", {{ opacity: 0, y: 10 }}, {{ opacity: 1, y: 0, duration: 0.4 }}, {te + 1.5:.2f});']
+    body = B.heading("ct", sg.get("tree_eyebrow", "CLAIM MAP"), sg.get("tree_title") or f'{pre or "청구항"}의 |권리 범위',
+                     f"left: 300px; top: -250px; background: radial-gradient(circle, {rgba(b, 0.26)} 0%, rgba(0,0,0,0) 65%)") + f"""
+      <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>{paths}</svg>
+      {root}{html}{panel}
+      <div class="cap" style="position: absolute; left: 140px; top: 1004px; font-size: 28px; color: #8e8ea3">{E(sg.get("tree_note", "등록 청구범위 · 종속항은 요약"))}</div>"""
+    css = f"""    #ct-root {{ position: absolute; left: 140px; width: 440px; height: 260px; box-sizing: border-box; padding: 36px 34px; border-radius: 30px;
+      background: {B.over(b, 0.16, "#000000")}; border: 2px solid {b}; box-shadow: 0 0 60px {rgba(b, 0.3)}; }}
+    #ct-root .no {{ font-size: 30px; font-weight: 700; color: {b}; letter-spacing: 0.06em; }}
+    #ct-root .pre {{ font-weight: 800; letter-spacing: -0.02em; margin-top: 10px; white-space: nowrap; }}
+    #ct-root .sub {{ font-size: 28px; color: #a8a8bc; margin-top: 14px; white-space: nowrap; }}
+    .ct-r {{ position: absolute; display: flex; align-items: center; gap: 22px; padding: 0 22px; box-sizing: border-box; border-radius: 22px;
+      background: #101016; border: 1px solid rgba(255,255,255,0.16); white-space: nowrap; opacity: 0; }}
+    .ct-r b {{ flex: none; width: 128px; height: 50px; border-radius: 25px; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; color: #000; background: linear-gradient(135deg, {a}, {cc}); }}
+    .ct-r .l {{ font-weight: 700; flex: 1; min-width: 0; }}
+    .ct-r .ci {{ position: absolute; right: 18px; top: -18px; height: 36px; line-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 28px;
+      color: #c8c8d8; background: #2a2a36; }}
+    #ct-ev {{ position: absolute; border-radius: 28px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14); opacity: 0; }}
+    #ct-evh {{ position: absolute; opacity: 0; }}
+    #ct-evh .k {{ font-size: 28px; font-weight: 700; letter-spacing: 0.2em; color: #a8a8bc; }}
+    #ct-evh .l {{ font-weight: 800; margin-top: 6px; white-space: nowrap; }}
+    .ct-bar {{ position: absolute; width: 84px; border-radius: 12px 12px 0 0; }}
+    .ct-bar.c {{ background: #4a4a5c; }}
+    .ct-v {{ position: absolute; width: 140px; text-align: center; font-size: 34px; font-weight: 800; color: #a8a8bc; white-space: nowrap; font-variant-numeric: tabular-nums; opacity: 0; }}
+    .ct-v.hi {{ color: #fff; }}
+    .ct-x {{ position: absolute; width: 140px; text-align: center; color: #8e8ea3; white-space: nowrap; opacity: 0; }}
+    .ct-x.hi {{ color: #e8e8f0; font-weight: 700; }}"""
+    js = ['    tl.fromTo("#ct-root", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.5)" }, 0.5);']
+    for i in range(k):
+        t = 1.3 + i * step
+        js += [f'    tl.to("#ct-b{i}", {{ strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }}, {t:.2f});',
+               f'    tl.fromTo("#ct-r{i}", {{ opacity: 0, x: -20 }}, {{ opacity: 1, x: 0, borderColor: "{rgba(b, 0.8)}", duration: 0.5, ease: "expo.out" }}, {t + 0.35:.2f});',
+               f'    tl.fromTo("#ct-r{i} b", {{ scale: 0.6 }}, {{ scale: 1, duration: 0.45, ease: "back.out(2)" }}, {t + 0.4:.2f});']
+        if i:
+            js.append(f'    tl.to("#ct-r{i - 1}", {{ borderColor: "rgba(255,255,255,0.16)", duration: 0.4 }}, {t + 0.35:.2f});')
+    js.append(f'    tl.to("#ct-r{k - 1}", {{ borderColor: "rgba(255,255,255,0.16)", duration: 0.4 }}, {te - 0.3:.2f});')
+    if not ev:  # no example value: the whole map lights once as it closes
+        js.append(f'    tl.to(".ct-r", {{ borderColor: "{rgba(b, 0.8)}", duration: 0.3, yoyo: true, repeat: 1, stagger: 0.08 }}, {te:.2f});')
+    return B.sc("ct", pal, css, body, js + ev_js, d)
+
+
+SCENES = {"fx-mix": fx_mix, "fe-effect": fx_effect, "ln-tree": ln_tree, "lt-traits": ln_traits, "cl-anatomy": cl_anatomy, "ct-tree": ct_tree}
 
 
 def narrative_mid(sg):
     """Middle scenes for the new types (teaser and apps/outro are added by build_sig.narrative)."""
+    if sg["type"] == "claim":
+        return [("cl", "cl-anatomy", round(min(13.0, max(9.0, 3.0 + 1.8 * len(sg["claim"]["elements"]))), 1)),
+                ("ct", "ct-tree", round(min(12.0, max(8.0, 3.0 + 1.4 * len(sg["deps"]) + (1.6 if sg.get("evidence") else 0))), 1)), ("s5", "s5-features", 7.0)]
     if sg["type"] == "formula":
         return [("fx", "fx-mix", round(min(13.0, max(9.0, 2.8 + 1.7 * len(sg["components"]))), 1)),
                 ("fe", "fe-effect", round(min(12.0, max(8.5, 3.0 + 1.8 * len(sg["effects"]))), 1)), ("s5", "s5-features", 7.0)]

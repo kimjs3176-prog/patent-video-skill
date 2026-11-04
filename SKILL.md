@@ -81,7 +81,8 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 1. 한 문장 요약 — "이 기술은 [무엇]을 [어떻게] 해서 [무엇이 된다/찾는다/돈다]."
 2. 다섯 질문 — 무엇이 **바뀌나**(재료) · 무엇이 **흐르나**(매질) · 무엇을 **알아보나**(서열·표적) · 기존과 **무엇이 다른가** · 결과를 **무엇으로 보이나**.
 3. 답으로 `signature` 유형과 데이터를 정한다: 식품·공정 → journey, 장치·시스템 → loop, 프라이머·진단 → sequence
-   (미생물·조성물·SW는 CONTENT_SPEC 표를 따른다. 어느 유형에도 안 맞으면 signature 없이 A~I, `notes`에 사유).
+   (미생물·조성물·SW는 CONTENT_SPEC 표를 따른다. 다른 유형이 맞지 않으면 **claim** — 모든 특허에 쓸 수 있는 범용 유형으로,
+   독립항의 구성요소·특징부·종속항을 도면이나 청구범위로 분석해 그 특허만의 장면을 만든다. "맞는 유형 없음"으로 S를 건너뛰지 않는다).
 4. 도면 좌표와 흐름 경로는 도면을 직접 열어 찍고, 온도·서열·밴드·Ct는 명세서 값 그대로 쓴다. 맞는 그림이 없으면 대표 아이콘으로 때우지 않는다.
 5. `signature.narration`은 그 구조의 순서대로(재료 변화 순, 매질이 지나는 순, 문제→인식→판독 순) 말하는 문장으로.
 그다음 아래 규칙으로 나머지 필드를 쓴다.
@@ -91,12 +92,13 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
 - 명세서 모순·오기는 더 타당한 쪽을 쓰고 `notes`에 한 줄 남긴다(나중에 목록 엑셀의 검토 메모가 된다).
 - 나레이션 대본 `narration`(hook·overview·process·proof·figures·features·apps)을 말하는 문장으로 쓴다(CONTENT_SPEC "나레이션 대본"의 음절 한도). 비었거나 빠진 항목은 단순 자동 대본으로 채운다. 엔딩은 읽지 않으므로 outro는 쓰지 않아도 된다.
 - 템플릿 S를 쓰려면 `signature` 블록(유형별 데이터, CONTENT_SPEC "시그니처 장면")을 명세서·도면을 보고 쓴다. 도면 좌표는 도면을 직접 확인해서.
-  유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단)·formula(조성물·추출물: 배합 → 효능)·lineage(품종·선발 균주: 계보 → 형질) 다섯. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
+  유형은 journey(식품·공정)·loop(장치)·sequence(프라이머·진단)·formula(조성물·추출물: 배합 → 효능)·lineage(품종·선발 균주: 계보 → 형질)와
+  범용 claim(독립항 구성 → 특징부 → 청구항 지도, 다른 유형이 맞지 않을 때) 여섯. 장면 구성은 데이터에 맞춰 자동(공정 비교·두 번째 도면·프로브 장면은 해당 데이터가 있을 때만,
   판독은 Ct 곡선/튜브 색 변화/전기영동 중 하나). S의 나레이션은 장면별 한 줄 `signature.narration`(CONTENT_SPEC). 블록이 없는 특허는 S에서 SKIP으로 기록된다. 예시: `tools/examples/137-*.json`(journey).
 - **도면 분석**(장치·시스템 특허, `references/FIGURE_ANALYSIS.md`): 흑백 선 도면은 빌드 때 자동으로 선을 뽑아 펜으로 그리듯 그려진다(`figtrace.py`).
   부품 표식을 위해 `python -I tools/figmap.py data/content/<파일>.json`으로 "부호의 설명" 대조표와 10×10 격자 도면을 만들고
   (아직 도면을 정하지 않았으면 모든 도면의 격자를, `--figure <파일>`로 특정 도면을, 시그니처의 두 번째 도면도 함께 만든다),
-  격자 도면을 Read로 보며 `proof.parts[].x/y`(장치 시그니처는 `callouts`)를 찍는다. 확신이 없는 부품은 비워 둔다.
+  격자 도면을 Read로 보며 `proof.parts[].x/y`(장치 시그니처는 `callouts`, 청구항 시그니처는 `claim.elements`)를 찍는다. 확신이 없는 부품은 비워 둔다.
 - 시그니처 나레이션은 쓴 뒤 `python -I tools/narration.py --check data/content/<파일>.json`으로 미리 읽혀 본다(빌드 없이 장면 길이에 맞춰 음성 생성,
   음성 캐시에 남아 렌더 때 다시 쓴다). "sped up"(+12% 이상)이나 "cut" 표시가 나온 줄은 짧게 고친다. 잘린 줄이 있으면 실패 코드(1)로 끝난다.
 - 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다(시그니처 구조 검사 포함: 단계 그림이 모두 같거나,

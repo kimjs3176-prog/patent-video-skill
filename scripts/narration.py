@@ -41,7 +41,8 @@ EDGE_TTS = "edge-tts==7.3.1"  # pinned: the package is fetched from PyPI at run 
 
 
 # template S: the signature scenes are voiced one by one (scene key → line), the frame scenes keep the section lines
-SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel", "mix", "effect", "tree", "traits")
+SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel", "mix", "effect", "tree", "traits",
+              "anatomy")
 SIG_FRAME = {"teaser": "hook", "proof": "proof", "features": "features", "apps": "apps", "outro": "outro"}
 
 
@@ -112,6 +113,17 @@ def auto_sig_script(c):
         out["effect"] = " ".join(f'{e["l"]}, 대조군 {e["control"]}에서 {e["treated"]}{e.get("unit", "")}로 바뀌었습니다.' for e in sg["effects"][:2])
     if sg.get("steps") and sg.get("type") == "lineage":
         out["tree"] = f'{sg.get("variety", "신품종")}은 {sg["steps"][0]["l"]}부터 {sg["steps"][-1]["l"]}까지 선발했습니다.'
+    if sg.get("type") == "claim":
+        cl = sg["claim"]
+        feat = ", ".join(cl["elements"][i]["n"] for i in cl["feature"]["idx"])
+        last = cl["preamble"].strip()[-1:] or "항"
+        topic = cl["preamble"] + ("은" if "가" <= last <= "힣" and (ord(last) - 0xAC00) % 28 else "는")
+        out["anatomy"] = (f'청구항 {cl["no"]}의 {topic} {", ".join(e["n"] for e in cl["elements"][:4])}로 이루어집니다. '
+                          f'핵심은 {feat}입니다.')
+        out["tree"] = f'여기서 {", ".join(d["l"] for d in sg["deps"][:3])} 등으로 권리가 이어집니다.'
+        ev = sg.get("evidence")
+        if ev:
+            out["tree"] += f' {ev["l"]}, {ev["control"]}에서 {ev["treated"]}{ev.get("u", "")}입니다.'
     if sg.get("traits"):
         out["traits"] = " ".join(f'{t["l"]}은 {t["new"]}{t.get("unit", "")}입니다.' for t in sg["traits"][:2])
     rs = sg.get("result") or {}
