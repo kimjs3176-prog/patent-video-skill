@@ -1,6 +1,6 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-SunHiNeural] [--no-narrate] [--no-render] [order ...]
+Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-render] [order ...]
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).

@@ -286,7 +286,11 @@ def j_journey(c, pal, d):
             lab = s.get("label", "")
         labels += f'<div class="tl" id="jj-l{i}" style="left: {cx[i] - lw / 2:.0f}px; width: {lw:.0f}px; top: {yb + 8:.0f}px">{E(s["n"])}<b>{E(lab)}</b></div>'
     # a temperature profile: each stated stage holds its range over a plateau, sloped connectors carry the pen between them
-    pen = 'fill="none" stroke="url(#jj-lg)" stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"'
+    # one gradient across the whole strip in stage pixels: a flat plateau has a zero-height box, so a bounding-box gradient
+    # (#jj-lg) would not paint it at all, and every sloped piece would restart the colour ramp on its own
+    pg = (f'<defs><linearGradient id="jj-pg" gradientUnits="userSpaceOnUse" x1="{x0 - 40}" y1="0" x2="{x1 + 40}" y2="0">'
+          f'<stop offset="0" stop-color="{a}" /><stop offset="0.55" stop-color="{b}" /><stop offset="1" stop-color="{cc}" /></linearGradient></defs>')
+    pen = 'fill="none" stroke="url(#jj-pg)" stroke-width="5" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"'
     segs = "".join((f'<path class="jj-sg" id="jj-s{k}" d="M{pts[k - 1][1] + hw:.0f} {pts[k - 1][2]:.0f} L{x - hw:.0f} {y:.0f}" {pen} />' if k else "")
                    + f'<path class="jj-sg" id="jj-p{k}" d="M{x - hw:.0f} {y:.0f} L{x + hw:.0f} {y:.0f}" {pen} />' for k, (i, x, y) in enumerate(pts))
     # temperature guides: a few round values inside the strip, labelled on the left
@@ -307,7 +311,7 @@ def j_journey(c, pal, d):
                 f'<polygon clip-path="url(#jj-ac)" points="{pts[0][1] - hw:.0f},{yb} {poly} {pts[-1][1] + hw:.0f},{yb}" fill="url(#jj-ag)" />')
     # progress rail on the axis with one node per stage
     rail = (f'<rect x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="rgba(255,255,255,0.2)" />'
-            f'<rect id="jj-rail" x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="url(#jj-lg)" />'
+            f'<rect id="jj-rail" x="{x0 - 40}" y="{yb - 2}" width="{x1 - x0 + 80}" height="4" rx="2" fill="url(#jj-pg)" />'
             + "".join(f'<circle class="jn" id="jj-n{i}" cx="{cx[i]:.0f}" cy="{yb}" r="8" fill="#0b0b10" stroke="rgba(255,255,255,0.35)" stroke-width="3" />' for i in range(n)))
     vals = [trange(s["t"]) if s.get("t") else s.get("label", "") for s in st]
     cards = "".join(f'<div class="jc" id="jj-c{i}"><div class="k">STAGE {i + 1:02d} / {n:02d}</div><div class="n" style="font-size: {fit(s["n"], 60, 720)}px">{E(s["n"])}</div>'
@@ -321,6 +325,7 @@ def j_journey(c, pal, d):
       <div id="jj-prod" class="grad" style="position: absolute; left: 190px; width: 560px; top: 708px; text-align: center; font-size: 40px; font-weight: 800; white-space: nowrap; opacity: 0">{E(sg.get("product", ""))} 완성</div>
       {cards}
       <svg width="1920" height="1080" style="position: absolute; inset: 0" data-layout-ignore>
+        {pg}
         {guides}
         {area}
         {bands}
