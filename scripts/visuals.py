@@ -1,7 +1,7 @@
 """Shared visual helpers: spec figures, step pictograms, ambient layers, scene-boundary transitions.
 
 pick_figures(c, n)  -> up to n distinct, usable figures from data/patents/<appno>/ (page order, front-page drawing first)
-step_icon(text, hero) -> line-icon name for a process step, by keyword
+step_icon(text, hero) -> line-icon name for a process step, by keyword; process_icon(c, step) -> with fallbacks
 """
 import hashlib
 import os
@@ -30,6 +30,7 @@ STEP_ICONS = [
     (("재배", "발아", "파종", "육묘", "체세포", "교배", "생육", "잎", "채취", "육종", "선발", "계통", "세대", "검정", "품종"), "sprout"),
     (("줄기세포", "세포주", "캘러스", "세포 배양", "세포배양", "세포"), "cell"),  # after 체세포 (breeding → sprout)
     (("투여", "섭취", "복용"), "capsule"),
+    (("획득", "수집", "채집", "확보", "선별", "분리", "선택", "조립", "장착", "설치", "부착"), "hand"),
     (("수확", "이송"), "tractor"),
     (("항체", "면역"), "shield"),
     (("사료",), "animal"),
@@ -202,6 +203,12 @@ def clean_steps(c):
 def topic_icon(text, fallback):
     """The pictogram for a phrase when one of its keywords is known, else fallback (usually the patent's hero icon)."""
     return step_icon(text, fallback)
+
+
+def process_icon(c, st):
+    """A process step's pictogram: its name's keywords, then its description's, then the patent's own hero icon
+    (never a placeholder arrow)."""
+    return step_icon(st.get("n", ""), None) or step_icon(st.get("d", ""), None) or c.get("hero") or "spark"
 
 
 def step_icon(text, hero="spark"):
