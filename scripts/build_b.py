@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_name, E, music_for, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 SLOTS = [("b1", "b1-cover", 0.0, 5.0), ("b2", "b2-summary", 4.5, 6.5), ("b3", "b3-process", 10.5, 10.0),
@@ -142,7 +142,7 @@ def b3(c, pal, d):
     rows = ""
     for i, st in enumerate(steps):
         big = st["big"] + st.get("u", "")
-        rows += (f'<div class="b3-r" id="b3-r{i}" style="top: {300 + i * rh}px"><i class="node">{icon(step_icon(st["n"], "flow"), 36, "#9ca3af", 7)}</i>'
+        rows += (f'<div class="b3-r" id="b3-r{i}" style="top: {300 + i * rh}px"><i class="node">{icon(process_icon(c, st), 36, "#9ca3af", 7)}</i>'
                  f'<div class="n">{E(st["n"])}</div><div class="d">{E(st["d"])}</div>'
                  f'<div class="big" style="font-size: {fit(big, 46, 300)}px">{E(big)}</div></div>')
     T = [round(0.7 + i * ((d - 1.4) / n), 2) for i in range(n)]
@@ -244,7 +244,7 @@ def bf(c, pal, d):
     else:
         steps = c["process"]["steps"][:4]
         plates = "".join(f'<div class="bf-p tint" id="bf-p{i}" style="top: {250 + (i // 2) * 360}px; left: {60 + (i % 2) * 435}px; right: auto; width: 405px; height: 320px; '
-                         f'display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], "flow"), 150, acc, 5)}</div>'
+                         f'display: flex; align-items: center; justify-content: center">{icon(process_icon(c, st), 150, acc, 5)}</div>'
                          f'<div class="bf-c" style="top: {250 + (i // 2) * 360 + 326}px; left: {60 + (i % 2) * 435}px">{E(st["n"])}</div>' for i, st in enumerate(steps))
     ttl = f'명세서 <span style="color: {acc}">도면</span>으로 보기' if figs else f'공정 <span style="color: {acc}">한눈에</span> 보기'
     body = f"""<div class="eyebrow">{"FROM THE SPECIFICATION" if figs else "AT A GLANCE"}</div><div class="ttl">{ttl}</div>{plates}"""

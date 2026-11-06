@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_line, E, music_for, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
+from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
 FONT = """    @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-Medium.woff2") format("woff2"); font-weight: 500; }
     @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
@@ -172,7 +172,7 @@ def d3(c, pal, d):
     n = len(steps)
     span = 1640 / n
     nodes = "".join(f'<div class="tn{" k" if i == n - 1 else ""}" id="d3-n{i}" style="left: {span * (i + 0.5):.0f}px; width: {span - 20:.0f}px; margin-left: -{(span - 20) / 2:.0f}px">'
-                    f'<div class="y">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div><div class="dt">{icon(step_icon(st["n"], "flow"), 40, "currentColor", 6)}</div>'
+                    f'<div class="y">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div><div class="dt">{icon(process_icon(c, st), 40, "currentColor", 6)}</div>'
                     f'<div class="tt">{E(st["n"])}</div><div class="dd">{E(st["d"])}</div></div>'
                     for i, st in enumerate(steps))
     a1, a2, _ = pal
@@ -281,7 +281,7 @@ def df(c, pal, d):
                         for i, (f, (x, y, w, h)) in enumerate(zip(figs, boxes)))
     else:
         cells = "".join(f'<div class="fg card" id="df-c{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], "flow"), min(200, w * 0.5), "url(#df-lg)", 3)}</div>'
+                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(process_icon(c, st), min(200, w * 0.5), "url(#df-lg)", 3)}</div>'
                         f'<div class="cp"><b>0{i + 1}</b> · {E(st["n"])}</div></div>' for i, (st, (x, y, w, h)) in enumerate(zip(c["process"]["steps"], boxes)))
     body = f"""{grad_defs("df-lg", darken(a1, 0.3), darken(a3, 0.2))}
       <div style="position: absolute; left: 0; right: 0; top: 140px; text-align: center">
@@ -434,7 +434,7 @@ def e3(c, pal, d):
     for i, st in enumerate(steps):
         if i:
             flow += f'<div class="arrow" id="e3-a{i}">›</div>'
-        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(step_icon(st["n"], "flow"), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4>{E(st["n"])}</h4>'
+        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(process_icon(c, st), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4>{E(st["n"])}</h4>'
                  f'<div class="v gr" style="font-size: {fit(st["big"] + st.get("u", ""), 46, w - 50)}px">{E(st["big"])}<em>{E(st.get("u", ""))}</em></div><p>{E(st["d"])}</p></div>')
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 120px">
@@ -535,7 +535,7 @@ def ef(c, pal, d):
     """Apple-style figure stage: one large figure at a time cross-fades in the centre, a thumbnail strip marks the current one."""
     a, b, cc = pal
     figs = pick_figures(c, 4)
-    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:4]]
+    items = figs or [{"icon": process_icon(c, st), "n": st["n"]} for st in c["process"]["steps"][:4]]
     k = len(items)
     big, thumbs = "", ""
     for i, it in enumerate(items):
@@ -679,7 +679,7 @@ def f2(c, pal, d):
 def f3(c, pal, d):
     a, b, cc = pal
     steps = c["process"]["steps"][:5]
-    rows = "".join(f'<div class="ck" id="f3-r{i}" style="top: {i * 130}px"><i id="f3-b{i}">{icon(step_icon(st["n"], "flow"), 52, "#ffffff", 6)}</i>'
+    rows = "".join(f'<div class="ck" id="f3-r{i}" style="top: {i * 130}px"><i id="f3-b{i}">{icon(process_icon(c, st), 52, "#ffffff", 6)}</i>'
                    f'<div><b>{E(st["n"])}</b><span>{E(st["big"] + st.get("u", "") + " · ") if st["big"] else ""}{E(st["d"])}</span></div></div>' for i, st in enumerate(steps))
     body = f"""
       <div class="t" id="f3-t" style="top: 260px; font-size: 76px">{grad_text(c["process"]["title"], "acc")}</div>
@@ -750,7 +750,7 @@ def ff(c, pal, d):
     """Two spec figures stacked as cards on grey (pictogram cards when the spec has none)."""
     a, b, cc = pal
     figs = pick_figures(c, 2)
-    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:2]]
+    items = figs or [{"icon": process_icon(c, st), "n": st["n"]} for st in c["process"]["steps"][:2]]
     cards = ""
     for i, it in enumerate(items):
         top = 430 + i * 440

@@ -17,7 +17,7 @@ import build_def  # noqa: E402
 from build import contact, contact_label, disclaimer, holder_line, E, fit, rgba  # noqa: E402
 from build_def import count, darken, grad_text, plain, pop, scene, up  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon, clean_steps  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
 
 def oneline(s):
@@ -151,7 +151,7 @@ def g3(c, pal, d):
     for i, st in enumerate(steps):
         x = 120 + i * cw
         cols += (f'<div class="col" id="g3-c{i}" style="left: {x:.0f}px; width: {cw:.0f}px">'
-                 f'<div class="ix ar">0{i + 1}</div><div class="pg">{icon(step_icon(st["n"], "flow"), 84, "#0e0e0e", 4)}</div>'
+                 f'<div class="ix ar">0{i + 1}</div><div class="pg">{icon(process_icon(c, st), 84, "#0e0e0e", 4)}</div>'
                  f'<div class="bg ar" style="font-size: {fit(st["big"] + st.get("u", ""), 76, cw - 56)}px">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div>'
                  f'<div class="nm" style="font-size: {fit(st["n"], 38, cw - 56)}px">{E(st["n"])}</div><div class="ds">{E(st["d"])}</div></div>')
     grid, gjs = g_grid("g3", (120,))
@@ -279,7 +279,7 @@ def gf(c, pal, d):
         steps = c["process"]["steps"][:6]
         boxes = fig_boxes(len(steps), 120, 340, 1680, 560)
         cells = "".join(f'<div class="fr" id="gf-f{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(step_icon(st["n"], "flow"), min(220, w * 0.6), "#0e0e0e", 3)}</div>'
+                        f'<div class="im" style="display: flex; align-items: center; justify-content: center">{icon(process_icon(c, st), min(220, w * 0.6), "#0e0e0e", 3)}</div>'
                         f'<div class="cp"><b class="ar">0{i + 1}</b>{E(st["n"])}</div></div>' for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
         js = gjs + [up("#gf-l", 0.3), up("#gf-t", 0.45), up(".fr", 0.8, 0.25, 0.8, 30), draw(".fr .ic", 1.0, 1.4, 0.04)]
         return scene("gf", 1920, 1080, css, grid + head + cells + g_foot("gf", c, 5, "도면"), "\n".join(js), "paper")
@@ -482,7 +482,7 @@ def h2(c, pal, d):
         t = (i + 0.5) / n
         x, y = x0 + (x1 - x0) * t, wy(t)
         last = i == n - 1
-        nodes += (f'<div class="wn" id="h2-n{i}" style="left: {x - 48:.0f}px; top: {y - 48:.0f}px; border-color: {core if last else node}">{icon(step_icon(st["n"], "flow"), 56, ct, 5)}</div>'
+        nodes += (f'<div class="wn" id="h2-n{i}" style="left: {x - 48:.0f}px; top: {y - 48:.0f}px; border-color: {core if last else node}">{icon(process_icon(c, st), 56, ct, 5)}</div>'
                   f'<div class="wv mr" id="h2-v{i}" style="left: {x - span / 2:.0f}px; width: {span:.0f}px; top: {y - 150:.0f}px; font-size: {fit(st["big"] + st.get("u", ""), 46, span - 30)}px">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div>')
         cards += (f'<div class="wc card" id="h2-c{i}" style="left: {x - cw / 2:.0f}px; width: {cw:.0f}px; top: 640px">'
                   f'<div class="ix mr">STEP 0{i + 1}</div><b style="font-size: {fit(st["n"], 36, cw - 48)}px">{E(st["n"])}</b><span>{E(st["d"])}</span></div>')
@@ -597,7 +597,7 @@ def hf(c, pal, d):
     .fc2 img { width: 100%; height: 100%; object-fit: contain; }
     .fc2 .cp { position: absolute; left: 28px; right: 28px; bottom: 18px; font-size: 28px; font-weight: 600; color: #6c675d; white-space: nowrap; }"""
     if not figs:
-        items = [(step_icon(st["n"], "flow"), st["n"]) for st in c["process"]["steps"][:5]]
+        items = [(process_icon(c, st), st["n"]) for st in c["process"]["steps"][:5]]
     else:
         items = None
     k = len(figs) if figs else len(items)
@@ -788,7 +788,7 @@ def i2(c, pal, d):
     steps = c["process"]["steps"][:6]
     n = len(steps)
     rh = min(110, 560 / n)
-    rows = "".join(f'<div class="tr" id="i2-r{i}" style="height: {rh:.0f}px"><span class="no serif">{i + 1}</span><span class="pg">{icon(step_icon(st["n"], "flow"), min(64, rh - 30), "#121212", 5)}</span><b>{E(st["n"])}</b>'
+    rows = "".join(f'<div class="tr" id="i2-r{i}" style="height: {rh:.0f}px"><span class="no serif">{i + 1}</span><span class="pg">{icon(process_icon(c, st), min(64, rh - 30), "#121212", 5)}</span><b>{E(st["n"])}</b>'
                    f'<span class="cv serif" style="font-size: {fit(st["big"] + st.get("u", ""), 44, 300)}px">{E(st["big"]) or "—"}<small> {E(st.get("u", ""))}</small></span><span class="ds">{E(st["d"])}</span></div>'
                    for i, st in enumerate(steps))
     body = f"""{fr}
@@ -914,7 +914,7 @@ def i_fig(c, pal, d):
         steps = c["process"]["steps"][:5]
         boxes = [(120 + i * (1680 / len(steps)), 330, 1680 / len(steps) - 24, 520) for i in range(len(steps))]
         plates = "".join(f'<div class="pl" id="if-p{i}" style="left: {x:.0f}px; top: {y}px; width: {w:.0f}px; height: {h}px; display: flex; align-items: center; justify-content: center">'
-                         f'{icon(step_icon(st["n"], "flow"), min(220, w * 0.6), "#121212", 3)}</div>'
+                         f'{icon(process_icon(c, st), min(220, w * 0.6), "#121212", 3)}</div>'
                          f'<div class="cap serif" style="left: {x:.0f}px; top: {y + h + 14}px"><b class="acc">{i + 1}.</b> {E(st["n"])}</div>' for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
         js = fjs + [up("#if-k", 0.3), up("#if-t", 0.45), up(".pl", 0.8, 0.2, 0.8, 30), draw(".pl .ic", 1.0, 1.3, 0.03), up(".cap", 1.4, 0.2, 0.6, 14)]
         return iscene("if", css, fr + head + plates + i_foot("if", c), "\n".join(js))

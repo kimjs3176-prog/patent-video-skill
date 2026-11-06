@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_name, E, music_for, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
+from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
 
 W, H = 1080, 1920
 DARK, PAPER = "#0d0d12", "#f3efe6"
@@ -135,7 +135,7 @@ def c3(c, pal, d):
         divs.append(f"""
       <div class="beat" id="c3-b{i}" style="background: {bg}; color: {fg}">
         <div class="ghost" data-layout-ignore>{i + 1:02d}</div>
-        <div class="pop" style="position: absolute; right: 72px; top: 250px">{icon(step_icon(st["n"], "flow"), 170, fg, 7)}</div>
+        <div class="pop" style="position: absolute; right: 72px; top: 250px">{icon(process_icon(c, st), 170, fg, 7)}</div>
         <div class="k pop" style="top: 300px; font-size: 34px; font-weight: 800; letter-spacing: 0.16em">STEP {i + 1:02d} / {len(steps):02d}</div>
         <div class="k pop" style="top: 370px; font-size: 76px">{E(st["n"])}</div>
         <div class="k pop" style="top: 560px; font-family: Outfit, NotoKR; font-weight: 800; font-size: {fit(big, 300, 940)}px; line-height: 1; white-space: nowrap">{E(st["big"])}<span style="font-size: 0.42em">{E(st.get("u", ""))}</span></div>
@@ -216,7 +216,7 @@ def cf(c, pal, d):
     """Spec-figure montage: one figure per beat on alternating fields; without figures, step pictograms instead."""
     fl = fields(pal)
     figs = pick_figures(c, 3)
-    items = figs or [{"icon": step_icon(st["n"], "flow"), "n": st["n"]} for st in c["process"]["steps"][:3]]
+    items = figs or [{"icon": process_icon(c, st), "n": st["n"]} for st in c["process"]["steps"][:3]]
     divs = []
     for i, it in enumerate(items):
         bg = fl[(i + 2) % len(fl)]

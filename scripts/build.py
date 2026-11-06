@@ -363,16 +363,16 @@ def s3(c, pal):
     row_h = 84
     top = 560 - (n * row_h) // 2 + 40
     rows = []
-    from visuals import step_icon
+    from visuals import process_icon
     for i, st in enumerate(steps):
-        rows.append(f'<div class="s3-row" id="s3-r{i}" style="top: {i * row_h}px"><span class="n">{icon(step_icon(st["n"], "flow"), 44, "url(#s3-lg)", 6)}{E(st["n"])}</span>'
+        rows.append(f'<div class="s3-row" id="s3-r{i}" style="top: {i * row_h}px"><span class="n">{icon(process_icon(c, st), 44, "url(#s3-lg)", 6)}{E(st["n"])}</span>'
                     f'<span class="d">{E(st["d"])}</span></div>')
     bigs = []
     for i, st in enumerate(steps):
         txt = st["big"] + st.get("u", "")
         size = fit(txt, 170, 400)
         val = (f'{E(st["big"])}<small style="font-size: {max(40, size // 2)}px">{E(st.get("u", ""))}</small>' if st["big"]
-               else f'<span style="display: inline-block; margin-top: -30px">{icon(step_icon(st["n"], "flow"), 150, "url(#s3-lg)", 4)}</span>')
+               else f'<span style="display: inline-block; margin-top: -30px">{icon(process_icon(c, st), 150, "url(#s3-lg)", 4)}</span>')
         bigs.append(f'<div class="s3-big" id="s3-b{i}"><div class="v grad" style="font-size: {size}px">{val}</div>'
                     f'<div class="k">STEP {i + 1:02d}</div></div>')
     r = 230
@@ -640,7 +640,7 @@ def s5(c, pal):
 
 def sf(c, pal):
     """Spec figures on the black stage: white plates like lit product screens, a gradient frame spotlights each in turn."""
-    from visuals import fig_boxes, pick_figures, step_icon
+    from visuals import fig_boxes, pick_figures, process_icon
     a, b, cc = pal
     d = DUR["sf"]
     figs = pick_figures(c, 4)
@@ -654,7 +654,7 @@ def sf(c, pal):
         steps = c["process"]["steps"][:5]
         boxes = fig_boxes(len(steps), 140, 300, 1640, 640, 28)
         cells = "".join(f'<div class="sf-c" id="sf-c{i}" style="left: {x:.0f}px; top: {y:.0f}px; width: {w:.0f}px; height: {h:.0f}px">'
-                        f'<div class="pl dark">{icon(step_icon(st["n"], "flow"), min(220, w * 0.55), "url(#sf-lg)", 3)}</div>'
+                        f'<div class="pl dark">{icon(process_icon(c, st), min(220, w * 0.55), "url(#sf-lg)", 3)}</div>'
                         f'<div class="cp"><b class="grad">0{i + 1}</b> {E(st["n"])}</div></div>'
                         for i, (st, (x, y, w, h)) in enumerate(zip(steps, boxes)))
     k = len(boxes)
