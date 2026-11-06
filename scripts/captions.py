@@ -15,11 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import E  # noqa: E402
 
 FONT = "assets/fonts/pretendard/Pretendard-SemiBold.woff2"
-# 16:9: captions sit in the bottom band (y ≈ 1010–1064). Small footer lines that live there (sources, running heads,
-# page marks) are lifted above it while captions are on; a scene whose own content fills that band gets its captions higher.
-FOOT_LIFT = 58
-FOOT_SEL = '.foot, .foot2, .ft, #h3-src, .cap[style*="top: 1004px"]'
-RAISE = {"g1-open": 150}  # bottom px for scenes with a bottom bar of key figures
+# Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px (its top margin
+# is empty in every template), or, for a template with a masthead at the very top (I), scaled down from the top centre
+# so nothing of the scene is lost. The captions then never cover anything a scene shows.
+BAND = {"wide": 64, "tall": 120}
+SCALE_PREFIX = ("i",)  # scene files of template I: i1-front, i2-how, …
 
 
 def _units(s):
@@ -90,14 +90,11 @@ def read_srt(path):
     return out
 
 
-def composition(cs, w, h, total, scene_of=lambda t: None):
+def composition(cs, w, h, total):
     vertical = h > w
-    size, bottom, maxw = (46, 330, 900) if vertical else (36, 18, 1500)
-
-    def pos(a):
-        b = RAISE.get(scene_of(a)) if not vertical else None
-        return f' style="bottom: {b}px"' if b else ""
-    divs = "\n".join(f'      <div class="ncap" id="ncap-{i}"{pos(a)}><span>{E(t)}</span></div>' for i, (a, _, t) in enumerate(cs))
+    band = BAND["tall" if vertical else "wide"]
+    size, maxw = (44, 1000) if vertical else (34, 1800)
+    divs = "\n".join(f'      <div class="ncap" id="ncap-{i}"><span>{E(t)}</span></div>' for i, (a, _, t) in enumerate(cs))
     js = "\n".join(f'    tl.fromTo("#ncap-{i}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {a:.2f});\n'
                    f'    tl.to("#ncap-{i}", {{ opacity: 0, duration: 0.12, ease: "none" }}, {max(a + 0.2, b - 0.12):.2f});'
                    for i, (a, b, _) in enumerate(cs))
@@ -105,13 +102,15 @@ def composition(cs, w, h, total, scene_of=lambda t: None):
   <style>
     @font-face {{ font-family: "PretendardCap"; src: url("{FONT}") format("woff2"); font-weight: 600; }}
     #cap-root {{ position: absolute; inset: 0; pointer-events: none; }}
-    .ncap {{ position: absolute; left: 0; right: 0; bottom: {bottom}px; display: flex; justify-content: center; opacity: 0; }}
-    .ncap span {{ max-width: {maxw}px; padding: 8px 24px 10px; border-radius: 14px; background: rgba(8, 8, 12, 0.66);
+    #cap-band {{ position: absolute; left: 0; right: 0; bottom: 0; height: {band}px; background: #0b0b0f; }}
+    .ncap {{ position: absolute; left: 0; right: 0; bottom: 0; height: {band}px; display: flex; align-items: center; justify-content: center; opacity: 0; }}
+    .ncap span {{ max-width: {maxw}px;
       color: #ffffff; font-family: "PretendardCap", sans-serif; font-weight: 600; font-size: {size}px; line-height: 1.35;
       letter-spacing: -0.01em; text-align: center; word-break: keep-all; }}
   </style>
   <div id="root" data-composition-id="cap" data-width="{w}" data-height="{h}">
     <div id="cap-root" data-layout-ignore>
+      <div id="cap-band"></div>
 {divs}
     </div>
   </div>
@@ -128,19 +127,29 @@ def composition(cs, w, h, total, scene_of=lambda t: None):
 LIFT_MARK = "<!-- captions: footer lift -->"
 
 
-def lift_footers(out, on):
-    """Add (or remove) the footer lift in every scene composition."""
+def lift_footers(out, on=False):
+    """Remove the footer lift an earlier version injected into the scene compositions (the band replaces it)."""
     import glob
-    css = f"{LIFT_MARK}<style>{FOOT_SEL} {{ translate: 0 -{FOOT_LIFT}px; }}</style>"
     for p in glob.glob(os.path.join(out, "compositions", "*.html")):
-        if p.endswith(("tx.html", "captions.html")):
-            continue
         s = open(p, encoding="utf-8").read()
         s2 = re.sub(re.escape(LIFT_MARK) + r"<style>[^<]*</style>", "", s)
-        if on:
-            s2 = s2.replace("<template>", "<template>" + css, 1)
         if s2 != s:
             open(p, "w", encoding="utf-8").write(s2)
+
+
+def shift_scenes(html, band, w, h):
+    """Move every scene host up by `band` px (or scale it from the top centre for templates with a top masthead);
+    band 0 restores them. The transition and caption layers stay where they are."""
+    def fix(m):
+        tag, src = m.group(0), m.group(1)
+        tag = re.sub(r' data-cap-shift="1" style="([^"]*?); transform: [^;"]*; transform-origin: [^;"]*"', r' style="\1"', tag)
+        name = os.path.basename(src)
+        if not band or name in ("tx.html", "captions.html"):
+            return tag
+        tf = (f"scale({(h - band) / h:.4f}); transform-origin: 50% 0" if name.startswith(SCALE_PREFIX)
+              else f"translateY(-{band}px); transform-origin: 50% 0")
+        return re.sub(r' style="([^"]*)"', lambda s: f' data-cap-shift="1" style="{s.group(1)}; transform: {tf}"', tag, count=1)
+    return re.sub(r'<div id="[^"]+" data-composition-id="[^"]+" data-composition-src="(compositions/[^"]+)"[^>]*>', fix, html)
 
 
 def mount(out, lines):
@@ -155,19 +164,14 @@ def mount(out, lines):
     cs = cues(lines, 15 if h > w else 26)
     open(os.path.join(out, "narration.srt"), "w", encoding="utf-8").write(srt(cs))
     cap = os.path.join(out, "compositions", "captions.html")
-    lift_footers(out, on=bool(cs) and w > h)
+    lift_footers(out, on=False)  # older builds lifted footers instead; clean that up
+    html = shift_scenes(html, BAND["tall" if h > w else "wide"] if cs else 0, w, h)
     if not cs:
         if os.path.exists(cap):
             os.remove(cap)
         open(ip, "w", encoding="utf-8").write(html)
         return 0
-    scenes = [(float(a), float(a) + float(d), os.path.basename(f)[:-5]) for f, a, d in re.findall(
-        r'data-composition-src="(compositions/[^"]+)" data-start="([\d.]+)" data-duration="([\d.]+)"', html) if not f.endswith(("tx.html", "captions.html"))]
-
-    def scene_of(t):  # the scene on top at time t (later scenes overlap earlier ones in the cross-fade)
-        hit = [n for a, b, n in scenes if a <= t < b]
-        return hit[-1] if hit else None
-    open(cap, "w", encoding="utf-8").write(composition(cs, w, h, total, scene_of))
+    open(cap, "w", encoding="utf-8").write(composition(cs, w, h, total))
     host = (f'      <div id="cap" data-composition-id="cap" data-composition-src="compositions/captions.html" data-start="0" '
             f'data-duration="{total}" data-track-index="4" data-track-kind="graphics" data-width="{w}" data-height="{h}" style="z-index: 60"></div>\n')
     anchor = '      <audio id="bgm"' if '      <audio id="bgm"' in html else '      <audio id="nar-'
