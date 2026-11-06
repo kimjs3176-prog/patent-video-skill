@@ -4,8 +4,9 @@ Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-H
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
-One log line per video in renders*/produce.log. When assets/music is empty and GEMINI_API_KEY is set, background music is
-generated first with Google Lyria (tools/music.py); --no-music-gen skips that.
+One log line per video in renders*/produce.log. When assets/music is empty, background music is made first (tools/music.py):
+Google Lyria with GEMINI_API_KEY, otherwise composed by the pipeline itself (no key). A content's `music` block gives that
+patent its own composed bed. --no-music-gen skips the automatic beds.
 """
 import glob
 import json
@@ -136,6 +137,13 @@ def one(path, render, want):
     if v:
         log(f"{slug} SKIP content: {' / '.join(v)[:300]}")
         return
+    try:  # the patent's own bed, when its content carries a `music` block (composed once, kept in data/music)
+        import compose
+        own = compose.ensure_track(json.load(open(path, encoding="utf-8")))
+        if own:
+            log(f"{slug} music {own}")
+    except Exception as e:  # music is optional: fall back to the rotation
+        log(f"{slug} music block skipped: {e}")
     out = BUILDERS[TEMPLATE](path)
     postprocess.run(out)  # continuous pen draw-ons + per-video font subsets
     if NARRATE:

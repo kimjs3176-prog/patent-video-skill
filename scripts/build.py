@@ -18,6 +18,19 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _MD = os.path.join(ROOT, "assets", "music")
 MUSIC = sorted(f for f in os.listdir(_MD) if f.lower().endswith(".mp3")) if os.path.isdir(_MD) else []
 MUSIC = MUSIC or ["m1-untitled.mp3"]  # placeholder name; postprocess drops the tag when the file is absent
+
+
+def music_for(c):
+    """The bed for content c: its own composed track (a `music` block, data/music via compose.py) when one exists,
+    else the assets/music rotation in production order."""
+    try:
+        from compose import track_name
+        own = track_name(c)
+    except (ImportError, ValueError):
+        own = None
+    if own and os.path.exists(os.path.join(ROOT, "data", "music", own)):
+        return own
+    return MUSIC[(int(c["order"]) - 1) % len(MUSIC)]
 PALETTES = {
     "amber": ("#ffd36e", "#ff9f43", "#ff6b6b"),
     "violet": ("#c77dff", "#8e6bff", "#5b8cff"),
@@ -788,7 +801,7 @@ def s7(c, pal):
 
 
 def index(c):
-    music = MUSIC[(int(c["order"]) - 1) % len(MUSIC)]
+    music = music_for(c)
     hosts = "\n".join(
         f'      <div id="{sid}" data-composition-id="{sid}" data-composition-src="compositions/{f}.html" data-start="{st}" data-duration="{du}" '
         f'data-track-index="{1 if i % 2 == 0 else 2}" data-track-kind="graphics" data-width="1920" data-height="1080" style="z-index: {i + 1}"></div>'
@@ -855,7 +868,7 @@ def build(path):
     from visuals import add_transitions, copy_figures
     copy_figures(c, out)
     add_transitions(out, "A", SLOTS, TOTAL, 1920, 1080)
-    print(slug, "built", "music:", MUSIC[(int(c["order"]) - 1) % len(MUSIC)])
+    print(slug, "built", "music:", music_for(c))
     return out
 
 

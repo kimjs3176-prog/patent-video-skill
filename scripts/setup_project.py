@@ -7,7 +7,8 @@ and the content spec + examples into <project>/tools.
 Sound effects and background music are not redistributed with the public skill:
 - sfx: taken from this skill's assets/sfx when present, else from the HyperFrames media-use skill
   (~/.claude/skills/media-use/audio/assets/sfx, Pixabay Content License) when it is installed.
-- music: put your own licensed mp3 files in <project>/assets/music (any names; they rotate in production order).
+- music: produce.py composes beds itself when <project>/assets/music is empty (compose.py, no key); or put your own
+  licensed mp3 files there (any names; they rotate in production order).
 Videos still build without either — the missing audio clips are simply left out.
 Re-running updates tools/*.py; a file that differs from the skill (your edits) is first saved as tools/<name>.py.bak.
 branding.json (ending credits: 기술이전 문의처, 특허권자, 면책 문구) is written once with the defaults and never overwritten.
@@ -43,7 +44,7 @@ def main(dst):
             shutil.copytree(src, os.path.join(dst, "assets", sub), dirs_exist_ok=True)
         else:
             os.makedirs(os.path.join(dst, "assets", sub), exist_ok=True)
-            print(f"note: assets/{sub} is empty - " + ("add licensed mp3s, or run: python -I tools/music.py --check" if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
+            print(f"note: assets/{sub} is empty - " + ("produce.py composes 4 beds on its own (no key); or add licensed mp3s" if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
     shutil.copytree(os.path.join(SKILL, "assets", "template"), os.path.join(dst, "template"), dirs_exist_ok=True)
     for d in ("data/content", "data/patents", "data/raw", "videos", "renders"):
         os.makedirs(os.path.join(dst, d), exist_ok=True)

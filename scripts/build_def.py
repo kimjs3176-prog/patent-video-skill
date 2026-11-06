@@ -13,7 +13,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import contact, contact_label, disclaimer, holder_line, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_line, E, music_for, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
 
@@ -827,7 +827,7 @@ TEMPLATES = {
 
 def index(c, tpl):
     w, h, total, slots, _, bg = TEMPLATES[tpl]
-    music = MUSIC[(int(c["order"]) - 1) % len(MUSIC)]
+    music = music_for(c)
     hosts = "\n".join(
         f'      <div id="{sid}" data-composition-id="{sid}" data-composition-src="compositions/{f}.html" data-start="{st}" data-duration="{du}" '
         f'data-track-index="{1 if i % 2 == 0 else 2}" data-track-kind="graphics" data-width="{w}" data-height="{h}" style="z-index: {i + 1}"></div>'

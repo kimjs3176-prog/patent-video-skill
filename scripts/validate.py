@@ -56,6 +56,20 @@ def _check(path):
     lim("name", c["name"], 8.6)
     lim("sub", c["sub"], 20)
     lim("headline", c["headline"], 26)
+    if c.get("music") is not None:  # the patent's own composed bed (compose.py)
+        import compose
+        if not isinstance(c["music"], dict):
+            errs.append("music는 객체여야 함")
+        else:
+            if c["music"].get("mood") and c["music"]["mood"] not in compose.PRESETS:
+                errs.append(f"music.mood 없음: {c['music']['mood']} ({', '.join(compose.PRESETS)})")
+            for k in ("keys", "arp", "lead"):
+                if c["music"].get(k) not in (None, "none", *compose.VOICE):
+                    errs.append(f"music.{k} 없음: {c['music'][k]} ({', '.join(compose.VOICE)}, none)")
+            try:
+                [compose.chord(x) for x in compose.spec_of(c["music"])["progression"]]
+            except ValueError as e:
+                errs.append(f"music: {e}")
     # ending credits (branding.json or the content's own "branding"): the 9:16 endings are the narrowest
     lim("contact(기술이전 문의처)", contact(c), 14)
     lim("contact_label", contact_label(c), 8)

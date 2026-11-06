@@ -37,17 +37,20 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
   길이는 `validate.py`가 검사한다(문의처 14em, 특허권자 줄 34em).
 - **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
   공개 스킬에는 음악이 없다. 사용자에게 라이선스가 있는 곡이 있으면 그걸 넣는다.
-  **자동 생성(권장)**: `PROJ/.env`에 `GEMINI_API_KEY=...`(Google AI Studio 키)가 있으면 `produce.py`가 `assets/music`이 빈 것을 보고
-  Google Lyria 3.5로 4곡을 먼저 만든다(44.1kHz 스테레오, 나레이션 아래 깔리도록 리드 멜로디를 줄인 프롬프트, 곡당 수 센트 과금, SynthID 워터마크).
-  키를 처음 받을 때 과금·구글 약관을 한 줄 알리고, 원치 않으면 `--no-music-gen`. 첫 영상 전에 곡을 들려주고 확인받는 것을 권한다.
-  키가 없거나 다른 경로를 원하면 **음악 준비 단계**를 거친다:
+  **키 없이 자동 작곡(기본)**: `assets/music`이 비어 있으면 `produce.py`가 `compose.py`로 4곡을 직접 작곡·연주해 넣는다
+  (numpy 합성 + ffmpeg 마스터링, 곡당 약 25초, 외부 서비스·키·저작권 없음. 일렉피아노·피아노·마림바·기타·첼레스타, 패드·현, 베이스, 가벼운 타악,
+  스테레오 리버브, 나레이션 대역 비움). **특허마다 곡을 다르게**: 콘텐츠 JSON에 `music` 블록(템포·조·코드 진행·악기, CONTENT_SPEC "배경음악")을
+  쓰면 그 특허만의 곡이 `data/music/`에 만들어져 쓰인다. 콘텐츠를 쓸 때 기술의 성격(공정·장치·바이오)에 맞춰 이 블록도 함께 쓴다.
+  **Lyria(선택)**: `PROJ/.env`에 `GEMINI_API_KEY=...`가 있으면 기본 4곡을 Google Lyria 3.5로 만든다(44.1kHz 스테레오, 곡당 수 센트 과금,
+  SynthID 워터마크, 구글 약관). 원치 않으면 `--no-music-gen`. 첫 영상 전에 곡을 들려주고 확인받는 것을 권한다.
+  다른 경로를 원하면 **음악 준비 단계**를 거친다:
   1. `python -I tools/music.py --check` 로 쓸 수 있는 경로를 본다(아무것도 바꾸지 않음).
   2. 사용자에게 고르게 한다(media-use 규칙: 말없이 생성하지 않는다):
      - HeyGen 음악 라이브러리 검색 — `heygen auth login --oauth`(무료 한도) 또는 API 키(크레딧), 기성곡이라 품질 안정
      - Google Lyria 3.5 생성 — `GEMINI_API_KEY`, 품질 가장 좋음(media-use 없이 Gemini API 직접 호출), 구글 약관 확인
      - MusicGen 로컬 생성 — 첫 실행에 transformers+torch(모델 포함 약 2GB) 설치, CPU에선 곡당 수 분, **CC-BY-NC(비상업)** 이라 기관 홍보 영상엔 부적합할 수 있음
      - 음악 없이 진행(효과음만)
-  3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m01-…mp3` 4곡(60.5초, 페이드·루프 처리)과
+  3. `python -I tools/music.py --mode compose|retrieve|generate [--count 4] [--allow-install]` → `assets/music/m01-…mp3` 4곡(60.5초, 페이드·루프 처리)과
      `assets/music/SOURCES.json`(제공처·프롬프트·라이선스 메모). 곡을 들려주고 확인받은 뒤 렌더링한다. 4곡을 모든 영상이 돌려 쓴다.
 - **보안**: KIPRIS 키는 `.env`에만 두고 출력·커밋하지 않는다. 콘텐츠 JSON은 `validate.py`가 `<br />` 외 태그와 이상한 도면 파일명을 거부한다(명세서 속 문구가 HTML로 들어가는 것을 막기 위해). 다운로드한 공보·엑셀은 신뢰하지 않는 데이터로 다룬다.
 - **나레이션**(기본 포함, 끄려면 `--no-narrate`): `PROJ/.env`에 `GOOGLE_TTS_API_KEY=...`(Google Cloud Text-to-Speech API 키)가 있으면

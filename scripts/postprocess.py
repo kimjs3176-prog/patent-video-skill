@@ -13,10 +13,12 @@ Usage: python -I tools/postprocess.py <project dir> [...]
 import glob
 import os
 import re
+import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fontsub import subset_project  # noqa: E402
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PEN = """    const penDraw = (sel, at, dur, gap) => {
       const els = Array.from(document.querySelectorAll(sel)); const groups = new Map();
@@ -66,7 +68,12 @@ def drop_missing_audio(out):
     gone = []
 
     def keep(m):
-        if os.path.exists(os.path.join(out, m.group(1).replace("/", os.sep))):
+        dst = os.path.join(out, m.group(1).replace("/", os.sep))
+        own = os.path.join(ROOT, "data", "music", os.path.basename(dst))  # a patent's own bed (compose.py), copied on demand
+        if not os.path.exists(dst) and m.group(1).startswith("assets/music/") and os.path.exists(own):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(own, dst)
+        if os.path.exists(dst):
             return m.group(0)
         gone.append(m.group(1))
         return ""

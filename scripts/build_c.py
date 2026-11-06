@@ -10,7 +10,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import contact, contact_label, disclaimer, holder_name, E, MUSIC, PALETTES, ROOT, fit  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_name, E, music_for, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
@@ -299,7 +299,7 @@ SCENES = {"c1-hook": c1, "c2-headline": c2, "c3-process": c3, "c4-proof": c4, "c
 
 
 def index(c):
-    music = MUSIC[(int(c["order"]) - 1) % len(MUSIC)]
+    music = music_for(c)
     hosts = "\n".join(
         f'      <div id="{sid}" data-composition-id="{sid}" data-composition-src="compositions/{f}.html" data-start="{st}" data-duration="{du}" '
         f'data-track-index="{1 if i % 2 == 0 else 2}" data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {i + 1}"></div>'
