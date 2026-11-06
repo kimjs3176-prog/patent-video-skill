@@ -210,13 +210,14 @@
 ## 배경음악 (music, 선택 — 키 없이 그 특허만의 곡)
 그 기술에 맞는 곡을 직접 설계한다. 쓰면 `compose.py`가 연주해 그 특허의 배경음악으로 쓰고, 안 쓰면 기본 4곡을 돌려 쓴다.
 ```json
-"music": {"mood": "green-field", "bpm": 92, "key": "G", "progression": ["G", "D/F#", "Em7", "Cadd9"],
+"music": {"mood": "green-field", "bpm": 112, "key": "G", "progression": ["G", "C", "Em", "D"],
           "keys": "piano", "arp": "guitar", "pad": "strings", "lead": "celesta", "perc": "light", "seed": 11}
 ```
 - mood(출발 프리셋): bright-tech(기기·IT) · green-field(재배·농업) · clean-lab(바이오·진단) · warm-craft(식품·가공). 나머지는 덮어쓸 것만.
 - progression: 마디당 화음 하나(`chord_bars`로 2마디씩), 반복. 쓸 수 있는 화음: 장3·m·7·maj7·m7·m9·maj9·9·6·m6·sus2·sus4·add9·madd9·dim·aug·7sus4, 분수화음 `A/C#`.
-  key만 주면 프리셋 진행을 그 조로 옮긴다. 밝고 안정된 진행(I–V–vi–IV 계열)을 쓰고, 단조는 바이오·진단처럼 차분한 주제에만.
-- keys / arp / lead: epiano · piano · marimba · guitar · celesta · none. pad: pad · strings · none. perc: none · light · pulse. bpm 60~140.
+  key만 주면 프리셋 진행을 그 조로 옮긴다. **밝고 경쾌하게**: 장조의 기본 3화음으로 된 팝 진행(I–V–vi–IV, I–IV–vi–V, I–V–IV–V)을 쓴다.
+  maj7·m9 같은 재즈 화음이나 단조로 시작하는 진행은 무겁고 심오하게 들리므로 쓰지 않는다.
+- keys / arp / lead: epiano · piano · marimba · guitar · celesta · none. pad: pad · strings · none. perc: none · light · pulse. bpm 70~160(기본 112~128, 경쾌하게).
 - 나레이션이 주인공이다: lead는 높은 음역에서 드물게만 나오고, 곡 전체가 말소리 대역을 비워 둔다. seed를 바꾸면 같은 설계로 다른 리듬이 나온다.
 
 ## 작성 후 자체 점검

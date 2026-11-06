@@ -6,8 +6,8 @@ soft kit, then a stereo convolution reverb and a gentle master. ffmpeg (music.to
 and writes the mp3.
 
   {"mood": "bright-tech",                 # preset to start from: bright-tech | green-field | clean-lab | warm-craft
-   "bpm": 104, "key": "D",                # optional overrides; key only transposes the preset's progression
-   "progression": ["Dmaj7", "A/C#", "Bm7", "Gmaj7"],   # one chord per bar (or per chord_bars), looped
+   "bpm": 124, "key": "D",                # optional overrides; key only transposes the preset's progression
+   "progression": ["D", "A", "Bm", "G"],   # one chord per bar (or per chord_bars), looped
    "chord_bars": 1,
    "keys": "epiano", "arp": "marimba",    # epiano | piano | marimba | guitar | celesta | none
    "pad": "pad", "lead": "celesta",       # pad | strings | none ; the sparse top line (kept above the voice range)
@@ -36,14 +36,14 @@ SR = 44100
 LENGTH = 62.0  # seconds composed; music.to_bed trims to 60.5 with fades
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-PRESETS = {
-    "bright-tech": {"bpm": 104, "progression": ["Dmaj7", "A/C#", "Bm7", "Gmaj7"], "keys": "epiano", "arp": "marimba",
+PRESETS = {  # bright, upbeat pop harmony (plain triads, major keys): optimistic, never brooding
+    "bright-tech": {"bpm": 124, "progression": ["D", "A", "Bm", "G"], "keys": "epiano", "arp": "marimba",
                     "pad": "pad", "lead": "celesta", "perc": "pulse", "seed": 3},
-    "green-field": {"bpm": 92, "progression": ["G", "D/F#", "Em7", "Cadd9"], "keys": "piano", "arp": "guitar",
-                    "pad": "strings", "lead": "celesta", "perc": "light", "seed": 11},
-    "clean-lab": {"bpm": 98, "progression": ["Am9", "Fmaj7", "Cmaj7", "G6"], "keys": "epiano", "arp": "celesta",
-                  "pad": "pad", "lead": "none", "perc": "light", "seed": 5},
-    "warm-craft": {"bpm": 110, "progression": ["F", "C/E", "Dm7", "Bbmaj7"], "keys": "piano", "arp": "marimba",
+    "green-field": {"bpm": 112, "progression": ["G", "C", "Em", "D"], "keys": "piano", "arp": "guitar",
+                    "pad": "strings", "lead": "celesta", "perc": "pulse", "seed": 11},
+    "clean-lab": {"bpm": 116, "progression": ["C", "G", "Am", "F"], "keys": "epiano", "arp": "celesta",
+                  "pad": "pad", "lead": "marimba", "perc": "light", "seed": 5},
+    "warm-craft": {"bpm": 128, "progression": ["F", "C", "Bb", "C"], "keys": "piano", "arp": "marimba",
                    "pad": "strings", "lead": "celesta", "perc": "pulse", "seed": 8},
 }
 ORDER = ["bright-tech", "green-field", "clean-lab", "warm-craft"]
@@ -164,7 +164,7 @@ def pad(f, dur, vel, strings=False):
             if k * f > 7000:
                 break
             y += (1 / k) * (0.92 ** (k * k)) * np.sin(k * ph + det * 100 * k)
-    env = _adsr(n, 0.9 if strings else 0.6, 1.5, 0.8, 0.9, dur)
+    env = _adsr(n, 0.4 if strings else 0.25, 1.2, 0.75, 0.6, dur)
     return y * env * vel / 3
 
 
@@ -189,6 +189,18 @@ def shaker(vel, rng):
     x /= np.sqrt(np.mean(x ** 2)) + 1e-9
     t = np.arange(n) / SR
     return x * np.minimum(1, t / 0.004) * np.exp(-t * 55) * vel * 0.22
+
+
+def clap(vel, rng):
+    """Three quick noise bursts and a short tail: the backbeat on 2 and 4."""
+    n = int(0.18 * SR)
+    x = np.diff(rng.normal(0, 1, n + 1))
+    x = x - np.convolve(x, np.ones(9) / 9, "same")  # keep the crack, lose the low thud
+    x = (x + np.roll(x, 1)) / 2  # and the harshest fizz
+    x /= np.sqrt(np.mean(x ** 2)) + 1e-9
+    t = np.arange(n) / SR
+    env = sum(np.where(t >= o, np.exp(-(t - o) * 90), 0) for o in (0, 0.009, 0.018)) + 0.35 * np.exp(-t * 22)
+    return x * env * np.minimum(1, t / 0.001) * vel * 0.05
 
 
 def rim(vel, rng):
@@ -271,7 +283,7 @@ def spec_of(spec):
     s.update({k: v for k, v in (spec or {}).items() if v not in (None, "")})
     if spec and spec.get("key") and not spec.get("progression"):
         s["progression"] = transpose(s["progression"], spec["key"], ref)
-    s["bpm"] = float(min(140, max(60, s["bpm"])))
+    s["bpm"] = float(min(160, max(70, s["bpm"])))
     s.setdefault("chord_bars", 1)
     return s
 
@@ -286,67 +298,70 @@ def render(spec=None):
     bus = Bus(n)
     chords = [chord(c) for c in s["progression"]]
     cb = max(1, int(s["chord_bars"]))
-    intro, outro = 4, 3
-    lift = nbars - outro - max(4, nbars // 4)
+    intro, outro = 2, 2  # short intro: the groove arrives within a few seconds
+    lift = nbars - outro - max(4, nbars // 3)
     prev = None
     arp_pat = [0, 1, 2, 3, 2, 1, 3, 4] if rng.random() < 0.5 else [0, 2, 1, 3, 2, 4, 3, 1]
-    keys_pat = [(0, 1.0), (1.5, 0.7), (2.5, 0.8)] if rng.random() < 0.6 else [(0, 1.0), (2, 0.8), (3.5, 0.6)]
-    bass_pat = [(0, 1.0, 1.4), (2.5, 0.75, 1.0)] if s["bpm"] > 96 else [(0, 1.0, 1.9), (3, 0.6, 0.9)]
+    keys_pat = [(0, 1.0), (1.5, 0.75), (2, 0.6), (3.5, 0.8)] if rng.random() < 0.6 else [(0.5, 0.8), (1.5, 0.75), (2.5, 0.8), (3.5, 0.7)]
+    # bouncy bass: root on the beat, the octave on the off-beats
+    bass_pat = [(0, 1.0, 0.7, 0), (1.5, 0.6, 0.35, 12), (2, 0.9, 0.7, 0), (3.5, 0.6, 0.35, 12)]
     keys = VOICE.get(s.get("keys"))
     arp = VOICE.get(s.get("arp"))
     lead = VOICE.get(s.get("lead"))
     padf = (lambda f, d, v: pad(f, d, v, strings=True)) if s.get("pad") == "strings" else (pad if s.get("pad") != "none" else None)
+    # a short, singable hook: rhythm and contour fixed per piece (repetition is what makes it catchy)
+    hook_rhythm = [0, 0.5, 1, 2, 2.5, 3] if rng.random() < 0.5 else [0, 1, 1.5, 2.5, 3]
+    hook_shape = [int(x) for x in rng.integers(0, 4, len(hook_rhythm))]
 
     def hum(t):
-        return max(0.0, t + rng.normal(0, 0.006))
+        return max(0.0, t + rng.normal(0, 0.005))
 
     for b in range(nbars):
         t0 = b * bar
         root, ivs, bp = chords[(b // cb) % len(chords)]
-        v = voicing(root, ivs, prev)
+        v = voicing(root, ivs, prev, lo=57, hi=76)
         prev = v
         main = intro <= b < nbars - outro
         last = b >= nbars - outro
-        density = 0.55 if b < intro else (1.0 if b >= lift and not last else 0.85)
-        if padf and b % cb == 0:  # pads hold through the chord, slightly overlapped
+        density = 0.6 if b < intro else (1.0 if b >= lift and not last else 0.88)
+        if padf and b % cb == 0:  # a soft bed under the rhythm, not a swell
             for m in v:
-                bus.add(padf(hz(m), bar * cb + 0.2, 0.16 * density), t0, pan=rng.uniform(-0.5, 0.5), send=0.55)
-        if keys and not (b < 2):
+                bus.add(padf(hz(m), bar * cb + 0.1, 0.1 * density), t0, pan=rng.uniform(-0.5, 0.5), send=0.3)
+        if keys:  # short off-beat stabs: the cheerful push of the groove
             for off, vel in (keys_pat if not last else [(0, 0.9)]):
-                d = beat * (1.4 if not last else 4)
+                d = beat * (0.55 if not last else 3)
                 for j, m in enumerate(v):
-                    bus.add(keys(hz(m), d, 0.19 * vel * density * rng.uniform(0.85, 1.0)), hum(t0 + off * beat + j * 0.008),
-                            pan=-0.25 + 0.15 * j, send=0.35)
+                    bus.add(keys(hz(m), d, 0.18 * vel * density * rng.uniform(0.85, 1.0)), hum(t0 + off * beat + j * 0.006),
+                            pan=-0.25 + 0.15 * j, send=0.18)
         if arp and not last:
-            pool = sorted(set([x for m in v for x in (m, m + 12, m + 24) if 60 <= x <= 81]))
+            pool = sorted(set([x for m in v for x in (m, m + 12, m + 24) if 64 <= x <= 84]))
             if pool:
-                steps = 8 if main else 4
-                for k in range(steps):
-                    if rng.random() > 0.92:
+                for k in range(8):
+                    if rng.random() > 0.94:
                         continue
                     m = pool[arp_pat[k % 8] % len(pool)]
-                    at = t0 + k * bar / steps
-                    bus.add(arp(hz(m), bar / steps * 0.9, 0.12 * density * rng.uniform(0.7, 1.0)), hum(at),
-                            pan=0.35 if k % 2 else -0.35, send=0.4)
-        if main or b == nbars - outro:  # bass enters with the main section and lands the last chord
-            for off, vel, ln in (bass_pat if main else [(0, 1.0, 3.5)]):
-                f = hz(36 + (bp - 36) % 12)
-                bus.add(bass(f, beat * ln, 0.34 * vel), hum(t0 + off * beat), send=0.05)
+                    bus.add(arp(hz(m), bar / 8 * 0.8, 0.12 * density * rng.uniform(0.75, 1.0)), hum(t0 + k * bar / 8),
+                            pan=0.35 if k % 2 else -0.35, send=0.22)
+        if main or b == nbars - outro:  # bass enters with the groove and lands the last chord
+            for off, vel, ln, octv in (bass_pat if main else [(0, 1.0, 3.0, 0)]):
+                f = hz(36 + (bp - 36) % 12 + octv)
+                bus.add(bass(f, beat * ln, 0.32 * vel), hum(t0 + off * beat), send=0.04)
         if s.get("perc") in ("light", "pulse") and main:
             if s["perc"] == "pulse":
-                for k in (0, 2):
-                    bus.add(kick(0.55 if k == 0 else 0.4), t0 + k * beat, send=0.03)
-            for k in range(8):
-                bus.add(shaker((0.16 if k % 2 else 0.09) * density, rng), hum(t0 + k * beat / 2), pan=0.4, send=0.15)
-            if s["perc"] == "pulse" and b >= lift:
-                for k in (1, 3):
-                    bus.add(rim(0.12, rng), hum(t0 + k * beat), pan=-0.2, send=0.3)
-        if lead and b >= lift and not last and b % 2 == 0:  # the sparse top line: high, quiet, two or three notes
-            tones = sorted(set(m + 24 for m in v if 76 <= m + 24 <= 93)) or [v[-1] + 24]
-            for k, off in enumerate(sorted(rng.choice([0, 1, 1.5, 2, 3], size=2 + int(rng.random() < 0.5), replace=False))):
-                m = tones[int(rng.integers(len(tones)))]
-                bus.add(lead(hz(m), beat * 1.5, 0.1), hum(t0 + off * beat), pan=0.15, send=0.6)
-    mix = bus.dry + reverb(bus.wet, 2.8, int(s.get("seed", 1)))
+                for k, kv in ((0, 0.6), (2, 0.5), (3.5, 0.25)):
+                    bus.add(kick(kv), t0 + k * beat, send=0.02)
+            for k in (1, 3):  # backbeat claps from the first groove bar
+                bus.add(clap(0.9 if s["perc"] == "pulse" else 0.6, rng), hum(t0 + k * beat), pan=-0.1, send=0.25)
+            for k in range(16 if s["perc"] == "pulse" else 8):
+                step = bar / (16 if s["perc"] == "pulse" else 8)
+                acc = 0.16 if k % 2 else 0.08
+                bus.add(shaker(acc * density, rng), hum(t0 + k * step), pan=0.4, send=0.1)
+        if lead and main and (b >= lift or b % 4 in (0, 1)):  # the hook, high and light, coming back every few bars
+            tones = sorted(set(m + 12 * o for m in v for o in (1, 2) if 74 <= m + 12 * o <= 91)) or [v[-1] + 12]
+            for off, sh in zip(hook_rhythm, hook_shape):
+                m = tones[min(sh, len(tones) - 1)]
+                bus.add(lead(hz(m), beat * 0.7, 0.085 * (1.0 if b >= lift else 0.75)), hum(t0 + off * beat), pan=0.15, send=0.3)
+    mix = bus.dry + reverb(bus.wet, 1.5, int(s.get("seed", 1)))  # a short, bright room (a long hall sounds solemn)
     mix = _fft_filter(mix, lo=32, hi=15000, pocket=6.0)  # leave the voice its room
     mix = np.tanh(mix / (np.max(np.abs(mix)) + 1e-9) * 1.25)  # glue: a soft clip into the master
     return mix / (np.max(np.abs(mix)) + 1e-9) * 0.9, s
