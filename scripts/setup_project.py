@@ -57,6 +57,10 @@ def main(dst):
     gi = os.path.join(dst, ".gitignore")
     if not os.path.exists(gi):
         open(gi, "w", encoding="utf-8").write(".env\nrenders*/\nvideos*/\n.hyperframes/\ndata/raw/\ndata/voice_cache/\ndata/font_cache/\n")
+    elif ".env" not in open(gi, encoding="utf-8", errors="replace").read().split():  # an existing .gitignore must still keep the API keys out
+        with open(gi, "a", encoding="utf-8") as f:
+            f.write("\n.env\n")
+        print("note: .env added to the existing .gitignore (API keys)")
     print("project ready:", dst)
     doctor()
 
