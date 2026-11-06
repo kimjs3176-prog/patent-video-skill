@@ -736,7 +736,7 @@ def s6(c, pal):
     {enter("s6")}
     tl.fromTo("#s6-glow", {{ x: -80 }}, {{ x: 80, duration: {DUR["s6"]}, ease: "none" }}, 0);
     tl.fromTo(["#s6-eyebrow", "#s6-title"], {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.1 }}, 0.2);
-    tl.to("#s6-in", {{ scale: 1.03, duration: {DUR["s6"] - 0.7}, ease: "none" }}, 0.7);
+    tl.to("#s6-in", {{ scale: 1.03, duration: {DUR["s6"] - 0.8}, ease: "none" }}, 0.8);  // after the entry settle ends
     for (let i = 0; i < {n}; i++) {{
       const t = 0.8 + i * 0.45;
       tl.fromTo("#s6-t" + i, {{ opacity: 0, y: 40, scale: 0.94 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "expo.out" }}, t);
@@ -792,8 +792,8 @@ def s7(c, pal):
     tl.to("#s7-in", {{ opacity: 0, duration: 0.8, ease: "power2.in" }}, {DUR["s7"] - 0.9});  // fade out with the music
     tl.fromTo("#s7-card", {{ opacity: 0, scale: 0.92 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }}, 1.7);
     tl.fromTo(".s7-row", {{ opacity: 0, x: -20 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, 2.0);
-    tl.fromTo("#s7-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.6);
-    tl.fromTo("#s7-disc", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.9);
+    tl.fromTo("#s7-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 1.9);
+    tl.fromTo("#s7-disc", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 2.1);  // long enough to read before the fade
     window.__timelines["s7"] = tl;
   </script>
 </template>

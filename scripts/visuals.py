@@ -426,7 +426,7 @@ def transitions(style, slots, total, w=1920, h=1080, pal=None):
                    f'    tl.to("#tx-c", {{ scale: 1, duration: 0.42, ease: "power2.in" }}, {t - 0.12:.2f});',
                    f'    tl.to("#tx-c", {{ opacity: 0, duration: 0.2, ease: "power2.out" }}, {t + 0.3:.2f});']
     elif style == "A":  # keynote light sweep: a soft white band crosses the cut
-        body = ('<div id="tx-s" style="position: absolute; top: -20%; bottom: -20%; left: 0; width: 70%; '
+        body = ('<div id="tx-s" data-layout-allow-overflow style="position: absolute; top: -20%; bottom: -20%; left: 0; width: 70%; '
                 'background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.22) 55%, rgba(255,255,255,0) 100%)"></div>')
         # the band's bright centre rides the incoming scene's wipe edge (build.enter): same start, length and ease
         js = ['    tl.set("#tx-s", { xPercent: -160, rotation: 8 }, 0);']

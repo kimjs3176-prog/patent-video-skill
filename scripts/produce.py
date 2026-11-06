@@ -144,6 +144,12 @@ def one(path, render, want):
             log(f"{slug} music {own}")
     except Exception as e:  # music is optional: fall back to the rotation
         log(f"{slug} music block skipped: {e}")
+    try:  # the ending's holder line comes from the gazette; say so when it cannot (no biblio / full text fetched yet)
+        from build import gazette_holder
+        if not gazette_holder(json.load(open(path, encoding="utf-8")))[0]:
+            log(f"{slug} holder: no gazette data (data/patents/<appno>) - the ending uses branding.json's holder")
+    except Exception:
+        pass
     out = BUILDERS[TEMPLATE](path)
     postprocess.run(out)  # continuous pen draw-ons + per-video font subsets
     if NARRATE:
