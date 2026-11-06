@@ -9,7 +9,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_name, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
 
@@ -306,9 +306,9 @@ def b7(c, pal, d):
     body = f"""<div class="eyebrow">TECH TRANSFER</div>
         <div id="b7-code" style="position: absolute; left: 60px; top: 110px; font-family: Outfit; font-size: {fit(name, 96, 840)}px; font-weight: 800; color: {acc}; white-space: nowrap">{E(name)}</div>
         <div id="b7-sub" style="position: absolute; left: 60px; right: 60px; top: 240px; font-size: 52px; line-height: 1.2; font-weight: 900; letter-spacing: -0.03em">{E(c["sub"])}</div>
-        <div class="b7-row tint" id="b7-r1" style="top: 460px"><span>기술이전 문의</span><b>{CONTACT}</b></div>
-        <div id="b7-meta" style="position: absolute; left: 60px; right: 60px; top: 640px; font-size: 28px; line-height: 1.5; font-weight: 600; color: {SUB}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호 · 대한민국 ({E(c["institute"])})</div>
-        <div id="b7-disc" style="position: absolute; left: 60px; right: 60px; top: 750px; font-size: 28px; line-height: 1.5; font-weight: 500; color: {MUTED}">{DISCLAIMER}</div>"""
+        <div class="b7-row tint" id="b7-r1" style="top: 460px"><span>{E(contact_label(c))}</span><b>{E(contact(c))}</b></div>
+        <div id="b7-meta" style="position: absolute; left: 60px; right: 60px; top: 640px; font-size: 28px; line-height: 1.5; font-weight: 600; color: {SUB}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호{" · " + E(holder_name(c)) if holder_name(c) else ""}</div>
+        <div id="b7-disc" style="position: absolute; left: 60px; right: 60px; top: 750px; font-size: 28px; line-height: 1.5; font-weight: 500; color: {MUTED}">{E(disclaimer(c))}</div>"""
     extra = f""".b7-row {{ position: absolute; left: 60px; right: 60px; height: 116px; border-radius: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; }}
     .b7-row span {{ font-size: 30px; font-weight: 700; color: {SUB}; }}
     .b7-row b {{ font-size: 44px; font-weight: 900; color: {acc}; }}"""

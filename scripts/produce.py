@@ -1,10 +1,11 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-render] [order ...]
+Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-render] [--no-music-gen] [order ...]
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
-One log line per video in renders*/produce.log.
+One log line per video in renders*/produce.log. When assets/music is empty and GEMINI_API_KEY is set, background music is
+generated first with Google Lyria (tools/music.py); --no-music-gen skips that.
 """
 import glob
 import json
@@ -18,6 +19,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # python -I ignores PYTHONIOENCODING: keep progress output (Korean, CLI bars) printable on a cp949 console
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+import music  # noqa: E402
+if __name__ == "__main__" and "--no-music-gen" not in sys.argv:
+    music.ensure()  # before the builders load: they read the assets/music list when imported
 from build import build as build_a  # noqa: E402
 import build_b  # noqa: E402
 import build_c  # noqa: E402
@@ -91,6 +95,7 @@ def main():
     if "--template" in args:
         TEMPLATE = args[args.index("--template") + 1].upper()
         args = [a for i, a in enumerate(args) if a != "--template" and (i == 0 or args[i - 1] != "--template")]
+    args = [a for a in args if a != "--no-music-gen"]
     render = "--no-render" not in args
     want = {int(a) for a in args if a.isdigit()}
     done = set()

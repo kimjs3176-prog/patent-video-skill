@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_def  # noqa: E402
-from build import CONTACT, DISCLAIMER, E, fit, rgba  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_line, E, fit, rgba  # noqa: E402
 from build_def import count, darken, grad_text, plain, pop, scene, up  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, step_icon, clean_steps  # noqa: E402
@@ -355,7 +355,7 @@ def g6(c, pal, d):
 
 def g7(c, pal, d):
     name = plain(c["name"])
-    cells = [("기술이전 문의", CONTACT), (c.get("patlabel", "등록특허"), c["regno"])]
+    cells = [(contact_label(c), contact(c)), (c.get("patlabel", "등록특허"), c["regno"])]
     ch = "".join(f'<div class="ec" id="g7-c{i}"><span>{E(k)}</span><b>{E(v)}</b></div>' for i, (k, v) in enumerate(cells))
     grid, gjs = g_grid("g7", (120,))
     body = f"""{grid}
@@ -363,8 +363,8 @@ def g7(c, pal, d):
         <div id="g7-n" class="ar" style="display: inline-block; font-size: {fit(name + '.', 170, 1560)}px; font-weight: 900; line-height: 0.95; letter-spacing: -0.045em; white-space: nowrap">{name}<span class="red">.</span></div></div>
       <div class="h" id="g7-s" style="position: absolute; left: 160px; top: 400px; font-size: 48px">{E(c["sub"])}</div>
       <div style="position: absolute; left: 120px; top: 540px; width: 1680px; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 2px solid {RED}">{ch}</div>
-      <div id="g7-m" style="position: absolute; left: 160px; top: 760px; font-size: 30px; font-weight: 600; color: #b5b5b5">특허권자 대한민국 ({E(c["institute"])})</div>
-      <div id="g7-d" style="position: absolute; left: 160px; top: 830px; width: 1600px; font-size: 28px; font-weight: 500; color: #9a9a9a; line-height: 1.5">{DISCLAIMER}</div>"""
+      <div id="g7-m" style="position: absolute; left: 160px; top: 760px; font-size: 30px; font-weight: 600; color: #b5b5b5">{E(holder_line(c))}</div>
+      <div id="g7-d" style="position: absolute; left: 160px; top: 830px; width: 1600px; font-size: 28px; font-weight: 500; color: #9a9a9a; line-height: 1.5">{E(disclaimer(c))}</div>"""
     css = g_css() + """
     .ec { padding: 34px 40px 0; height: 170px; border-right: 1px solid rgba(255, 255, 255, 0.14); }
     .ec:last-child { border: 0; }
@@ -693,7 +693,7 @@ def h5(c, pal, d):
 def h6(c, pal, d):
     core, ct, node = h_cols(c)
     name = plain(c["name"])
-    cells = [("기술이전 문의", CONTACT), (c.get("patlabel", "등록특허"), c["regno"])]
+    cells = [(contact_label(c), contact(c)), (c.get("patlabel", "등록특허"), c["regno"])]
     ch = "".join(f'<div class="ep pill" id="h6-c{i}"><span>{E(k)}</span><b>{E(v)}</b></div>' for i, (k, v) in enumerate(cells))
     body = f"""
       <div class="card" id="h6-card" style="position: absolute; left: 260px; top: 170px; width: 1400px; padding: 70px 80px 64px; text-align: center">
@@ -701,8 +701,8 @@ def h6(c, pal, d):
         <div id="h6-n" class="mr ct" style="display: inline-block; margin-top: 20px; font-size: {fit(name, 104, 1200)}px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">{name}</div>
         <div class="h" id="h6-s" style="margin-top: 10px; font-size: 44px">{E(c["sub"])}</div>
         <div style="display: flex; justify-content: center; gap: 20px; margin-top: 50px">{ch}</div></div>
-      <div id="h6-m" style="position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 30px; font-weight: 600; color: #6c675d">특허권자 대한민국 ({E(c["institute"])})</div>
-      <div id="h6-d" style="position: absolute; left: 160px; right: 160px; top: 880px; text-align: center; font-size: 28px; color: #6c675d; line-height: 1.5">{DISCLAIMER}</div>"""
+      <div id="h6-m" style="position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 30px; font-weight: 600; color: #6c675d">{E(holder_line(c))}</div>
+      <div id="h6-d" style="position: absolute; left: 160px; right: 160px; top: 880px; text-align: center; font-size: 28px; color: #6c675d; line-height: 1.5">{E(disclaimer(c))}</div>"""
     css = h_css(c) + """
     .ep { padding: 24px 36px; text-align: left; background: #efe9de; box-shadow: none; }
     .ep span { display: block; font-size: 28px; font-weight: 600; color: #6c675d; }
@@ -984,7 +984,7 @@ def i5(c, pal, d):
 
 def i6(c, pal, d):
     name = plain(c["name"])
-    cells = [("기술이전 문의", CONTACT), (c.get("patlabel", "등록특허"), c["regno"])]
+    cells = [(contact_label(c), contact(c)), (c.get("patlabel", "등록특허"), c["regno"])]
     ch = "".join(f'<div class="cc" id="i6-c{i}"><span>{E(k)}</span><b>{E(v)}</b></div>' for i, (k, v) in enumerate(cells))
     body = f"""
       <div id="i6-top" style="position: absolute; left: 260px; right: 260px; top: 170px; height: 9px; border-top: 4px solid #121212; border-bottom: 1px solid #121212; transform-origin: 50% 50%"></div>
@@ -993,8 +993,8 @@ def i6(c, pal, d):
         <div id="i6-n" class="serif" style="display: inline-block; margin-top: 20px; font-size: {fit(name, 120, 1300)}px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap">{name}</div>
         <div id="i6-s" class="serif" style="margin-top: 6px; font-size: 44px; font-weight: 600">{E(c["sub"])}</div></div>
       <div style="position: absolute; left: 260px; right: 260px; top: 560px; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid #121212; border-bottom: 1px solid #121212">{ch}</div>
-      <div id="i6-m" style="position: absolute; left: 0; right: 0; top: 790px; text-align: center; font-size: 30px; font-weight: 600; color: #4d4d4d">특허권자 대한민국 ({E(c["institute"])})</div>
-      <div id="i6-d" style="position: absolute; left: 200px; right: 200px; top: 850px; text-align: center; font-size: 28px; color: #555; line-height: 1.5">{DISCLAIMER}</div>"""
+      <div id="i6-m" style="position: absolute; left: 0; right: 0; top: 790px; text-align: center; font-size: 30px; font-weight: 600; color: #4d4d4d">{E(holder_line(c))}</div>
+      <div id="i6-d" style="position: absolute; left: 200px; right: 200px; top: 850px; text-align: center; font-size: 28px; color: #555; line-height: 1.5">{E(disclaimer(c))}</div>"""
     css = i_css() + """
     .cc { padding: 30px 0 34px; text-align: center; border-right: 1px solid #cfc9bb; }
     .cc:last-child { border: 0; }

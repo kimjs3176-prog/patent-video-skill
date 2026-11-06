@@ -1,25 +1,32 @@
-"""Prepare background music when assets/music is empty, through the HyperFrames media-use audio engine.
+"""Prepare background music when assets/music is empty.
 
 Usage:
   python -I tools/music.py --check                                   # which routes work on this PC (changes nothing)
   python -I tools/music.py --mode retrieve|generate [--count 4] [--force] [--allow-install]
 
-  retrieve   HeyGen music library, searched by mood (HeyGen sign-in or HEYGEN_API_KEY; uses credits)
-  generate   Google Lyria when GEMINI_API_KEY / GOOGLE_API_KEY is set, else local MusicGen
-             (first run pip-installs transformers + torch and downloads ~300 MB; slow on CPU;
-              MusicGen weights are CC-BY-NC 4.0, non-commercial)
+  generate   Google Lyria 3.5 straight through the Gemini API when GEMINI_API_KEY (or GOOGLE_API_KEY) is set in the
+             environment or the project's .env: full-length 44.1 kHz stereo instrumentals, the best route. Without a key,
+             local MusicGen through the HyperFrames media-use engine (first run pip-installs transformers + torch and
+             downloads ~300 MB; slow on CPU; MusicGen weights are CC-BY-NC 4.0, non-commercial)
+  retrieve   HeyGen music library through media-use, searched by mood (HeyGen sign-in or HEYGEN_API_KEY; uses credits)
+
+produce.py calls ensure() before a batch: when assets/music is empty and a Gemini key is set it generates the beds with
+Lyria on its own (a few cents per track; skip with --no-music-gen). Without a key it builds without music, as before.
 
 Writes assets/music/m<NN>-<mood>.mp3 (60.5 s, faded in and out, crossfade-looped when the source is shorter) and
 assets/music/SOURCES.json (provider, mode, query/prompt, licence note). The builders rotate whatever mp3s are in
 assets/music in production order, so a few tracks cover any number of videos. Refuses to run when assets/music already
 holds mp3 files unless --force. Pick the route with the user first (media-use preflight): never generate silently.
 """
+import base64
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUSIC = os.path.join(ROOT, "assets", "music")
@@ -29,21 +36,133 @@ HF = "hyperframes@0.8.207"
 MEDIA_USE = [os.environ.get("HYPERFRAMES_MEDIA_USE", ""), os.path.join(os.path.expanduser("~"), ".claude", "skills", "media-use")]
 
 # instrumental beds for technology-transfer films: (slug, retrieval query, generation prompt)
+# the prompts ask for a voice-over bed: steady, no lead melody fighting the narrator, a clear arc that survives a 60 s trim
+_BED = ("Instrumental only, no vocals, no choir, no spoken words. A polished, broadcast-quality underscore for a "
+        "60-second technology introduction film with a narrator speaking over it: keep the lead melody sparse and out of "
+        "the voice range, no sudden drops, no risers, no loud drum fills. Professional mix and master, warm and wide stereo, "
+        "clean low end. Length about 80 seconds. Structure: [0:00-0:08] soft intro that establishes the groove; "
+        "[0:08-0:55] steady main section with gentle development; [0:55-1:20] lift slightly, then resolve to a clean ending.")
 MOODS = [
     ("bright-tech", "uplifting corporate technology",
-     "uplifting corporate technology underscore, bright modern piano with soft synth pads, steady light percussion, instrumental, no vocals, 105 BPM"),
+     "Uplifting modern technology underscore, 105 BPM, bright felt piano ostinato, soft synth pads, light plucked arpeggios, "
+     "tight subtle percussion, optimistic and confident. " + _BED),
     ("green-field", "calm hopeful acoustic",
-     "calm hopeful agricultural innovation, warm acoustic guitar and light strings, gentle pulse, instrumental, no vocals, 95 BPM"),
+     "Calm hopeful agricultural innovation, 95 BPM, warm fingerpicked acoustic guitar, light string ensemble, soft piano, "
+     "gentle shaker pulse, sunrise over green fields. " + _BED),
     ("clean-lab", "clean science ambient",
-     "clean scientific discovery, airy pads and soft electronic pulses, subtle bell motifs, instrumental, no vocals, 100 BPM"),
+     "Clean scientific discovery, 100 BPM, airy evolving pads, soft electronic pulses, delicate bell and glass mallet motifs, "
+     "minimal and precise, modern laboratory. " + _BED),
     ("warm-craft", "warm optimistic light",
-     "warm optimistic craftsmanship, marimba and piano with light percussion, cheerful but restrained, instrumental, no vocals, 110 BPM"),
+     "Warm optimistic craftsmanship, 110 BPM, marimba and upright piano, light hand percussion, soft bass, cheerful but "
+     "restrained, food and handmade quality. " + _BED),
 ]
 LICENCE = {
     "heygen": "HeyGen music library — check HeyGen's terms for your use",
-    "lyria": "Google Lyria via the Gemini API — check Google's generative AI terms",
+    "lyria": "Google Lyria via the Gemini API (SynthID-watermarked) — check Google's generative AI terms for your use",
     "musicgen": "facebook/musicgen-small (CC-BY-NC 4.0) — non-commercial use only",
 }
+
+
+LYRIA_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
+LYRIA_REVISION = "2026-05-20"
+LYRIA_MODELS = [m for m in (os.environ.get("LYRIA_MODEL"), "lyria-3.5", "lyria-3-clip-preview") if m]  # full song first, 30 s clip as fallback
+
+
+def env_key(*names):
+    """The first of names set in the environment or the project's .env (NAME=value)."""
+    for n in names:
+        if os.environ.get(n):
+            return os.environ[n].strip()
+    env = os.path.join(ROOT, ".env")
+    if os.path.exists(env):
+        with open(env, encoding="utf-8-sig") as f:
+            lines = f.read().splitlines()
+        for n in names:
+            for line in lines:
+                if line.strip().startswith(n + "="):
+                    v = line.split("=", 1)[1].strip().strip('"\'')
+                    if v:
+                        return v
+    return None
+
+
+def gemini_key():
+    return env_key("GEMINI_API_KEY", "GOOGLE_API_KEY")
+
+
+def lyria(prompt, dst_stem, key):
+    """Generate one track with Lyria through the Gemini API; return (path, model)."""
+    last = "no model answered"
+    for model in dict.fromkeys(LYRIA_MODELS):
+        body = json.dumps({"model": model, "input": prompt, "response_format": {"type": "audio"}}).encode("utf-8")
+        req = urllib.request.Request(LYRIA_URL, data=body, headers={"Content-Type": "application/json", "Api-Revision": LYRIA_REVISION,
+                                                                  "x-goog-api-key": key})
+        for wait in (0, 5, 20, 60):  # rate limits and brief outages
+            time.sleep(wait)
+            try:
+                with urllib.request.urlopen(req, timeout=600) as r:
+                    d = json.load(r)
+            except urllib.error.HTTPError as e:
+                last = f"{model}: HTTP {e.code} {e.read()[:300].decode('utf-8', 'replace')}"
+                if e.code in (429, 500, 502, 503, 504):
+                    continue
+                break  # 400/403/404: this model is not available to the key; try the next one
+            except OSError as e:
+                last = f"{model}: {e}"
+                continue
+            blocks = [b for st in d.get("steps", []) if st.get("type") == "model_output" for b in st.get("content", []) if b.get("type") == "audio"]
+            if not blocks or not blocks[0].get("data"):
+                last = f"{model}: no audio in the response"
+                break
+            mime = blocks[0].get("mime_type") or blocks[0].get("mimeType") or "audio/mpeg"
+            path = dst_stem + (".wav" if "wav" in mime else ".mp3")
+            with open(path, "wb") as f:
+                f.write(base64.b64decode(blocks[0]["data"]))
+            return path, model
+    raise RuntimeError(last)
+
+
+def ensure(count=4):
+    """Called by produce.py: fill an empty assets/music with Lyria beds when a Gemini key is set; otherwise say how."""
+    have = [f for f in os.listdir(MUSIC) if f.lower().endswith(".mp3")] if os.path.isdir(MUSIC) else []
+    if have:
+        return
+    if not gemini_key():
+        print("music: assets/music is empty - videos build without music. For generated music put GEMINI_API_KEY=... in .env "
+              "(Google AI Studio key; Lyria 3.5), or add licensed mp3s to assets/music.", flush=True)
+        return
+    print(f"music: assets/music is empty - generating {count} beds with Google Lyria (Gemini API, billed per track; "
+          "skip with --no-music-gen)", flush=True)
+    try:
+        generate_lyria(count)
+    except Exception as e:  # music is optional: never stop the batch for it
+        print("music: generation failed -", e, flush=True)
+
+
+def generate_lyria(count, force=False):
+    key = gemini_key()
+    os.makedirs(MUSIC, exist_ok=True)
+    src_path = os.path.join(MUSIC, "SOURCES.json")
+    sources = json.load(open(src_path, encoding="utf-8")) if os.path.exists(src_path) else []
+    start = len([f for f in os.listdir(MUSIC) if f.lower().endswith(".mp3")])
+    made = 0
+    for i, (slug, _query, prompt) in enumerate(MOODS[:count]):
+        name = f"m{start + i + 1:02d}-{slug}.mp3"
+        t = time.time()
+        try:
+            with tempfile.TemporaryDirectory(prefix="bgm-", ignore_cleanup_errors=True) as work:
+                src, model = lyria(prompt, os.path.join(work, slug), key)
+                to_bed(src, os.path.join(MUSIC, name))
+        except Exception as e:
+            print(name, "FAILED:", e, flush=True)
+            continue
+        made += 1
+        sources.append({"file": name, "provider": "lyria", "model": model, "mode": "generate", "prompt": prompt,
+                        "seconds": LENGTH, "licence": LICENCE["lyria"], "made": time.strftime("%Y-%m-%d")})
+        json.dump(sources, open(src_path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        print(name, f"ok (lyria {model}, {time.time() - t:.0f}s)", flush=True)
+    print(f"{made}/{count} tracks in assets/music" + ("" if made else " - videos will build without music"), flush=True)
+    return made
 
 
 def media_use_dir():
@@ -64,10 +183,10 @@ def check():
     for line in (r.stdout + r.stderr).splitlines():
         if "music" in line.lower() or "heygen" in line.lower() or "signed" in line.lower():
             print("  ", line.strip())
-    gem = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    gem = bool(gemini_key())
     mg = all(importlib.util.find_spec(m) is not None for m in ("torch", "transformers", "soundfile"))
     print("retrieve (HeyGen):", "ready" if os.environ.get("HEYGEN_API_KEY") or os.path.isdir(os.path.expanduser("~/.heygen")) else "needs `heygen auth login --oauth` or HEYGEN_API_KEY")
-    print("generate (Lyria):", "ready" if gem else "needs GEMINI_API_KEY or GOOGLE_API_KEY")
+    print("generate (Lyria 3.5, direct):", "ready" if gem else "needs GEMINI_API_KEY (or GOOGLE_API_KEY) in the environment or .env")
     print("generate (MusicGen):", "ready" if mg else "installs transformers+torch on first run (~2 GB with model), CC-BY-NC")
     have = [f for f in os.listdir(MUSIC) if f.lower().endswith(".mp3")] if os.path.isdir(MUSIC) else []
     print("assets/music:", f"{len(have)} mp3 present" if have else "empty")
@@ -93,7 +212,7 @@ def to_bed(src, dst, length=LENGTH, xfade=3.0):
         chain.append(f"{last}[{i}:a]acrossfade=d={xfade}:c1=tri:c2=tri{out}")
         last = out
     chain.append(f"{last}atrim=0:{length},afade=t=in:d=1.2,afade=t=out:st={length - 3:.2f}:d=3,loudnorm=I=-16:TP=-1.5[o]")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *ins, "-filter_complex", ";".join(chain), "-map", "[o]", "-ac", "2", "-ar", "44100", "-b:a", "192k", dst], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *ins, "-filter_complex", ";".join(chain), "-map", "[o]", "-ac", "2", "-ar", "44100", "-b:a", "256k", dst], check=True)
 
 
 def one(mu, work, mode, slug, query, prompt):
@@ -133,14 +252,16 @@ def main(args):
     os.makedirs(MUSIC, exist_ok=True)
     if any(f.lower().endswith(".mp3") for f in os.listdir(MUSIC)) and "--force" not in args:
         raise SystemExit("assets/music already has mp3 files - nothing to do (use --force to add more)")
+    if mode == "generate" and gemini_key():  # best route, no media-use engine needed
+        generate_lyria(count)
+        return
     mu = media_use_dir()
     import importlib.util
     heygen = bool(os.environ.get("HEYGEN_API_KEY")) or os.path.isdir(os.path.expanduser("~/.heygen"))
-    lyria = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     musicgen = all(importlib.util.find_spec(m) is not None for m in ("torch", "transformers", "soundfile"))
     if mode == "retrieve" and not heygen:
         raise SystemExit("retrieve needs HeyGen: run `heygen auth login --oauth` (or set HEYGEN_API_KEY), or use --mode generate")
-    if mode == "generate" and not lyria and not musicgen and "--allow-install" not in args:
+    if mode == "generate" and not musicgen and "--allow-install" not in args:
         raise SystemExit("generate has no ready backend: set GEMINI_API_KEY for Lyria, or pass --allow-install to let the engine "
                          "pip-install transformers+torch (~2 GB with the MusicGen model, CC-BY-NC non-commercial)")
     src_path = os.path.join(MUSIC, "SOURCES.json")

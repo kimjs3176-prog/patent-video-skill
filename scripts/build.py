@@ -26,8 +26,62 @@ PALETTES = {
     "rose": ("#ff9bc2", "#ff6b9a", "#b46bff"),
     "blue": ("#34e0c8", "#5b8cff", "#9a6bff"),
 }
-CONTACT = "한국농업기술진흥원"
-DISCLAIMER = "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."
+# ending credits: the skill's defaults, overridden by the project's branding.json and then by the content JSON's own fields
+BRANDING_DEFAULTS = {
+    "contact_label": "기술이전 문의",
+    "contact": "한국농업기술진흥원",
+    "holder_label": "특허권자",
+    "holder": "대한민국 ({institute})",  # {institute} is the content's institute
+    "disclaimer": "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다.",
+}
+
+
+def _load_branding():
+    path = os.path.join(ROOT, "branding.json")
+    out = dict(BRANDING_DEFAULTS)
+    if os.path.exists(path):
+        try:
+            got = json.load(open(path, encoding="utf-8-sig"))
+        except ValueError as e:
+            raise SystemExit(f"branding.json is not valid JSON: {e}")
+        out.update({k: v for k, v in got.items() if k in BRANDING_DEFAULTS and isinstance(v, str)})
+    return out
+
+
+BRANDING = _load_branding()
+CONTACT = BRANDING["contact"]  # project-wide values (per-content overrides go through the functions below)
+DISCLAIMER = BRANDING["disclaimer"]
+
+
+def brand(c, key):
+    """An ending-credit value for content c: c["branding"][key] (or c[key]) → branding.json → the skill's default."""
+    own = (c.get("branding") or {}).get(key)
+    if own is None:
+        own = c.get(key)
+    return own if isinstance(own, str) else BRANDING[key]
+
+
+def contact(c):
+    return brand(c, "contact")
+
+
+def contact_label(c):
+    return brand(c, "contact_label")
+
+
+def disclaimer(c):
+    return brand(c, "disclaimer")
+
+
+def holder_name(c):
+    """대한민국 (농촌진흥청 …) by default; any text with an optional {institute}. Empty → no holder line."""
+    return brand(c, "holder").replace("{institute}", c.get("institute", "")).strip()
+
+
+def holder_line(c):
+    h = holder_name(c)
+    lab = brand(c, "holder_label")
+    return f"{lab} {h}".strip() if h else ""
 
 # scene slots: id, file, start, duration
 SLOTS = [("s1", "s1-teaser", 0.0, 6.0), ("s2", "s2-reveal", 5.5, 8.0), ("s3", "s3-process", 13.0, 10.5),
@@ -652,8 +706,8 @@ def s7(c, pal):
     #s7-sub {{ position: absolute; left: 0; right: 0; top: 470px; text-align: center; font-size: 44px; font-weight: 700; letter-spacing: -0.02em; color: #e6e6f0; }}
     #s7-card {{ position: absolute; left: 460px; top: 600px; width: 1000px; height: 100px; border-radius: 32px; }}
     .s7-row {{ position: absolute; left: 60px; right: 60px; height: 100px; display: flex; align-items: center; justify-content: space-between; }}
-    .s7-row .k {{ font-size: 32px; font-weight: 600; color: #a8a8bc; }}
-    .s7-row .v {{ font-size: 44px; font-weight: 700; letter-spacing: -0.02em; }}
+    .s7-row .k {{ font-size: 32px; font-weight: 600; color: #a8a8bc; white-space: nowrap; }}
+    .s7-row .v {{ font-size: {fit(contact(c), 44, 860 - em_width(contact_label(c)) * 32 - 40)}px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }}
     #s7-meta {{ position: absolute; left: 0; right: 0; top: 830px; text-align: center; font-size: 28px; font-weight: 500; color: #8e8ea3; }}
     #s7-disc {{ position: absolute; left: 0; right: 0; top: 910px; text-align: center; font-size: 28px; font-weight: 500; color: #6e6e82; }}
   </style>
@@ -665,10 +719,10 @@ def s7(c, pal):
       <div id="s7-name">{E(na)}<span class="grad">{E(nb)}</span></div>
       <div id="s7-sub">{E(c["sub"])}</div>
       <div id="s7-card" class="glass">
-        <div class="s7-row" style="top: 0"><span class="k">기술이전 문의</span><span class="v grad">{CONTACT}</span></div>
+        <div class="s7-row" style="top: 0"><span class="k">{E(contact_label(c))}</span><span class="v grad">{E(contact(c))}</span></div>
       </div>
-      <div id="s7-meta">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호 · 특허권자 대한민국 ({E(c["institute"])})</div>
-      <div id="s7-disc">{DISCLAIMER}</div>
+      <div id="s7-meta">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호{" · " + E(holder_line(c)) if holder_line(c) else ""}</div>
+      <div id="s7-disc">{E(disclaimer(c))}</div>
     </div>
   </div>
   <script>

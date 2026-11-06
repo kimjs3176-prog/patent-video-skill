@@ -13,7 +13,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_line, E, MUSIC, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, step_icon, clean_steps  # noqa: E402
 
@@ -347,7 +347,7 @@ def d6(c, pal, d):
 
 def d7(c, pal, d):
     a1, a2, a3 = pal
-    chips = [("기술이전 문의", CONTACT), (c.get("patlabel", "등록특허"), c["regno"])]
+    chips = [(contact_label(c), contact(c)), (c.get("patlabel", "등록특허"), c["regno"])]
     ch = "".join(f'<div class="pc" id="d7-c{i}"><span>{E(k)}</span><b>{E(v)}</b></div>' for i, (k, v) in enumerate(chips))
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 200px; text-align: center">
@@ -355,7 +355,7 @@ def d7(c, pal, d):
         <div class="h" id="d7-t" style="margin-top: 22px; font-size: 100px; color: #fff"><span class="gr" style="font-family: Outfit, Pretendard; font-weight: 800">{plain(c["name"])}</span></div>
         <div class="sub" id="d7-s" style="margin-top: 18px; font-size: 42px">{E(c["sub"])}</div>
         <div id="d7-chips" style="display: flex; justify-content: center; gap: 22px; margin-top: 56px">{ch}</div>
-        <div id="d7-f" style="margin-top: 54px; font-size: 28px; color: #9fb0a3">{DISCLAIMER}</div></div>"""
+        <div id="d7-f" style="margin-top: 54px; font-size: 28px; color: #9fb0a3">{E(disclaimer(c))}</div></div>"""
     css = d_css(pal) + """
     .pc { padding: 28px 36px; border-radius: 28px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #fff; min-width: 380px; text-align: left; }
     .pc span { display: block; font-size: 28px; color: #b7c7ba; }
@@ -624,9 +624,9 @@ def e7(c, pal, d):
       <div class="h" id="e7-t" style="position: absolute; left: 0; right: 0; top: 310px; font-family: Outfit, Pretendard; font-size: 112px; font-weight: 800"><span class="gr">{plain(c["name"])}</span></div>
       <div class="sub" id="e7-s" style="position: absolute; left: 0; right: 0; top: 460px">{E(c["sub"])}</div>
       <div id="e7-row" style="position: absolute; left: 0; right: 0; top: 590px; display: flex; justify-content: center; gap: 24px">
-        <div class="pc"><span>기술이전 문의</span><b class="gr">{CONTACT}</b></div></div>
-      <div id="e7-m" style="position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 28px; color: #a4acba">{E(c.get("patlabel", "등록특허"))} {E(c["regno"])} · 특허권자 대한민국 ({E(c["institute"])})</div>
-      <div id="e7-d" style="position: absolute; left: 0; right: 0; top: 880px; text-align: center; font-size: 28px; color: #8a8f99">{DISCLAIMER}</div>"""
+        <div class="pc"><span>{E(contact_label(c))}</span><b class="gr">{E(contact(c))}</b></div></div>
+      <div id="e7-m" style="position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 28px; color: #a4acba">{E(c.get("patlabel", "등록특허"))} {E(c["regno"])}{" · " + E(holder_line(c)) if holder_line(c) else ""}</div>
+      <div id="e7-d" style="position: absolute; left: 0; right: 0; top: 880px; text-align: center; font-size: 28px; color: #8a8f99">{E(disclaimer(c))}</div>"""
     css = e_css(pal) + """
     .pc { padding: 30px 44px; border-radius: 30px; background: #111317; border: 1px solid #2a2d33; min-width: 460px; }
     .pc span { display: block; font-size: 28px; color: #a4acba; }
@@ -807,9 +807,9 @@ def f7(c, pal, d):
       <div class="t" id="f7-n" style="top: 300px; font-family: Outfit, Pretendard; font-size: {fit(plain(c["name"]), 120, 920)}px">{plain(c["name"])}</div>
       <div class="s" id="f7-s" style="top: 470px; font-size: 40px; font-weight: 700; color: #3a3a3f">{E(c["sub"])}</div>
       <div class="card" id="f7-c" style="top: 600px; padding: 20px 50px">
-        <div class="rw" style="border: 0"><span>기술이전 문의</span><b class="acc">{CONTACT}</b></div></div>
-      <div class="s" id="f7-m" style="top: 840px; font-size: 30px; color: #55555a">{E(c.get("patlabel", "등록특허"))} {E(c["regno"])}<br />특허권자 대한민국 ({E(c["institute"])})</div>
-      <div class="s" id="f7-d" style="top: 1000px; font-size: 28px; font-weight: 500; color: #6e6e73">{DISCLAIMER}</div>"""
+        <div class="rw" style="border: 0"><span>{E(contact_label(c))}</span><b class="acc">{E(contact(c))}</b></div></div>
+      <div class="s" id="f7-m" style="top: 840px; font-size: 30px; color: #55555a">{E(c.get("patlabel", "등록특허"))} {E(c["regno"])}{"<br />" + E(holder_line(c)) if holder_line(c) else ""}</div>
+      <div class="s" id="f7-d" style="top: 1000px; font-size: 28px; font-weight: 500; color: #6e6e73">{E(disclaimer(c))}</div>"""
     css = f_css(pal) + """
     .rw { display: flex; justify-content: space-between; align-items: center; height: 120px; border-bottom: 1px solid #ececf0; }
     .rw span { font-size: 30px; font-weight: 700; color: #6e6e73; }

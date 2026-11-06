@@ -10,8 +10,10 @@ Sound effects and background music are not redistributed with the public skill:
 - music: put your own licensed mp3 files in <project>/assets/music (any names; they rotate in production order).
 Videos still build without either — the missing audio clips are simply left out.
 Re-running updates tools/*.py; a file that differs from the skill (your edits) is first saved as tools/<name>.py.bak.
+branding.json (ending credits: 기술이전 문의처, 특허권자, 면책 문구) is written once with the defaults and never overwritten.
 The KIPRIS key is NOT copied: write it to <project>/.env as KIPRIS_API_KEY=... (or set the env var).
 """
+import json
 import os
 import shutil
 import sys
@@ -27,7 +29,7 @@ def main(dst):
     for f in os.listdir(os.path.join(SKILL, "scripts")):
         if f.endswith(".py") and f != "setup_project.py":
             src, have = os.path.join(SKILL, "scripts", f), os.path.join(tools, f)
-            if os.path.exists(have) and open(have, "rb").read() != open(src, "rb").read():  # e.g. CONTACT/DISCLAIMER edits in build.py
+            if os.path.exists(have) and open(have, "rb").read() != open(src, "rb").read():  # e.g. local edits to a builder
                 shutil.copy2(have, have + ".bak")
                 print(f"note: tools/{f} differed from the skill (your edits or an older copy) - updated; previous version kept as tools/{f}.bak")
             shutil.copy(src, tools)
@@ -45,6 +47,12 @@ def main(dst):
     shutil.copytree(os.path.join(SKILL, "assets", "template"), os.path.join(dst, "template"), dirs_exist_ok=True)
     for d in ("data/content", "data/patents", "data/raw", "videos", "renders"):
         os.makedirs(os.path.join(dst, d), exist_ok=True)
+    br = os.path.join(dst, "branding.json")
+    if not os.path.exists(br):  # ending credits: edit this file to change the contact, holder or disclaimer for every video
+        sys.path.insert(0, os.path.join(SKILL, "scripts"))
+        from build import BRANDING_DEFAULTS
+        json.dump(BRANDING_DEFAULTS, open(br, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        print("note: branding.json written - edit it to change 기술이전 문의처 / 특허권자 / 면책 문구")
     gi = os.path.join(dst, ".gitignore")
     if not os.path.exists(gi):
         open(gi, "w", encoding="utf-8").write(".env\nrenders*/\nvideos*/\n.hyperframes/\ndata/raw/\ndata/voice_cache/\ndata/font_cache/\n")
