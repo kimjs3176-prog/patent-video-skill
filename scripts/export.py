@@ -1,4 +1,5 @@
-"""Deliverables: copy a rendered video to patents/{출원번호}.mp4 and save its thumbnail as patents/{출원번호}.jpg.
+"""Deliverables: copy a rendered video to patents/{출원번호}.mp4, save its thumbnail as patents/{출원번호}.jpg, and copy its
+captions (the .srt beside the mp4, when narrated) to patents/{출원번호}.srt.
 
 produce.py calls this after every successful render; the latest render of a patent (any template) is its deliverable.
 Usage (for videos rendered earlier): python -I tools/export.py renders_s/116-1020200177685_s_nar.mp4 [...]
@@ -28,6 +29,11 @@ def export(mp4, appno=None):
     shutil.copyfile(mp4, dst + ".part")
     os.replace(dst + ".part", dst)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(THUMB_AT), "-i", dst, "-frames:v", "1", "-q:v", "2", jpg], check=True)
+    srt, out_srt = mp4[:-4] + ".srt", os.path.join(OUT, appno + ".srt")
+    if os.path.exists(srt):  # captions of the narrated render (YouTube / accessibility upload)
+        shutil.copyfile(srt, out_srt)
+    elif os.path.exists(out_srt):
+        os.remove(out_srt)  # a later render without captions: do not leave a stale file
     return dst, jpg
 
 

@@ -1,8 +1,9 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-render] [--no-music-gen] [order ...]
+Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-captions] [--no-render] [--no-music-gen] [order ...]
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
+Narrated videos carry burned-in captions (--no-captions to leave them out); the .srt goes beside the mp4 and to patents/.
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
 One log line per video in renders*/produce.log. When assets/music is empty, background music is made first (tools/music.py):
 Google Lyria with GEMINI_API_KEY, otherwise composed by the pipeline itself (no key). A content's `music` block gives that
@@ -41,6 +42,7 @@ ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 
 TEMPLATE = "A"
 NARRATE = True
+CAPTIONS = True
 VOICE = narration.VOICE
 BUILDERS = {"A": build_a, "B": build_b.build, "C": build_c.build,
             "D": lambda p: build_def.build("D", p), "E": lambda p: build_def.build("E", p), "F": lambda p: build_def.build("F", p),
@@ -87,7 +89,7 @@ def rendered_voice(mp4):
 
 
 def main():
-    global TEMPLATE, NARRATE, VOICE
+    global TEMPLATE, NARRATE, VOICE, CAPTIONS
     args = sys.argv[1:]
     if "--voice" in args:
         VOICE = args[args.index("--voice") + 1]
@@ -96,7 +98,8 @@ def main():
     if "--template" in args:
         TEMPLATE = args[args.index("--template") + 1].upper()
         args = [a for i, a in enumerate(args) if a != "--template" and (i == 0 or args[i - 1] != "--template")]
-    args = [a for a in args if a != "--no-music-gen"]
+    CAPTIONS = "--no-captions" not in args
+    args = [a for a in args if a not in ("--no-music-gen", "--no-captions")]
     render = "--no-render" not in args
     want = {int(a) for a in args if a.isdigit()}
     done = set()
@@ -154,7 +157,7 @@ def one(path, render, want):
     postprocess.run(out)  # continuous pen draw-ons + per-video font subsets
     if NARRATE:
         try:
-            rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE)
+            rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE, captions=CAPTIONS)
             log(f"{slug} narration " + " | ".join(r.split(":")[0] for r in rep))
         except Exception as e:  # network or TTS failure: skip this video (no silent render), say why
             log(f"{slug} SKIP narration failed: {e}")
@@ -178,7 +181,10 @@ def one(path, render, want):
     if ok:
         if NARRATE:  # remembers the voice of this render (see rendered_voice)
             shutil.copyfile(os.path.join(out, "narration.txt"), mp4[:-4] + ".narration.txt")
-        dst, jpg = export(mp4, slug.split("-", 1)[1])  # deliverable: patents/{출원번호}.mp4 + .jpg
+            srt = os.path.join(out, "narration.srt")
+            if CAPTIONS and os.path.exists(srt):
+                shutil.copyfile(srt, mp4[:-4] + ".srt")
+        dst, jpg = export(mp4, slug.split("-", 1)[1])  # deliverable: patents/{출원번호}.mp4 + .jpg (+ .srt)
         log(f"{slug} exported {os.path.relpath(dst, ROOT)} {os.path.relpath(jpg, ROOT)}")
 
 
