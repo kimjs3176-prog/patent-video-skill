@@ -11,7 +11,9 @@ GOOGLE_TTS_API_KEY is set (environment or the project's .env), otherwise edge-tt
 which turns what the screen writes into what a narrator says ("50~90분" → "50에서 90분", "℃" → "도", "가열·가압" → "가열, 가압"). A line that does not fit its scene is re-voiced faster
 (natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
-Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural]
+Captions of the voiced lines are burned in and written as narration.srt (captions.py); --no-captions leaves them out.
+
+Usage: python -I tools/narration.py <project dir> <content.json> [--no-captions] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural]
        python -I tools/narration.py --check data/content/<file>.json [...]   (template S: dry run, flags lines sped past +6 % or cut)
 """
 import base64
@@ -349,7 +351,7 @@ def assign(slots, script):
     return texts
 
 
-def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
+def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22, captions=True):
     ip = os.path.join(out, "index.html")
     html = open(ip, encoding="utf-8").read()
     html = re.sub(r'\s*<audio id="nar-[^>]*></audio>', "", html)
@@ -364,7 +366,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
         texts, keyof = assign(slots, script), section_of
     vdir = os.path.join(out, "assets", "voice")
     os.makedirs(vdir, exist_ok=True)
-    clips, report = [], []
+    clips, report, voiced = [], [], []
     for i, (sid, f, st, du) in enumerate(slots):
         sec = keyof(f)
         if sec not in texts:
@@ -382,6 +384,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
             b.write(a.read())
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
+        voiced.append((start, dur, t))
         report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == speak(texts[sec]) else ' (shortened)'}: {t}")
     html = re.sub(r'(<audio id="bgm"[^>]*data-volume=")[\d.]+(")', rf"\g<1>{bgm_volume}\2", html)
     block = "\n".join(clips)
@@ -393,6 +396,9 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
             raise RuntimeError("index.html: no place to mount the narration clips")
     open(ip, "w", encoding="utf-8").write(html)
     open(os.path.join(out, "narration.txt"), "w", encoding="utf-8").write("\n".join([f"voice: {voice}"] + report) + "\n")
+    if captions:  # burned-in captions of exactly what was voiced, and narration.srt
+        import captions as cap
+        report.append(f"captions: {cap.mount(out, voiced)} cues")
     return report
 
 
@@ -435,5 +441,5 @@ if __name__ == "__main__":
     v = a[a.index("--voice") + 1] if "--voice" in a else VOICE
     if a and a[0] == "--check":  # python -I tools/narration.py --check data/content/<file>.json [...]
         sys.exit(1 if check([x for x in a[1:] if x.endswith(".json")], v) else 0)
-    for line in narrate(a[0], json.load(open(a[1], encoding="utf-8")), v):
+    for line in narrate(a[0], json.load(open(a[1], encoding="utf-8")), v, captions="--no-captions" not in a):
         print(line)

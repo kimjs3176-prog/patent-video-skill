@@ -19,7 +19,8 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
 - **한국어 나레이션 기본 포함.** `.env`에 `GOOGLE_TTS_API_KEY`가 있으면 Google Chirp 3 HD(`ko-KR-Chirp3-HD-Aoede`, 사람 성우에 가까운 음성),
   없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`)로 장면마다 한 줄씩 읽고, 엔딩은 음악만 둡니다. 화면용 기호(`~`, `℃`, `·`, 단위)는 합성 전에 읽는 말로 바뀝니다.
   보통 속도로 먼저 읽고 장면에 안 들어갈 때만 빨라집니다(`--no-narrate`로 끄기).
-- **산출물 규칙.** 동영상 `patents/{출원번호}.mp4`, 썸네일 `patents/{출원번호}.jpg`(예: `patents/1020240012345.mp4`).
+- **산출물 규칙.** 동영상 `patents/{출원번호}.mp4`, 썸네일 `patents/{출원번호}.jpg`, 자막 `patents/{출원번호}.srt`(예: `patents/1020240012345.mp4`).
+- **자막 기본 포함.** 읽힌 나레이션이 화면 하단 자막으로 구워지고 `.srt`로도 나옵니다(`--no-captions`로 끔).
   원본 엑셀은 그대로 두고, 사본의 마지막 열에 영상 파일명을 적습니다.
 
 자세한 사용법은 [`SKILL.md`](SKILL.md), 템플릿 구성과 모션 원칙은 [`references/templates.md`](references/templates.md),
