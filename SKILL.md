@@ -29,9 +29,12 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
    "holder_label": "특허권자", "holder": "대한민국 ({institute})",
    "disclaimer": "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."}
   ```
-  `{institute}`는 콘텐츠의 `institute`(개발 기관)로 바뀐다. 사용자가 문의처·특허권자를 말하면 이 파일을 고치고, 특허마다 다르면
-  콘텐츠 JSON에 `"branding": {"contact": "…", "holder": "…"}`처럼 그 특허만 덮어쓴다(우선순위: 콘텐츠 → branding.json → 스킬 기본값).
-  `holder`를 빈 문자열로 두면 특허권자 줄이 빠진다. 길이는 `validate.py`가 검사한다(문의처 14em, 특허권자 줄 30em).
+  **특허권자는 공보에서 뽑는다(확정)**: `kipris.py`가 공보 첫 장의 `(73) 특허권자`(등록공보) 또는 `(71) 출원인`(공개공보)에서
+  이름만 골라(주소 줄 제외) `biblio.json`의 `holders`에 넣고, 엔딩은 그 값을 그대로 쓴다(예: "대한민국(농촌진흥청장)", 셋 이상이면 "… 외 N",
+  공개공보면 라벨이 "출원인"). 이미 받아 둔 특허는 빌드 때 `fulltext.txt`에서 다시 읽는다. `branding.json`의 `holder`는 공보가 없을 때만 쓰인다.
+  공보에서 잘못 읽힌 특허만 콘텐츠 JSON의 `"branding": {"holder": "…"}`로 고친다(빈 문자열이면 줄이 빠짐).
+  문의처·면책은 `branding.json`을 고치고, 특허마다 다르면 콘텐츠의 `branding`으로 덮어쓴다(우선순위: 콘텐츠 → branding.json → 스킬 기본값).
+  길이는 `validate.py`가 검사한다(문의처 14em, 특허권자 줄 34em).
 - **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
   공개 스킬에는 음악이 없다. 사용자에게 라이선스가 있는 곡이 있으면 그걸 넣는다.
   **자동 생성(권장)**: `PROJ/.env`에 `GEMINI_API_KEY=...`(Google AI Studio 키)가 있으면 `produce.py`가 `assets/music`이 빈 것을 보고

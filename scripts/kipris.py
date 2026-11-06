@@ -3,6 +3,7 @@
 Usage: python -I tools/kipris.py <application-number> [...] | --all
        python -I tools/kipris.py --pdf <application-number> [...]   (no key: uses data/raw/<appno>.pdf downloaded by hand)
 Writes data/raw/<appno>.xml and data/patents/<appno>/biblio.json, fulltext.txt and fig-*.jpg.
+biblio.json "holders" is the gazette's (73) 특허권자 (or (71) 출원인 for a published gazette, "holder_kind"); the ending credits use it.
 The service key is read from the KIPRIS_API_KEY env var or the project's .env file.
 """
 import json
@@ -68,6 +69,43 @@ def parse(root):
     info["rnd"] = [{k: text(r, k) for k in ("rndDepartmentName", "rndProjectName", "rndSpecialInstitutionName", "rndTaskName")}
                    for r in item.findall("rndInfoArray/rndInfo")]
     return info
+
+
+# ---------------------------------------------------------------- patent holder (특허권자) from the gazette
+_ADDR = re.compile(r"(특별시|광역시|특별자치|[가-힣]+도\s|[가-힣]+시\s|[가-힣]+군\s|[가-힣]+구\s|[가-힣\d]+(로|길)\s*\d|번지|\d+-\d+|[가-힣]+(읍|면|동)\s|\b\d{5}\b)")
+_CODE = re.compile(r"\(\s*(\d{2})\s*\)")
+
+
+def holders_from_text(txt):
+    """Names under (73) 특허권자 on the gazette front page; (71) 출원인 for a published (unregistered) gazette.
+    Returns (names, kind) with kind "73" or "71", or ([], None). Address lines (and their wrapped tails) are dropped."""
+    first = txt.split("=====PAGE=====")[0]
+    for kind, label in (("73", r"특\s*허\s*권\s*자"), ("71", r"출\s*원\s*인")):
+        m = re.search(rf"\(\s*{kind}\s*\)\s*{label}\s*", first)
+        if not m:
+            continue
+        rest = first[m.end():]
+        stop = _CODE.search(rest)  # the next INID code, e.g. (72) 발명자
+        block = rest[:stop.start()] if stop else rest[:400]
+        names = []
+        for line in re.split(r"\n+", block):
+            line = re.sub(r"\s+", " ", line).strip(" ,;")
+            if not line or line[0] in "(（0123456789":  # a wrapped address tail or a postcode
+                continue
+            cut = _ADDR.search(line + " ")  # an address line, or a name with its address on the same line
+            line = (line[:cut.start()] if cut else line).strip(" ,;")
+            if line and len(line) <= 60 and line not in names:
+                names.append(line)
+        if names:
+            return names, kind
+    return [], None
+
+
+def gazette_holders(outdir):
+    p = os.path.join(outdir, "fulltext.txt")
+    if not os.path.exists(p):
+        return [], None
+    return holders_from_text(open(p, encoding="utf-8").read())
 
 
 def _kipris_url(url):
@@ -151,8 +189,10 @@ if __name__ == "__main__":
             outdir = os.path.join(ROOT, "data", "patents", num)
             os.makedirs(outdir, exist_ok=True)
             ft = parse_pdf(pdf, outdir)
+            hs, hk = gazette_holders(outdir)
             with open(os.path.join(outdir, "biblio.json"), "w", encoding="utf-8") as f:
-                json.dump({"applicationNumber": num, "claims": [], "source": "pdf", "fulltext": ft}, f, ensure_ascii=False, indent=2)
+                json.dump({"applicationNumber": num, "claims": [], "source": "pdf", "fulltext": ft, "holders": hs, "holder_kind": hk},
+                          f, ensure_ascii=False, indent=2)
             print(num, "ok from PDF:", ft["pages"], "pages,", len(ft["figures"]), "figures (claims: read them in fulltext.txt)")
         sys.exit(0)
     if args == ["--all"]:
@@ -184,6 +224,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(num, "FULLTEXT ERROR", e, flush=True)
             info["fulltext"] = None
+        info["holders"], info["holder_kind"] = gazette_holders(outdir)
         with open(os.path.join(outdir, "biblio.json"), "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
         ft = info["fulltext"] or {}

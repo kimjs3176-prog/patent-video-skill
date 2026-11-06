@@ -73,15 +73,58 @@ def disclaimer(c):
     return brand(c, "disclaimer")
 
 
+_GAZETTE = {}
+
+
+def gazette_holder(c):
+    """(names, kind) of the patent holder as the gazette states it: (73) 특허권자, else (71) 출원인 ("71").
+    Read from data/patents/<appno>/biblio.json ("holders", written by kipris.py), else parsed from its fulltext.txt;
+    for a biblio without either, the API's applicants stand in. ([], None) when nothing was fetched."""
+    appno = str(c.get("appno", ""))
+    if appno not in _GAZETTE:
+        d = os.path.join(ROOT, "data", "patents", appno)
+        bib = {}
+        try:
+            bib = json.load(open(os.path.join(d, "biblio.json"), encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+        names, kind = bib.get("holders") or [], bib.get("holder_kind")
+        if not names and os.path.exists(os.path.join(d, "fulltext.txt")):
+            from kipris import holders_from_text
+            names, kind = holders_from_text(open(os.path.join(d, "fulltext.txt"), encoding="utf-8").read())
+        if not names and bib.get("applicants"):
+            names, kind = [n for n in bib["applicants"] if n], ("73" if bib.get("registerNumber") else "71")
+        _GAZETTE[appno] = (names, kind)
+    return _GAZETTE[appno]
+
+
+def _explicit(c, key):
+    v = (c.get("branding") or {}).get(key, c.get(key))
+    return v if isinstance(v, str) else None
+
+
 def holder_name(c):
-    """대한민국 (농촌진흥청 …) by default; any text with an optional {institute}. Empty → no holder line."""
-    return brand(c, "holder").replace("{institute}", c.get("institute", "")).strip()
+    """The patent holder from the gazette ("대한민국(농촌진흥청장)", several joined, "… 외 N" past two).
+    A content override (branding.holder, {institute} allowed, "" drops the line) wins; branding.json's holder is the
+    fallback only when no gazette was fetched."""
+    own = _explicit(c, "holder")
+    if own is not None:
+        return own.replace("{institute}", c.get("institute", "")).strip()
+    names, _ = gazette_holder(c)
+    if names:
+        return ", ".join(names) if len(names) <= 2 else f"{', '.join(names[:2])} 외 {len(names) - 2}"
+    return BRANDING["holder"].replace("{institute}", c.get("institute", "")).strip()
 
 
 def holder_line(c):
     h = holder_name(c)
-    lab = brand(c, "holder_label")
-    return f"{lab} {h}".strip() if h else ""
+    if not h:
+        return ""
+    lab = _explicit(c, "holder_label")
+    if lab is None:
+        _, kind = gazette_holder(c)
+        lab = "출원인" if kind == "71" and _explicit(c, "holder") is None else BRANDING["holder_label"]
+    return f"{lab} {h}".strip()
 
 # scene slots: id, file, start, duration
 SLOTS = [("s1", "s1-teaser", 0.0, 6.0), ("s2", "s2-reveal", 5.5, 8.0), ("s3", "s3-process", 13.0, 10.5),

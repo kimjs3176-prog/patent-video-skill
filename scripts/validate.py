@@ -59,7 +59,7 @@ def _check(path):
     # ending credits (branding.json or the content's own "branding"): the 9:16 endings are the narrowest
     lim("contact(기술이전 문의처)", contact(c), 14)
     lim("contact_label", contact_label(c), 8)
-    lim("holder(특허권자 줄)", holder_line(c), 30)
+    lim("holder(특허권자 줄)", holder_line(c), 34)
     if len(c["chips"]) != 4:
         errs.append("chips는 4개")
     for ch in c["chips"]:

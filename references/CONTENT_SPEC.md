@@ -68,7 +68,8 @@
 }
 ```
 - branding(선택): 이 특허만 엔딩 문구를 바꿀 때. 쓴 키만 적용되고 나머지는 프로젝트 `branding.json` → 스킬 기본값을 따른다.
-  `holder`의 `{institute}`는 `institute`로 바뀐다(기본 "대한민국 ({institute})"). 빈 문자열 `""`은 그 줄을 비운다. 모두 같다면 `branding.json`만 고친다.
+  특허권자는 공보의 (73) 특허권자 / (71) 출원인에서 자동으로 들어가므로 보통 쓰지 않는다. 공보에서 잘못 읽혔을 때만 `holder`를 쓴다
+  (`{institute}`는 `institute`로 바뀜, 빈 문자열 `""`은 그 줄을 비움). 문의처·면책이 모두 같다면 `branding.json`만 고친다.
 - bars: 하이라이트(이 기술) 항목에 `"hi": true`, max는 막대 최대값보다 약간 크게. bars가 없으면 item에 icon 지정.
 - stats item은 각 4초 이상 보이므로 1~3개.
 - `process.steps[].big`은 **명세서의 측정값**(온도·시간·비율 등 숫자)만. 수치가 없는 단계는 `""`로 둔다(MIX·DRY 같은 영단어 금지 —
