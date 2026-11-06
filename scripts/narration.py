@@ -306,7 +306,7 @@ def synth(text, voice, rate):
         if "Chirp3-HD" in voice or "Chirp-HD" in voice:
             _google(text, voice, rate, tmp)
         else:
-            subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", "--text", text, "--write-media", tmp],
+            subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", f"--text={text}", "--write-media", tmp],
                            check=True, capture_output=True, timeout=300)
         os.replace(tmp, mp3)
     return mp3, duration(mp3)

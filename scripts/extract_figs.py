@@ -15,6 +15,7 @@ import zlib
 import pypdf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MAX_RAW = 64 * 2**20  # a 1-bit A4 page at 600 dpi is ~4 MB; a larger Flate stream is a decompression bomb, not a drawing
 
 
 def tiff_ccitt(data, w, h, k, black_is_1):
@@ -99,7 +100,10 @@ def extract(appno):
                     black1 = bool(p.get("/BlackIs1", False)) != inverted
                     open(tmp, "wb").write(tiff_ccitt(v._data, int(p.get("/Columns", w)), int(p.get("/Rows", h)), k, black1))
                 elif filt == "/FlateDecode":
-                    raw = zlib.decompress(v._data)
+                    z = zlib.decompressobj()
+                    raw = z.decompress(v._data, MAX_RAW + 1)
+                    if len(raw) > MAX_RAW:
+                        raise ValueError(f"Flate image larger than {MAX_RAW // 2**20} MB")
                     p = v.get("/DecodeParms") or {}
                     p = p[0] if isinstance(p, list) else p
                     if int(p.get("/Predictor", 1)) >= 10:
@@ -124,6 +128,6 @@ if __name__ == "__main__":
     if args == ["--all"]:
         args = [m["appno"] for m in json.load(open(os.path.join(ROOT, "data", "master.json"), encoding="utf-8"))]
     for a in args:
-        figs = extract(a)
+        figs = extract(re.sub(r"\D", "", a))  # digits only, as kipris.py names data/raw/<appno>.pdf
         if figs:
             print(a, len(figs), "drawings")

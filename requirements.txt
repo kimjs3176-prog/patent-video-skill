@@ -1,5 +1,5 @@
 openpyxl>=3.1
-pypdf>=4.0
+pypdf>=6.17  # parses downloaded gazette PDFs: keep the decompression-bomb / parser-DoS fixes of the 6.x line
 fonttools>=4.40
 brotli>=1.1
 numpy>=1.24
