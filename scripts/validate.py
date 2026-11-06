@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from icons import ICONS  # noqa: E402
-from build import PALETTES, em_width  # noqa: E402
+from build import PALETTES, contact, contact_label, em_width, holder_line  # noqa: E402
 import sigcheck  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -56,6 +56,10 @@ def _check(path):
     lim("name", c["name"], 8.6)
     lim("sub", c["sub"], 20)
     lim("headline", c["headline"], 26)
+    # ending credits (branding.json or the content's own "branding"): the 9:16 endings are the narrowest
+    lim("contact(기술이전 문의처)", contact(c), 14)
+    lim("contact_label", contact_label(c), 8)
+    lim("holder(특허권자 줄)", holder_line(c), 34)
     if len(c["chips"]) != 4:
         errs.append("chips는 4개")
     for ch in c["chips"]:

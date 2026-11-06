@@ -23,15 +23,28 @@ Windows 콘솔은 한글이 깨지므로 파이썬은 `PYTHONIOENCODING=utf-8 py
 - **KIPRIS Plus 서비스키**: 사용자에게 받아 `PROJ/.env`에 `KIPRIS_API_KEY=...`로 저장(응답에 키를 다시 적지 않는다). 키는 받은 그대로(끝의 `=` 포함) 한 줄로.
   키가 없으면 사용자가 KIPRIS 웹에서 공보 PDF를 받아 `data/raw/<출원번호 숫자>.pdf`로 두고 `python -I tools/kipris.py --pdf <번호>...`로 전문·도면만 추출(청구항은 fulltext.txt에서 읽는다).
 - **템플릿**: 아래 표에서 고른다. 기본은 **S**(시그니처가 서는 특허), 서지 않는 특허는 A. 여러 개도 가능.
-- **고정 문구**(기본값, 사용자가 바꾸면 `tools/build.py`(스킬에서는 `scripts/build.py`)의 `CONTACT`·`DISCLAIMER` 수정. 기술이전 형태는 표기하지 않는다):
-  기술이전 문의 "한국농업기술진흥원",
-  면책 "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."
+- **엔딩 문구**(기술이전 문의처·특허권자·면책. 기술이전 형태는 표기하지 않는다): `PROJ/branding.json`에서 바꾼다(setup이 기본값으로 만든다).
+  ```json
+  {"contact_label": "기술이전 문의", "contact": "한국농업기술진흥원",
+   "holder_label": "특허권자", "holder": "대한민국 ({institute})",
+   "disclaimer": "※ 본 영상은 특허 명세서를 기반으로 제작되었으며, 실제 연구 및 사업화 내용과는 상이할 수 있습니다."}
+  ```
+  **특허권자는 공보에서 뽑는다(확정)**: `kipris.py`가 공보 첫 장의 `(73) 특허권자`(등록공보) 또는 `(71) 출원인`(공개공보)에서
+  이름만 골라(주소 줄 제외) `biblio.json`의 `holders`에 넣고, 엔딩은 그 값을 그대로 쓴다(예: "대한민국(농촌진흥청장)", 셋 이상이면 "… 외 N",
+  공개공보면 라벨이 "출원인"). 이미 받아 둔 특허는 빌드 때 `fulltext.txt`에서 다시 읽는다. `branding.json`의 `holder`는 공보가 없을 때만 쓰인다.
+  공보에서 잘못 읽힌 특허만 콘텐츠 JSON의 `"branding": {"holder": "…"}`로 고친다(빈 문자열이면 줄이 빠짐).
+  문의처·면책은 `branding.json`을 고치고, 특허마다 다르면 콘텐츠의 `branding`으로 덮어쓴다(우선순위: 콘텐츠 → branding.json → 스킬 기본값).
+  길이는 `validate.py`가 검사한다(문의처 14em, 특허권자 줄 34em).
 - **배경음악**: `assets/music`에 있는 mp3를 파일명 순으로 제작 순번에 1→2→3→4→1… 배정(분석하지 않음). 효과음은 HyperFrames `media-use` 스킬에서 setup이 복사한다.
-  공개 스킬에는 음악이 없다. 사용자에게 라이선스가 있는 곡이 있으면 그걸 넣고, 없으면 **음악 준비 단계**를 거친다:
+  공개 스킬에는 음악이 없다. 사용자에게 라이선스가 있는 곡이 있으면 그걸 넣는다.
+  **자동 생성(권장)**: `PROJ/.env`에 `GEMINI_API_KEY=...`(Google AI Studio 키)가 있으면 `produce.py`가 `assets/music`이 빈 것을 보고
+  Google Lyria 3.5로 4곡을 먼저 만든다(44.1kHz 스테레오, 나레이션 아래 깔리도록 리드 멜로디를 줄인 프롬프트, 곡당 수 센트 과금, SynthID 워터마크).
+  키를 처음 받을 때 과금·구글 약관을 한 줄 알리고, 원치 않으면 `--no-music-gen`. 첫 영상 전에 곡을 들려주고 확인받는 것을 권한다.
+  키가 없거나 다른 경로를 원하면 **음악 준비 단계**를 거친다:
   1. `python -I tools/music.py --check` 로 쓸 수 있는 경로를 본다(아무것도 바꾸지 않음).
   2. 사용자에게 고르게 한다(media-use 규칙: 말없이 생성하지 않는다):
      - HeyGen 음악 라이브러리 검색 — `heygen auth login --oauth`(무료 한도) 또는 API 키(크레딧), 기성곡이라 품질 안정
-     - Google Lyria 생성 — `GEMINI_API_KEY`, 품질 좋음, 구글 약관 확인
+     - Google Lyria 3.5 생성 — `GEMINI_API_KEY`, 품질 가장 좋음(media-use 없이 Gemini API 직접 호출), 구글 약관 확인
      - MusicGen 로컬 생성 — 첫 실행에 transformers+torch(모델 포함 약 2GB) 설치, CPU에선 곡당 수 분, **CC-BY-NC(비상업)** 이라 기관 홍보 영상엔 부적합할 수 있음
      - 음악 없이 진행(효과음만)
   3. `python -I tools/music.py --mode retrieve|generate [--count 4] [--allow-install]` → `assets/music/m01-…mp3` 4곡(60.5초, 페이드·루프 처리)과
@@ -140,7 +153,7 @@ python -I tools/annotate_lists.py "<목록1.xlsx>" "<목록2.xlsx>"   # 사본 <
 
 ## 수정 요청 대응
 - 문구·수치: 해당 JSON 수정 → `produce.py`가 바뀐 것만 다시 렌더링.
-- 고정 문구·음악 일괄 변경: `scripts`의 상수/`assets/music` 교체 → JSON들의 수정 시각을 갱신(touch)하거나 mp4를 지운 뒤 `produce.py`.
+- 엔딩 문구·음악 일괄 변경: `branding.json` 수정/`assets/music` 교체 → JSON들의 수정 시각을 갱신(touch)하거나 mp4를 지운 뒤 `produce.py`.
 - 새 템플릿 디자인: `tools/build_*.py`에 장면 함수를 추가하고 `produce.py`의 `BUILDERS`에 등록. HyperFrames 규칙은 `/hyperframes` 스킬, 기성 효과는 `/hyperframes-registry`.
   글자만 있는 장면을 만들지 않는다: 명세서 도면(`pick_figures`), 단계 픽토그램(`step_icon`), 차트·노드 같은 시각 요소를 장면마다 하나 이상. 파티클 같은 강한 효과는 영상당 한 번.
   라인 아이콘 그리기는 평범한 `strokeDashoffset` tween으로 써도 postprocess가 펜 드로잉으로 바꾼다. 전체 화면 CSS blur 필터는 렌더링이 느려지므로 짧은 등장 효과에만.

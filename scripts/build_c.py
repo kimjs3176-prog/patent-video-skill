@@ -10,7 +10,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import CONTACT, DISCLAIMER, E, MUSIC, PALETTES, ROOT, fit  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_name, E, MUSIC, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, step_icon  # noqa: E402
@@ -287,10 +287,10 @@ def c7(c, pal, d):
       <div class="k" id="c7-n" style="top: 260px; font-family: Outfit; font-weight: 800; font-size: {fit(name, 150, 940)}px; white-space: nowrap; color: {DARK}">{E(name)}</div>
       <div class="k" id="c7-s" style="top: 440px; font-size: 52px; color: {DARK}">{E(c["sub"])}</div>
       <div id="c7-r1" style="position: absolute; left: 72px; right: 72px; top: 600px; height: 150px; background: {DARK}; color: {PAPER}">
-        <div style="position: absolute; left: 32px; top: 24px; font-size: 30px; font-weight: 700; opacity: 0.8">기술이전 문의</div>
-        <div style="position: absolute; left: 32px; top: 66px; font-size: 60px; font-weight: 900; color: {a}">{CONTACT}</div></div>
-      <div class="k" id="c7-m" style="top: 800px; font-size: 30px; font-weight: 700; line-height: 1.5; color: {DARK}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호 · 대한민국 ({E(c["institute"])})</div>
-      <div class="k" id="c7-d" style="top: 930px; font-size: 28px; font-weight: 600; line-height: 1.5; color: #4a4a52">{DISCLAIMER}</div>"""
+        <div style="position: absolute; left: 32px; top: 24px; font-size: 30px; font-weight: 700; opacity: 0.8">{E(contact_label(c))}</div>
+        <div style="position: absolute; left: 32px; top: 66px; font-size: 60px; font-weight: 900; color: {a}">{E(contact(c))}</div></div>
+      <div class="k" id="c7-m" style="top: 800px; font-size: 30px; font-weight: 700; line-height: 1.5; color: {DARK}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호{" · " + E(holder_name(c)) if holder_name(c) else ""}</div>
+      <div class="k" id="c7-d" style="top: 930px; font-size: 28px; font-weight: 600; line-height: 1.5; color: #4a4a52">{E(disclaimer(c))}</div>"""
     js = ['    tl.fromTo(["#c7-n", "#c7-s", "#c7-r1", "#c7-m", "#c7-d"], { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.34, ease: "expo.out", stagger: 0.12 }, 0.3);']
     return page("c7", body, "\n".join(js), PAPER)
 

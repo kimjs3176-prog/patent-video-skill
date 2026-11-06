@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import CONTACT, ROOT  # noqa: E402
+from build import ROOT, contact, contact_label  # noqa: E402
 from visuals import pick_figures  # noqa: E402
 
 EDGE_VOICE = "ko-KR-SunHiNeural"  # free house voice: 선희 (SunHi)
@@ -184,7 +184,7 @@ def auto_script(c):
         "features": (f'{feats[0]}, 그리고 {josa(feats[1], "이가")} 이 기술의 강점입니다.' if len(feats) > 1
                      else f'{josa(_clean(c["features"].get("title", "핵심 특장점")), "을를")} 정리했습니다.'),
         "apps": f'{", ".join(a["n"] for a in c["apps"][:3])} 같은 분야에 활용할 수 있습니다.',
-        "outro": f"기술이전 문의는 {CONTACT}입니다.",
+        "outro": f'{josa(contact_label(c), "은는")} {contact(c)}입니다.',
     }
 
 

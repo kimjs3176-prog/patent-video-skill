@@ -14,6 +14,7 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
   "부호의 설명" 대조표와 측정 격자(`figmap.py`)로 찍은 부품 위치에 도면 부호 표식이 목록과 함께 나타납니다.
 - **템플릿 10종.** A 언팩 · B 카드뉴스(9:16) · C 키네틱(9:16) · D 그린 에디토리얼 · E 모노 콘트라스트 · F 스테이트먼트(9:16) ·
   G 스위스 그리드 · H 오가닉 소프트테크 · I 뉴스룸 에디토리얼 · **S 시그니처(기본 권장)**. 같은 콘텐츠 JSON으로 모두 뽑을 수 있습니다.
+- **엔딩 문구는 `branding.json`에서, 특허권자는 공보에서.** 기술이전 문의처·면책 문구는 프로젝트의 `branding.json`에서 바꾸고(특허마다 다르면 콘텐츠 JSON의 `branding`), 특허권자는 공보 첫 장의 (73) 특허권자(공개공보는 (71) 출원인)를 그대로 씁니다.
 - **한국어 나레이션 기본 포함.** `.env`에 `GOOGLE_TTS_API_KEY`가 있으면 Google Chirp 3 HD(`ko-KR-Chirp3-HD-Aoede`, 사람 성우에 가까운 음성),
   없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`)로 장면마다 한 줄씩 읽고, 엔딩은 음악만 둡니다. 화면용 기호(`~`, `℃`, `·`, 단위)는 합성 전에 읽는 말로 바뀝니다.
   보통 속도로 먼저 읽고 장면에 안 들어갈 때만 빨라집니다(`--no-narrate`로 끄기).
@@ -148,7 +149,7 @@ Windows에서는 한글 출력이 깨지지 않게 `PYTHONIOENCODING=utf-8`을 �
 | 항목 | 이유 | 대신 |
 |---|---|---|
 | KIPRIS Plus 서비스키 | 비밀 정보 | 프로젝트 `.env`에 `KIPRIS_API_KEY=...` (커밋 금지, `.gitignore` 포함). 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 추출 |
-| 배경음악 | 저작권이 사용자에게 있음 | 라이선스를 가진 mp3를 `<프로젝트>/assets/music`에 넣거나, `tools/music.py`로 준비(HeyGen 라이브러리 / Google Lyria / MusicGen, media-use 스킬 필요). 없으면 무음으로 빌드 |
+| 배경음악 | 저작권이 사용자에게 있음 | 라이선스를 가진 mp3를 `<프로젝트>/assets/music`에 넣거나, `.env`에 `GEMINI_API_KEY`를 두면 `produce.py`가 Google Lyria 3.5로 자동 생성(과금, `--no-music-gen`으로 끔). 그 밖에 `tools/music.py`(HeyGen 라이브러리 / MusicGen, media-use 스킬 필요). 없으면 무음으로 빌드 |
 | 효과음 | Pixabay 콘텐츠를 단독 재배포하지 않음 | HyperFrames `media-use` 스킬이 설치돼 있으면 `setup_project.py`가 자동 복사(없으면 생략) |
 
 ## 보안 메모
