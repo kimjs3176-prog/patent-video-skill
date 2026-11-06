@@ -18,7 +18,7 @@ FONT = "assets/fonts/pretendard/Pretendard-SemiBold.woff2"
 # Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px (its top margin
 # is empty in every template), or, for a template with a masthead at the very top (I), scaled down from the top centre
 # so nothing of the scene is lost. The captions then never cover anything a scene shows.
-BAND = {"wide": 64, "tall": 120}
+BAND = {"wide": 64, "tall": 136}  # 9:16 holds two caption lines
 SCALE_PREFIX = ("i",)  # scene files of template I: i1-front, i2-how, …
 
 
@@ -51,7 +51,14 @@ def chunks(text, maxlen):
                 words = q.split(" ")
                 best = min(range(1, len(words)), key=lambda k: abs(_units(" ".join(words[:k])) - _units(q) / 2))
                 stack[:0] = [" ".join(words[:best]), " ".join(words[best:])]
-    return out
+    merged = []  # no orphans: a scrap of a few syllables ("추출,") joins its neighbour when the pair still fits
+    for piece in out:
+        if merged and (_units(piece) < 6 or _units(merged[-1]) < 6) and _units(merged[-1] + piece) <= maxlen * 1.25 \
+                and merged[-1].rstrip()[-1:] not in ".!?":
+            merged[-1] = merged[-1] + " " + piece
+        else:
+            merged.append(piece)
+    return merged
 
 
 def cues(lines, maxlen):
@@ -93,7 +100,7 @@ def read_srt(path):
 def composition(cs, w, h, total):
     vertical = h > w
     band = BAND["tall" if vertical else "wide"]
-    size, maxw = (44, 1000) if vertical else (34, 1800)
+    size, maxw = (42, 960) if vertical else (34, 1800)
     divs = "\n".join(f'      <div class="ncap" id="ncap-{i}"><span>{E(t)}</span></div>' for i, (a, _, t) in enumerate(cs))
     js = "\n".join(f'    tl.fromTo("#ncap-{i}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {a:.2f});\n'
                    f'    tl.to("#ncap-{i}", {{ opacity: 0, duration: 0.12, ease: "none" }}, {max(a + 0.2, b - 0.12):.2f});'
@@ -161,7 +168,7 @@ def mount(out, lines):
     if not m:
         raise RuntimeError("index.html: main composition not found")
     total, w, h = float(m.group(1)), int(m.group(2)), int(m.group(3))
-    cs = cues(lines, 15 if h > w else 26)
+    cs = cues(lines, 24 if h > w else 26)  # 9:16: up to two lines of about 12
     open(os.path.join(out, "narration.srt"), "w", encoding="utf-8").write(srt(cs))
     cap = os.path.join(out, "compositions", "captions.html")
     lift_footers(out, on=False)  # older builds lifted footers instead; clean that up
