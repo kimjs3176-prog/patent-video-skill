@@ -621,7 +621,7 @@ def s5(c, pal):
       {grad_defs("s5-lg", pal)}
       <div id="s5-eyebrow" class="eyebrow">HIGHLIGHTS</div>
       <div id="s5-head">{gtext(f.get("title", "핵심 |특장점"))}</div>
-      <div class="s5-tile glass" id="s5-big">{icon(topic_icon(big["l"] + " " + big["s"], "flow"), 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
+      <div class="s5-tile glass" id="s5-big">{icon(topic_icon(big["l"] + " " + big["s"], c.get("hero") or "spark"), 280, "url(#s5-lg)", 3)}<div class="l">{E(big["l"])}</div><div class="s grad">{E(big["s"])}</div></div>
       {"".join(th)}
     </div>
   </div>
