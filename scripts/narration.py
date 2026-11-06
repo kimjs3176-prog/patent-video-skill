@@ -5,12 +5,16 @@ Script source: content["narration"] = {"hook", "overview", "process", "proof", "
 
 Each scene of the built project is matched to a section by its composition file name. Sections a template has no scene for
 are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
-The voice is 선희 (ko-KR-SunHiNeural) unless --voice says otherwise. A line that does not fit its scene is re-voiced faster
+The voice is picked by default_voice(): Google Chirp 3 HD (ko-KR-Chirp3-HD-Aoede, much closer to a human narrator) when a
+GOOGLE_TTS_API_KEY is set (environment or the project's .env), otherwise edge-tts 선희 (ko-KR-SunHiNeural); --voice overrides it
+(any "ko-KR-Chirp3-HD-<name>" voice goes to Google, every other name to edge-tts). Before synthesis each line goes through speak(),
+which turns what the screen writes into what a narrator says ("50~90분" → "50에서 90분", "℃" → "도", "가열·가압" → "가열, 가압"). A line that does not fit its scene is re-voiced faster
 (natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
-Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-SunHiNeural]
+Usage: python -I tools/narration.py <project dir> <content.json> [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural]
        python -I tools/narration.py --check data/content/<file>.json [...]   (template S: dry run, flags lines sped past +6 % or cut)
 """
+import base64
 import hashlib
 import json
 import os
@@ -18,12 +22,16 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import CONTACT, ROOT  # noqa: E402
 from visuals import pick_figures  # noqa: E402
 
-VOICE = "ko-KR-SunHiNeural"  # house voice: 선희 (SunHi) for every video
+EDGE_VOICE = "ko-KR-SunHiNeural"  # free house voice: 선희 (SunHi)
+GOOGLE_VOICE = "ko-KR-Chirp3-HD-Aoede"  # natural narrator voice (female, calm) when a Google key is available
+GOOGLE_TTS = "https://texttospeech.googleapis.com/v1/text:synthesize"
 SILENT = {"outro"}  # the ending is never voiced (music only)
 ORDER = ["hook", "overview", "process", "proof", "figures", "features", "apps", "outro"]
 KEYS = {
@@ -39,6 +47,84 @@ KEYS = {
 CACHE = os.path.join(ROOT, "data", "voice_cache")
 UVX = "uvx.exe" if os.name == "nt" else "uvx"
 EDGE_TTS = "edge-tts==7.3.1"  # pinned: the package is fetched from PyPI at run time
+
+
+def env_key(name):
+    """An API key from the environment or the project's .env (NAME=value)."""
+    if os.environ.get(name):
+        return os.environ[name].strip()
+    env = os.path.join(ROOT, ".env")
+    if os.path.exists(env):
+        with open(env, encoding="utf-8-sig") as f:  # -sig: Windows Notepad writes a BOM
+            for line in f:
+                if line.strip().startswith(name + "="):
+                    return line.split("=", 1)[1].strip().strip('"\'') or None
+    return None
+
+
+def default_voice():
+    return GOOGLE_VOICE if env_key("GOOGLE_TTS_API_KEY") else EDGE_VOICE
+
+
+VOICE = default_voice()
+
+
+# ---------------------------------------------------------------- spoken text
+UNITS = [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
+         ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
+         ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
+         ("kDa", "킬로달톤"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
+         ("hr", "시간"), ("h", "시간"), ("g", "그램"), ("L", "리터"), ("M", "몰")]
+
+
+def speak(text):
+    """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
+    t = re.sub(r"<[^>]+>", " ", text.replace("|", "")).replace("−", "-")
+    t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
+    t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
+    t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
+    for u, k in UNITS:  # a unit right after a number, not inside a word
+        t = re.sub(rf"(\d)\s*{re.escape(u)}(?![A-Za-z])", rf"\1 {k}", t)
+    # particles written for the symbol now follow a spoken word: 3 mL을 → 3 밀리리터를
+    spoken = "|".join(sorted({k for _, k in UNITS} | {"도", "퍼센트"}, key=len, reverse=True))
+    pairs = {"을": "을를", "를": "을를", "이": "이가", "가": "이가", "은": "은는", "는": "은는", "과": "과와", "와": "과와", "으로": "으로로", "로": "으로로"}
+    t = re.sub(rf"(\d\s*(?:{spoken}))(으로|을|를|이|가|은|는|과|와|로)(?![가-힣])", lambda m: josa(m.group(1), pairs[m.group(2)]), t)
+    t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
+    t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
+    t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
+    t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)도", r"영하 \1도", t)  # -40도 → 영하 40도
+    t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)에서 (?=영하)", r"영하 \1에서 ", t)
+    t = re.sub(r"\s*[·•ㆍ]\s*", ", ", t)  # 가열·가압 → 가열, 가압 (the voice breathes at the comma)
+    t = re.sub(r"(\S+)\s+\+\s+", lambda m: josa(m.group(1), "과와") + " ", t)  # 팽화미 + 맥아 → 팽화미와 맥아
+    t = re.sub(r"\s*[→⇒]\s*", ", 그다음 ", t)
+    t = re.sub(r"[\"“”‘’'「」『』《》〈〉\[\]{}]", "", t)
+    t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
+    t = re.sub(r",\s*([,.?!])", r"\1", t)
+    t = re.sub(r"\s+([,.?!])", r"\1", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    return t if not t or t[-1] in ".?!" else t + "."
+
+
+_DIGIT_CODA = {"0": True, "1": True, "2": False, "3": True, "4": False, "5": False, "6": True, "7": True, "8": True, "9": False}
+_RIEUL = {"1", "7", "8"}
+
+
+def josa(word, pair):
+    """Korean particle after `word` as it is read aloud: pair is "은는", "이가", "을를", "과와" or "으로로"."""
+    w = re.sub(r"[\s.,)\]]+$", "", word)
+    ch = w[-1:] if w else ""
+    if "가" <= ch <= "힣":
+        coda = (ord(ch) - 0xAC00) % 28
+        has, rieul = coda != 0, coda == 8
+    elif ch.isdigit():
+        has, rieul = _DIGIT_CODA[ch], ch in _RIEUL
+    elif ch.isalpha():
+        has, rieul = ch.lower() in "lmnr", ch.lower() == "l"
+    else:
+        has, rieul = False, False
+    if pair == "으로로":
+        return word + ("로" if not has or rieul else "으로")
+    return word + (pair[0] if has else pair[1:])
 
 
 # template S: the signature scenes are voiced one by one (scene key → line), the frame scenes keep the section lines
@@ -62,74 +148,104 @@ def scenes(index_html):
         if m.group(1) != "tx"]
 
 
+def _clean(s):
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", (s or "").replace("|", ""))).strip()
+
+
+def _seq(i, n):
+    """Connective for item i of n, so a listed process is told as a flow."""
+    if i == 0:
+        return "먼저"
+    if i == n - 1:
+        return "마지막으로"
+    return ("이어서", "다음으로", "그다음")[(i - 1) % 3]
+
+
 def auto_script(c):
-    """Plain fallback when the content has no authored narration."""
-    def clean(s):
-        return re.sub(r"<[^>]+>", " ", s.replace("|", "")).strip()
+    """Fallback when the content has no authored narration: told as sentences, not read off the slide."""
     steps = c["process"]["steps"]
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
-        proof = f'{clean(pr.get("title", "핵심 구성"))}은 {", ".join(p["n"] for p in pr["parts"][:3])} 등으로 이루어집니다.'
+        proof = f'{josa(_clean(pr.get("title", "핵심 구성")), "은는")} {", ".join(p["n"] for p in pr["parts"][:3])} 등으로 이루어집니다.'
     else:
         it = pr["items"][0]
-        proof = f'{it["l"]}, {it["big"]}{it.get("u", "")}. {clean(it.get("s", "")).split("  ")[0]}.'
+        val = speak(f'{it["big"]}{it.get("u", "")}').rstrip(".")
+        proof = f'그 결과 {josa(_clean(it["l"]), "은는")} {josa(val, "을를") + " 기록했습니다" if val[-1:].isdigit() else val + "입니다"}.'
+    ft = c.get("features") or {}
+    feats = [f.get("l") or f.get("t") or f.get("n") for f in (ft.get("tiles") or ft.get("items") or []) if isinstance(f, dict)]
+    feats = [_clean(f) for f in feats if f][:2]
     return {
-        "hook": f'{clean(c["headline"])}.',
-        "overview": f'{c["institute"]}의 {c["sub"]}입니다.',
-        "process": f'{clean(c["process"]["title"])}은 {steps[0]["n"]}부터 {steps[-1]["n"]}까지 이어집니다.',
+        "hook": f'{_clean(c["headline"])}.',
+        "overview": f'{c["institute"]}{"에서" if c.get("institute") else ""} 개발한 {_clean(c["sub"])}입니다.',
+        "process": f'공정은 {steps[0]["n"]}에서 시작해, {steps[-1]["n"]}까지 차례로 이어집니다.' if len(steps) > 1
+                   else f'핵심 공정은 {steps[0]["n"]}입니다.',
         "proof": proof,
-        "figures": "명세서 도면으로 기술을 살펴봅니다.",
-        "features": f'{clean(c["features"].get("title", "핵심 특장점"))}을 정리했습니다.',
-        "apps": f'{", ".join(a["n"] for a in c["apps"][:3])} 등에 활용할 수 있습니다.',
+        "figures": "명세서 도면으로 구조를 살펴봅니다.",
+        "features": (f'{feats[0]}, 그리고 {josa(feats[1], "이가")} 이 기술의 강점입니다.' if len(feats) > 1
+                     else f'{josa(_clean(c["features"].get("title", "핵심 특장점")), "을를")} 정리했습니다.'),
+        "apps": f'{", ".join(a["n"] for a in c["apps"][:3])} 같은 분야에 활용할 수 있습니다.',
         "outro": f"기술이전 문의는 {CONTACT}입니다.",
     }
 
 
 def auto_sig_script(c):
     """Per-scene lines for template S when the signature block has no authored narration."""
-    def clean(s):
-        return re.sub(r"<[^>]+>", " ", s.replace("|", "")).strip()
     sg = c["signature"]
     out = {}
     if sg.get("removed"):
-        out["route"] = f'기존 공정에서 {sg["removed"]} 단계가 빠집니다.'
+        note = _clean(sg.get("removed_note", ""))
+        out["route"] = f'기존 공정에서 {note + "하던 " if note else ""}{sg["removed"]} 단계가 빠집니다.'
     if sg.get("stages"):
-        out["journey"] = " ".join(f'{s["n"]}, {s["cond"]}.' for s in sg["stages"])
+        st = sg["stages"]
+        lines = []
+        for i, s_ in enumerate(st):
+            lead = _seq(i, len(st))
+            if s_.get("t"):
+                lo, hi = s_["t"]
+                temp = f"{lo}도에서" if lo == hi else f"{lo}에서 {hi}도 사이에서"
+                end = ("진행합니다", "이뤄집니다")[len(lines) % 2]  # alternate the verb so the list does not drone
+                lines.append(f'{lead} {josa(s_["n"], "은는")} {temp} {end}.')
+            else:
+                lines.append(f'{lead} {s_["n"]} 단계를 거칩니다.')
+        if sg.get("product"):
+            lines.append(f'그러면 {josa(sg["product"], "이가")} 완성됩니다.')
+        out["journey"] = " ".join(lines)
     if sg.get("callouts"):
-        out["parts"] = f'{", ".join(p["n"] for p in sg["callouts"][:4])}로 이루어집니다.'
+        out["parts"] = f'주요 구성은 {", ".join(p["n"] for p in sg["callouts"][:4])}입니다.'
     run = sg.get("run") or {}
     if run:
-        out["run"] = clean(run.get("title", "")) + ". " + " ".join(f'{q["n"]}, {q.get("d", "")}.' for q in run.get("steps", [])[:3])
+        rs_ = run.get("steps", [])[:3]
+        out["run"] = (_clean(run.get("title", "")) + ". " + " ".join(f'{_seq(i, len(rs_))} {_clean(q["n"])}{", " + _clean(q["d"]) if q.get("d") else ""}.'
+                                                                  for i, q in enumerate(rs_))).strip(". ") + "."
     if sg.get("path"):
-        out["path"] = clean(sg["path"].get("title", "")) + "."
+        out["path"] = _clean(sg["path"].get("title", "")) + "."
     if sg.get("problem"):
-        out["problem"] = clean(sg["problem"].get("title", "")) + "."
+        out["problem"] = _clean(sg["problem"].get("title", "")) + "."
     if sg.get("primers"):
-        out["primers"] = f'{len(sg["primers"])}개 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 인식합니다.'
+        out["primers"] = f'{len(sg["primers"])}개의 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 정확히 찾아 붙습니다.'
     if sg.get("probe"):
-        out["probe"] = "프로브를 더하면 비특이 신호가 사라지고 표적만 남습니다."
+        out["probe"] = "여기에 프로브를 더하면, 비특이 신호는 사라지고 표적 신호만 남습니다."
     if sg.get("components"):
-        out["mix"] = f'{", ".join(p["n"] for p in sg["components"][:3])}을 배합합니다.'
+        out["mix"] = f'{josa(", ".join(p["n"] for p in sg["components"][:3]), "을를")} 정해진 비율로 배합합니다.'
     if sg.get("effects"):
-        out["effect"] = " ".join(f'{e["l"]}, 대조군 {e["control"]}에서 {e["treated"]}{e.get("unit", "")}로 바뀌었습니다.' for e in sg["effects"][:2])
+        out["effect"] = " ".join(f'{josa(e["l"], "은는")} 대조군 {e["control"]}에서 {josa(str(e["treated"]) + e.get("unit", ""), "으로로")} 달라졌습니다.'
+                                 for e in sg["effects"][:2])
     if sg.get("steps") and sg.get("type") == "lineage":
-        out["tree"] = f'{sg.get("variety", "신품종")}은 {sg["steps"][0]["l"]}부터 {sg["steps"][-1]["l"]}까지 선발했습니다.'
+        out["tree"] = f'{josa(sg.get("variety", "신품종"), "은는")} {sg["steps"][0]["l"]}에서 출발해, {sg["steps"][-1]["l"]}까지 거쳐 선발했습니다.'
     if sg.get("type") == "claim":
         cl = sg["claim"]
         feat = ", ".join(cl["elements"][i]["n"] for i in cl["feature"]["idx"])
-        last = cl["preamble"].strip()[-1:] or "항"
-        topic = cl["preamble"] + ("은" if "가" <= last <= "힣" and (ord(last) - 0xAC00) % 28 else "는")
-        out["anatomy"] = (f'청구항 {cl["no"]}의 {topic} {", ".join(e["n"] for e in cl["elements"][:4])}로 이루어집니다. '
-                          f'핵심은 {feat}입니다.')
+        out["anatomy"] = (f'청구항 {cl["no"]}의 {josa(cl["preamble"], "은는")} {", ".join(e["n"] for e in cl["elements"][:4])}로 이루어집니다. '
+                          f'그중 핵심은 {feat}입니다.')
         out["tree"] = f'여기서 {", ".join(d["l"] for d in sg["deps"][:3])} 등으로 권리가 이어집니다.'
         ev = sg.get("evidence")
         if ev:
-            out["tree"] += f' {ev["l"]}, {ev["control"]}에서 {ev["treated"]}{ev.get("u", "")}입니다.'
+            out["tree"] += f' 실제로 {josa(ev["l"], "은는")} {ev["control"]}에서 {josa(str(ev["treated"]) + ev.get("u", ""), "으로로")} 달라졌습니다.'
     if sg.get("traits"):
-        out["traits"] = " ".join(f'{t["l"]}은 {t["new"]}{t.get("unit", "")}입니다.' for t in sg["traits"][:2])
+        out["traits"] = " ".join(f'{josa(t["l"], "은는")} {t["new"]}{t.get("unit", "")}입니다.' for t in sg["traits"][:2])
     rs = sg.get("result") or {}
     if rs:
-        out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = clean(rs.get("title", "")) + ". " + clean(rs.get("note", ""))
+        out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = (_clean(rs.get("title", "")) + ". " + _clean(rs.get("note", ""))).strip(". ") + "."
     return out
 
 
@@ -155,14 +271,43 @@ def duration(path):
     raise RuntimeError(f"ffprobe could not read {os.path.basename(path)} (exit {r.returncode}): {r.stderr.strip()[-200:]}")
 
 
+def _google(text, voice, rate, dst):
+    key = env_key("GOOGLE_TTS_API_KEY")
+    if not key:
+        raise RuntimeError(f"{voice} needs GOOGLE_TTS_API_KEY (environment or .env); or pass --voice {EDGE_VOICE}")
+    body = {"input": {"text": text}, "voice": {"languageCode": "-".join(voice.split("-")[:2]), "name": voice},
+            "audioConfig": {"audioEncoding": "MP3", "speakingRate": round(1 + int(rate.strip("%+")) / 100, 2), "sampleRateHertz": 24000}}
+    req = urllib.request.Request(GOOGLE_TTS, data=json.dumps(body).encode("utf-8"),
+                                 headers={"Content-Type": "application/json; charset=utf-8", "X-Goog-Api-Key": key})
+    for wait in (0, 2, 5, 15):  # quota bursts (429) and brief outages: back off, then give up loudly
+        time.sleep(wait)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                audio = json.load(r)["audioContent"]
+            break
+        except urllib.error.HTTPError as e:
+            err = f"Google TTS {e.code}: {e.read()[:300].decode('utf-8', 'replace')}"
+            if e.code not in (429, 500, 502, 503, 504):
+                raise RuntimeError(err) from None
+        except OSError as e:
+            err = f"Google TTS: {e}"
+    else:
+        raise RuntimeError(err)
+    with open(dst, "wb") as f:
+        f.write(base64.b64decode(audio))
+
+
 def synth(text, voice, rate):
     os.makedirs(CACHE, exist_ok=True)
     h = hashlib.sha1(f"{voice}|{rate}|{text}".encode("utf-8")).hexdigest()[:16]
     mp3 = os.path.join(CACHE, h + ".mp3")
     if not os.path.exists(mp3):
         tmp = f"{mp3}.{os.getpid()}.part.mp3"  # per process: two renderers may synthesize the same line at once
-        subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", "--text", text, "--write-media", tmp],
-                       check=True, capture_output=True, timeout=300)
+        if "Chirp3-HD" in voice or "Chirp-HD" in voice:
+            _google(text, voice, rate, tmp)
+        else:
+            subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", "--text", text, "--write-media", tmp],
+                           check=True, capture_output=True, timeout=300)
         os.replace(tmp, mp3)
     return mp3, duration(mp3)
 
@@ -173,7 +318,7 @@ def sentences(text):
 
 def fit(text, avail, voice):
     """Voice text so it lasts at most avail seconds: faster first, then drop trailing sentences."""
-    parts = sentences(text)
+    parts = sentences(speak(text))
     while parts:
         t = " ".join(parts)
         for rate in ("+0%", "+6%", "+12%", "+18%"):  # natural pace first; speed up only as much as the scene needs
@@ -237,7 +382,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22):
             b.write(a.read())
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
-        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == texts[sec] else ' (shortened)'}: {t}")
+        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == speak(texts[sec]) else ' (shortened)'}: {t}")
     html = re.sub(r'(<audio id="bgm"[^>]*data-volume=")[\d.]+(")', rf"\g<1>{bgm_volume}\2", html)
     block = "\n".join(clips)
     if '      <audio id="bgm"' in html:
@@ -277,7 +422,7 @@ def check(paths, voice=VOICE, lead=0.45, tail=0.55):
                 cut += 1
                 continue
             t, _, dur, rate = got
-            shortened = t != texts[key]
+            shortened = t != speak(texts[key])
             cut += shortened
             flag = "  <-- cut: shorten the line" if shortened else ("  <-- sped up " + rate if rate not in ("+0%", "+6%") else "")
             print(f"{os.path.basename(p)[:3]} {key:9s} {dur:4.1f}/{avail:4.1f}s {rate}{flag}")
