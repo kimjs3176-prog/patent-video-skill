@@ -3,8 +3,9 @@
 1. pen_draw: line-icon / connector draw-ons were one stroke-dashoffset tween per path with a stagger, so every short path
    accelerated, stopped and the next one started — it read as choppy, and the round caps of not-yet-drawn paths showed as dots.
    Each such tween is rewritten to penDraw(): one eased progress per icon drives all of its paths in sequence, each path
-   taking time in proportion to its real length (getTotalLength, measured once at mount), so the pen never stops; paths stay
-   invisible until the pen reaches them. Several icons in one selector draw one after another with a short overlap.
+   taking time in proportion to its real length (getTotalLength, measured once at mount, dashes in those same units), so
+   the pen never stops; paths stay invisible until the pen reaches them. Several icons in one selector draw one after
+   another with a short overlap.
    Linear draws (ease none, e.g. a path a dot travels along) are left alone.
 2. fonts: per-video subsetting (fontsub.py).
 
@@ -20,17 +21,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fontsub import subset_project  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Dashes are in real user units (the measured length), not 0→1: REAL_LENGTH strips pathLength="1" before the timeline is
+# built, and a "1 1" dash without it is a 1px dotted line (butt-capped connectors stayed hatched, icons popped in whole).
+# pathLength is dropped here too, so the units match whichever pass ran first.
 PEN = """    const penDraw = (sel, at, dur, gap) => {
       const els = Array.from(document.querySelectorAll(sel)); const groups = new Map();
       for (const el of els) { const svg = el.ownerSVGElement || el; if (!groups.has(svg)) groups.set(svg, []); groups.get(svg).push(el); }
       let k = 0;
       for (const list of groups.values()) {
-        const len = list.map((el) => { try { return Math.max(1, el.getTotalLength()); } catch (e) { return 40; } });
+        const len = list.map((el) => { el.removeAttribute("pathLength"); try { return Math.max(1, el.getTotalLength()); } catch (e) { return 40; } });
         const total = len.reduce((a, b) => a + b, 0); const start = []; let acc = 0;
         for (const l of len) { start.push(acc); acc += l; }
         const put = (p) => { const pos = p * total;
           list.forEach((el, i) => { const u = Math.min(1, Math.max(0, (pos - start[i]) / len[i]));
-            el.style.strokeDasharray = "1 1"; el.style.strokeDashoffset = String(1 - u); el.style.opacity = u > 0 ? "" : "0"; }); };
+            el.style.strokeDasharray = len[i] + " " + len[i]; el.style.strokeDashoffset = String((1 - u) * len[i]); el.style.opacity = u > 0 ? "" : "0"; }); };
         put(0); const o = { p: 0 };
         tl.to(o, { p: 1, duration: dur, ease: "power1.inOut", onUpdate: () => put(o.p) }, at + k * gap); k += 1;
       }

@@ -1,6 +1,7 @@
 """Build, check and render every content JSON in production order. Resumable.
 
-Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate] [--no-captions] [--no-render] [--no-music-gen] [order | N-M | N~M ...]
+Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate]
+       [--no-captions] [--no-render] [--no-music-gen] [order | N-M | N~M ...]
 Orders pick contents by their file-name prefix (7 137 146); N-M or N~M is an inclusive range (1-100, 101~205), so two renderers
 can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.8.207).
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
@@ -292,7 +293,8 @@ def one(path, render, want, prog):
         nofit = [r for r in rep if re.match(r"[^:]*: no fit", r)]  # 's5: no fit (3.1s)'
         log(f"{slug} narration " + " | ".join(r.split(":")[0] for r in rep if r not in nofit))
         if nofit:  # the video still renders, but these scenes are silent: their line is too long even at the fastest rate
-            log(f"{slug} NO-FIT {' | '.join(nofit)} - silent scene; shorten that line ({os.path.relpath(os.path.join(out, 'narration.txt'), ROOT)})")
+            log(f"{slug} NO-FIT {' | '.join(nofit)} - silent scene; shorten that line "
+                f"({os.path.relpath(os.path.join(out, 'narration.txt'), ROOT)})")
     errs, warns = check_project(out)
     if errs:
         log(f"{slug} SKIP check errors={errs} {warns[:5]}")

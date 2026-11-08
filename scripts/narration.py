@@ -56,7 +56,8 @@ SYS_CERTS = "pip-system-certs==5.3"  # edge-tts trusts only certifi's roots; thi
 CHIRP3_HD = ("Achernar", "Achird", "Algenib", "Algieba", "Alnilam", "Aoede", "Autonoe", "Callirrhoe", "Charon", "Despina", "Enceladus", "Erinome",
              "Fenrir", "Gacrux", "Iapetus", "Kore", "Laomedeia", "Leda", "Orus", "Puck", "Pulcherrima", "Rasalgethi", "Sadachbia", "Sadaltager",
              "Schedar", "Sulafat", "Umbriel", "Vindemiatrix", "Zephyr", "Zubenelgenubi")  # Google Chirp 3 HD: the same names in every language
-EDGE_KO = {"SunHi": "ko-KR-SunHiNeural", "InJoon": "ko-KR-InJoonNeural", "Hyunsu": "ko-KR-HyunsuMultilingualNeural"}  # edge-tts --list-voices
+EDGE_KO = {"SunHi": "ko-KR-SunHiNeural", "InJoon": "ko-KR-InJoonNeural"}  # edge-tts --list-voices, ko-KR
+EDGE_MUTE = {"Hyunsu": "ko-KR-HyunsuMultilingualNeural"}  # listed too, but the free service sends it no audio (NoAudioReceived, 2026-11)
 
 
 def env_key(name):
@@ -77,13 +78,23 @@ def default_voice():
 
 
 def check_voice(voice):
-    """Full voice id for --voice, or ValueError. A bare name maps to its Korean voice (Kore → ko-KR-Chirp3-HD-Kore, SunHi →
-    ko-KR-SunHiNeural): sent as is, 'Kore' would go to edge-tts and every video of the batch would fail on 'Invalid voice'.
-    produce.py calls this once at start, so a wrong voice stops the run with one clear message."""
+    """Full voice id for --voice, or ValueError for an unknown voice or a Google voice with no GOOGLE_TTS_API_KEY.
+    produce.py calls this once at start, so a wrong voice stops the run with one clear message instead of a SKIP per video."""
+    v = voice_id(voice)
+    if ("Chirp3-HD" in v or "Chirp-HD" in v) and not env_key("GOOGLE_TTS_API_KEY"):
+        raise ValueError(f"{v} is a Google voice and needs GOOGLE_TTS_API_KEY (environment or .env); or use --voice {EDGE_VOICE}")
+    return v
+
+
+def voice_id(voice):
+    """Full voice id, or ValueError. A bare name maps to its Korean voice (Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural):
+    sent as is, 'Kore' went to edge-tts and every video of the batch failed on 'Invalid voice'."""
     v = (voice or "").strip()
-    known = {**{f"ko-KR-Chirp3-HD-{n}": n for n in CHIRP3_HD}, **{full: n for n, full in EDGE_KO.items()}}
-    for full, n in known.items():  # any case, with or without the language: kore, Chirp3-HD-Kore, SunHiNeural, ko-kr-sunhineural
-        if v.lower() in (full.lower(), n.lower(), full.lower().split("-", 2)[2]):
+    known = {**{f"ko-KR-Chirp3-HD-{n}": n for n in CHIRP3_HD}, **{full: n for n, full in {**EDGE_KO, **EDGE_MUTE}.items()}}
+    for full, n in known.items():  # any case, with or without the language: kore, Chirp3-HD-Kore, SunHiNeural, ko-KR-InJoonNeural
+        if v.lower() in {x.lower() for x in (full, n, full.split("-", 2)[2], n + "Neural", f"ko-KR-{n}Neural")}:
+            if full in EDGE_MUTE.values():
+                raise ValueError(f"{full}: edge-tts lists it, but the free service returns no audio for it; use {' or '.join(EDGE_KO.values())}")
             return full
     m = re.fullmatch(r"([a-z]{2,3}-[A-Z]{2,})-(?:Chirp3-HD-(\w+)|Chirp-HD-\w+|\w+Neural)", v)
     if m and m.group(1) != "ko-KR" and (not m.group(2) or m.group(2) in CHIRP3_HD):  # another language: its voice list is not kept here
@@ -159,7 +170,7 @@ def speak(text):
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
-    t = re.sub(r"([.?!])\.+", r"\1", t)  # a title that already ended in ? or . : '어렵다?.' → '어렵다?', '흡입한다..' → '흡입한다.'
+    t = re.sub(r"([.?!])\.+(?=\s|$)", r"\1", t)  # a line that already ended in ? or . : '어렵다?.' → '어렵다?', '흡입한다..' → '흡입한다.'
     t = re.sub(r"\s{2,}", " ", t).strip()
     return t if not t or t[-1] in ".?!" else t + "."
 
@@ -203,6 +214,9 @@ def josa(word, pair):
 SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel", "mix", "effect", "tree", "traits",
               "anatomy")
 SIG_FRAME = {"teaser": "hook", "proof": "proof", "features": "features", "apps": "apps", "outro": "outro"}
+# the titles build_sig.py puts on screen when the content leaves them out (l_run, l_path, q_ct/q_tubes/q_gel): voiced the same,
+# where '' + '.' used to voice a bare '.'. Keep in step with build_sig.py.
+SIG_TITLES = {"run": "작동 |원리", "path": "흐름을 |따라가면", "ct": "민감도와 |특이도", "tubes": "색으로 |바로 읽는다", "gel": "한 번에 |가린다"}
 
 
 def scene_key(fname):
@@ -222,6 +236,12 @@ def scenes(index_html):
 
 def _clean(s):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", (s or "").replace("|", ""))).strip()
+
+
+def _end(s):
+    """s as one sentence: '' stays '' (nothing to voice), and a full stop is added only when s has no end mark (no '?.' or '..')."""
+    s = _clean(s)
+    return s if not s or s[-1] in ".?!。" else s + "."
 
 
 def _seq(i, n):
@@ -288,12 +308,12 @@ def auto_sig_script(c):
     run = sg.get("run") or {}
     if run:
         rs_ = run.get("steps", [])[:3]
-        out["run"] = (_clean(run.get("title", "")) + ". " + " ".join(f'{_seq(i, len(rs_))} {_clean(q["n"])}{", " + _clean(q["d"]) if q.get("d") else ""}.'
-                                                                  for i, q in enumerate(rs_))).strip(". ") + "."
+        out["run"] = " ".join(x for x in [_end(run.get("title", SIG_TITLES["run"]))] + [
+            _end(f'{_seq(i, len(rs_))} {_clean(q["n"])}' + (f', {_clean(q["d"])}' if q.get("d") else "")) for i, q in enumerate(rs_)] if x)
     if sg.get("path"):
-        out["path"] = _clean(sg["path"].get("title", "")) + "."
-    if sg.get("problem"):
-        out["problem"] = _clean(sg["problem"].get("title", "")) + "."
+        out["path"] = _end(sg["path"].get("title", SIG_TITLES["path"]))
+    if sg.get("problem"):  # build_sig.py q_problem's default title
+        out["problem"] = _end(sg["problem"].get("title") or f'{c["sub"].split(" ")[0]} 피해, |빨리 찾아야 막는다')
     if sg.get("primers"):
         out["primers"] = f'{len(sg["primers"])}개의 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 정확히 찾아 붙습니다.'
     if sg.get("probe"):
@@ -308,7 +328,7 @@ def auto_sig_script(c):
     if sg.get("type") == "claim":
         cl = sg["claim"]
         feat = ", ".join(cl["elements"][i]["n"] for i in cl["feature"]["idx"])
-        out["anatomy"] = (f'청구항 {cl["no"]}의 {josa(cl["preamble"], "은는")} {", ".join(e["n"] for e in cl["elements"][:4])}로 이루어집니다. '
+        out["anatomy"] = (f'청구항 {cl["no"]}의 {josa(cl["preamble"], "은는")} {josa(", ".join(e["n"] for e in cl["elements"][:4]), "으로로")} 이루어집니다. '
                           f'그중 핵심은 {feat}입니다.')
         out["tree"] = f'여기서 {", ".join(d["l"] for d in sg["deps"][:3])} 등으로 권리가 이어집니다.'
         ev = sg.get("evidence")
@@ -318,18 +338,20 @@ def auto_sig_script(c):
         out["traits"] = " ".join(f'{josa(t["l"], "은는")} {t["new"]}{t.get("unit", "")}입니다.' for t in sg["traits"][:2])
     rs = sg.get("result") or {}
     if rs:
-        out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = (_clean(rs.get("title", "")) + ". " + _clean(rs.get("note", ""))).strip(". ") + "."
+        out[{"ct": "result", "tubes": "tubes", "gel": "gel"}[rs["kind"]]] = " ".join(
+            x for x in (_end(rs.get("title", SIG_TITLES[rs["kind"]])), _end(rs.get("note", ""))) if x)
     return out
 
 
 def sig_script(c):
-    """Scene key → line for template S: signature.narration first, then the content's section lines, then generated."""
+    """Scene key → line for template S: signature.narration first, then the content's section lines, then generated.
+    A line with nothing to say ('', '.', '…') counts as not written; one still empty after the fallbacks leaves its scene unvoiced."""
     base = auto_script(c)
-    sec = dict(c.get("narration") or {})
+    sec = {k: v for k, v in (c.get("narration") or {}).items() if has_words(v)}
     out = {k: sec.get(v) or base[v] for k, v in SIG_FRAME.items()}
     out.update(auto_sig_script(c))
-    out.update(c["signature"].get("narration") or {})
-    return {k: v for k, v in out.items() if v and k not in SILENT}
+    out.update({k: v for k, v in (c["signature"].get("narration") or {}).items() if has_words(v)})
+    return {k: v for k, v in out.items() if k not in SILENT and has_words(speak(v))}
 
 
 def duration(path):
@@ -370,23 +392,50 @@ def _google(text, voice, rate, dst):
         f.write(base64.b64decode(audio))
 
 
+def _edge(text, voice, rate, dst):
+    # uv (PyPI fetch) and edge-tts (aiohttp, certifi only) each trust just their own bundled roots, so behind a TLS-inspecting proxy
+    # (agency and company networks) every call failed. Both now use the OS store, which also holds a root CA pushed by the
+    # organisation: pip-system-certs for edge-tts, native TLS for uv. uv's native TLS goes in by environment, not as --native-tls:
+    # uv 0.11 already warns that flag will be removed, and an unknown flag would fail every call, while an unknown variable is ignored
+    # (UV_NATIVE_TLS for older uv, UV_SYSTEM_CERTS for newer). A setting the user made is left as it is.
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")  # Windows: the error text would otherwise come back in cp949
+    if "UV_NATIVE_TLS" not in env and "UV_SYSTEM_CERTS" not in env:
+        env.update(UV_NATIVE_TLS="1", UV_SYSTEM_CERTS="1")
+    cmd = [UVX, "--python", ">=3.10", "--from", EDGE_TTS, "--with", SYS_CERTS,  # pip-system-certs needs 3.10+: never resolve on an older Python
+           "edge-tts", "--voice", voice, f"--rate={rate}", f"--text={text}", "--write-media", dst]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=300, env=env)
+    except subprocess.CalledProcessError as e:  # its str() is the whole command and 'exit status 1': the cause is the last stderr line
+        err = [s.strip() for s in (e.stderr or b"").decode("utf-8", "replace").splitlines() if s.strip()]
+        last = [s for s in err if not s.startswith(("warning:", "hint:"))][-1:] or err[-1:] or ["no error output"]  # uv's notes come around it
+        raise RuntimeError(f"edge-tts failed (exit {e.returncode}, voice {voice}): {last[0]}"[:300]) from None
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"edge-tts timed out after 300 s (voice {voice})") from None
+
+
 def synth(text, voice, rate):
     os.makedirs(CACHE, exist_ok=True)
     h = hashlib.sha1(f"{voice}|{rate}|{text}".encode("utf-8")).hexdigest()[:16]
     mp3 = os.path.join(CACHE, h + ".mp3")
     if not os.path.exists(mp3):
         tmp = f"{mp3}.{os.getpid()}.part.mp3"  # per process: two renderers may synthesize the same line at once
-        if "Chirp3-HD" in voice or "Chirp-HD" in voice:
-            _google(text, voice, rate, tmp)
-        else:
-            subprocess.run([UVX, "--from", EDGE_TTS, "edge-tts", "--voice", voice, f"--rate={rate}", f"--text={text}", "--write-media", tmp],
-                           check=True, capture_output=True, timeout=300)
-        os.replace(tmp, mp3)
+        try:
+            if "Chirp3-HD" in voice or "Chirp-HD" in voice:
+                _google(text, voice, rate, tmp)
+            else:
+                _edge(text, voice, rate, tmp)
+            os.replace(tmp, mp3)
+        finally:  # a failed call leaves a 0-byte or partial clip behind
+            if os.path.exists(tmp):
+                try:
+                    os.remove(tmp)
+                except OSError:  # Windows: still held open; never hide the real error behind this one
+                    pass
     return mp3, duration(mp3)
 
 
 def sentences(text):
-    return [s for s in re.split(r"(?<=[.!?。])\s+", text.strip()) if s]
+    return [s for s in re.split(r"(?<=[.!?。])\s+", text.strip()) if has_words(s)]
 
 
 def fit(text, avail, voice):
@@ -407,8 +456,10 @@ def assign(slots, script):
     texts = {}
     for sec in ORDER:
         line = (script.get(sec) or "").strip()
-        if not line:
+        if not has_words(speak(line)):
             continue
+        if line[-1] not in ".?!。":  # lines are joined below: unended, hook and overview ran into one sentence fit() could only drop whole
+            line = line.rstrip(" ,;:") + "."
         if sec in have:
             texts[sec] = (texts.get(sec, "") + " " + line).strip()
             continue
@@ -423,6 +474,9 @@ def assign(slots, script):
 
 
 def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22, captions=True):
+    # a bare name (Kore) is voiced and recorded in narration.txt under its full id. The Google key is checked per clip, not here,
+    # so lines already in the voice cache still work without it (produce.py checks it once with check_voice)
+    voice = voice_id(voice)
     ip = os.path.join(out, "index.html")
     html = open(ip, encoding="utf-8").read()
     html = re.sub(r'\s*<audio id="nar-[^>]*></audio>', "", html)
@@ -430,7 +484,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22, captions
     if c.get("signature") and any(scene_key(f) in SIG_SCENES for _, f, _, _ in slots):
         texts, keyof = sig_script(c), scene_key
     else:
-        authored = {k: v for k, v in (c.get("narration") or {}).items() if v}
+        authored = {k: v for k, v in (c.get("narration") or {}).items() if has_words(v)}  # '' or '.' falls back like a missing line
         script = {k: v for k, v in {**auto_script(c), **authored}.items() if k not in SILENT}  # unwritten sections fall back
         if not pick_figures(c):  # the figures scene falls back to step pictograms: no line about drawings
             script.pop("figures", None)
@@ -478,6 +532,7 @@ def check(paths, voice=VOICE, lead=0.45, tail=0.55):
     past +6 % or cut. Fills the voice cache, so the later render reuses the clips. Returns the number of cut lines."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import build_sig
+    voice = voice_id(voice)
     cut = 0
     for p in paths:
         c = json.load(open(p, encoding="utf-8"))
@@ -509,7 +564,10 @@ def check(paths, voice=VOICE, lead=0.45, tail=0.55):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     a = sys.argv[1:]
-    v = a[a.index("--voice") + 1] if "--voice" in a else VOICE
+    try:
+        v = check_voice(a[a.index("--voice") + 1] if "--voice" in a else VOICE)
+    except ValueError as e:
+        sys.exit(f"narration: {e}")
     if a and a[0] == "--check":  # python -I tools/narration.py --check data/content/<file>.json [...]
         sys.exit(1 if check([x for x in a[1:] if x.endswith(".json")], v) else 0)
     for line in narrate(a[0], json.load(open(a[1], encoding="utf-8")), v, captions="--no-captions" not in a):

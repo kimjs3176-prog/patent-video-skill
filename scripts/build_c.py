@@ -10,7 +10,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import contact, contact_label, disclaimer, holder_name, E, music_for, PALETTES, ROOT, fit  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_line, E, music_for, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
@@ -33,10 +33,13 @@ def ink(bg):
 
 
 def page(sid, body, script, bg, extra_css=""):
+    # keep-all keeps Korean words whole; overflow-wrap: anywhere still breaks a space-free compound wider than its line
+    # (a virus name in the sub) instead of running off the frame. Not break-word: it leaves words()' inline-block spans
+    # at full width. Text that fits is laid out as before.
     return f"""<template>
   <style>
     @font-face {{ font-family: "NotoKR"; src: url("assets/fonts/NotoSansKR-VF.ttf") format("truetype"); font-weight: 100 900; }}
-    #root {{ position: absolute; inset: 0; overflow: hidden; font-family: "NotoKR", "Outfit", sans-serif; word-break: keep-all; }}
+    #root {{ position: absolute; inset: 0; overflow: hidden; font-family: "NotoKR", "Outfit", sans-serif; word-break: keep-all; overflow-wrap: anywhere; }}
     #{sid}-in {{ position: absolute; inset: 0; background: {bg}; }}
     .beat {{ position: absolute; inset: 0; }}
     .ghost {{ position: absolute; left: -20px; right: -20px; top: 1380px; font-family: Outfit; font-weight: 800; font-size: 560px; line-height: 1;
@@ -289,7 +292,7 @@ def c7(c, pal, d):
       <div id="c7-r1" style="position: absolute; left: 72px; right: 72px; top: 600px; height: 150px; background: {DARK}; color: {PAPER}">
         <div style="position: absolute; left: 32px; top: 24px; font-size: 30px; font-weight: 700; opacity: 0.8">{E(contact_label(c))}</div>
         <div style="position: absolute; left: 32px; top: 66px; font-size: 60px; font-weight: 900; color: {a}">{E(contact(c))}</div></div>
-      <div class="k" id="c7-m" style="top: 800px; font-size: 30px; font-weight: 700; line-height: 1.5; color: {DARK}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호{" · " + E(holder_name(c)) if holder_name(c) else ""}</div>
+      <div class="k" id="c7-m" style="top: 800px; font-size: 30px; font-weight: 700; line-height: 1.5; color: {DARK}">{E(c.get("patlabel", "등록특허"))} 제{E(c["regno"])}호{" · " + E(holder_line(c)) if holder_line(c) else ""}</div>
       <div class="k" id="c7-d" style="top: 930px; font-size: 28px; font-weight: 600; line-height: 1.5; color: #4a4a52">{E(disclaimer(c))}</div>"""
     js = ['    tl.fromTo(["#c7-n", "#c7-s", "#c7-r1", "#c7-m", "#c7-d"], { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.34, ease: "expo.out", stagger: 0.12 }, 0.3);']
     return page("c7", body, "\n".join(js), PAPER)

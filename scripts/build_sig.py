@@ -28,7 +28,13 @@ from icons import icon  # noqa: E402
 from visuals import _dims, add_transitions, copy_figures, step_icon  # noqa: E402
 import stage_art as _art  # noqa: E402  (more stage illustrations)
 
-MONO = '@font-face {{ font-family: "PlexMono"; src: url("assets/fonts/ref/IBMPlexMono-500.woff2") format("woff2"); font-weight: 500; }}'
+# a plain string, prepended to plain css (never formatted): single braces, or Chromium drops the rule as "@font-face { }"
+MONO = '@font-face { font-family: "PlexMono"; src: url("assets/fonts/ref/IBMPlexMono-500.woff2") format("woff2"); font-weight: 500; unicode-range: U+0000-00FF, U+2000-206F; }'
+
+
+def J(v):
+    """A JS string literal for a value written into <script>: quotes escaped, and no '<' that could close the tag."""
+    return json.dumps(str(v), ensure_ascii=False).replace("<", "\\u003c")
 
 
 def josa(word, batchim, plain_):
@@ -340,7 +346,7 @@ def j_journey(c, pal, d):
     .jc .k { font-size: 28px; font-weight: 600; letter-spacing: 0.3em; color: #a8a8bc; }
     .jc .n { font-size: 60px; font-weight: 800; margin-top: 16px; letter-spacing: -0.03em; white-space: nowrap; }
     .jc .v { font-weight: 800; margin-top: 10px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }
-    .jc .s { font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; }
+    .jc .s { font-size: 34px; color: #a8a8bc; margin-top: 18px; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
     .tl { position: absolute; text-align: center; font-size: 28px; color: #8e8ea3; white-space: nowrap; }
     .tl b { display: block; color: #e8e8f0; font-weight: 700; }""" + f"""
     #jj-ring {{ position: absolute; left: 230px; top: 252px; width: 480px; height: 480px; border-radius: 50%;
@@ -648,7 +654,7 @@ def l_run(c, pal, d):
     .pd { position: absolute; width: 18px; height: 24px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #8fd8ff; opacity: 0; }
     .ln { position: absolute; width: 240px; height: 80px; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700;
       background: #101016; border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }
-    .ru { font-size: 25px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; }"""
+    .ru { font-size: 28px; font-weight: 700; text-align: center; color: #d8f3ff; line-height: 1.35; margin: 10px 0; word-break: keep-all; overflow-wrap: anywhere; }"""
     js = ['    tl.fromTo(["#lr-plate", "#lr-img"], { opacity: 0.6 }, { opacity: 1, duration: 0.5 }, 0.2);',
           '    tl.to("#lr-img", { filter: "brightness(0.92) saturate(0.9)", duration: 1 }, 0.6);',
           '    tl.to(".lr-gl", { opacity: 1, duration: 1.2, stagger: 0.6 }, 1.0);',
@@ -753,8 +759,8 @@ def q_problem(c, pal, d):
     css = """    .qp { position: absolute; top: 360px; width: 520px; height: 420px; border-radius: 30px; padding: 50px 44px; }
     .qp .qi { position: absolute; right: 34px; top: 34px; }
     .qp .v { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 1; white-space: nowrap; }
-    .qp .l { font-size: 34px; font-weight: 700; margin-top: 40px; line-height: 1.35; word-break: keep-all; }
-    .qp .s { font-size: 28px; color: #a8a8bc; margin-top: 14px; word-break: keep-all; }"""
+    .qp .l { font-size: 34px; font-weight: 700; margin-top: 40px; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+    .qp .s { font-size: 28px; color: #a8a8bc; margin-top: 14px; word-break: keep-all; overflow-wrap: anywhere; }"""
     js = ['    tl.fromTo(".qp", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out", stagger: 0.8 }, 0.6);',
           '    tl.fromTo("#qp-src", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 1.8);']
     for i, p in enumerate(pb["cards"]):
@@ -970,15 +976,17 @@ def q_tubes(c, pal, d):
     n = len(tb)
     gap = min(260, 1500 / n)
     x0 = 960 - gap * (n - 1) / 2
-    pos, neg = rs.get("pos_color", "#7ee787"), rs.get("neg_color", "#ff7b5a")
+    # sigcheck admits only #RRGGBB/#RGB here; still escaped per context (E in attributes, J in the script), so a value
+    # that slipped past it cannot close the attribute or the JS string
+    pos, neg = str(rs.get("pos_color") or "#7ee787"), str(rs.get("neg_color") or "#ff7b5a")
     tubes = ""
     for i, t in enumerate(tb):
         x = x0 + i * gap
         tubes += (f'<div class="tu" id="qv-t{i}" style="left: {x - 80:.0f}px"><svg width="160" height="380" viewBox="0 0 160 380">'
                   f'<rect x="34" y="6" width="92" height="40" rx="10" fill="rgba(255,255,255,0.25)" />'
                   f'<path d="M44 46 L116 46 L116 250 Q116 350 80 370 Q44 350 44 250 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.6)" stroke-width="4" />'
-                  f'<path class="lq{" ps" if t.get("pos") else ""}" d="M50 150 L110 150 L110 252 Q110 340 80 360 Q50 340 50 252 Z" fill="{neg}" /></svg>'
-                  f'<div class="tg" style="color: {pos if t.get("pos") else neg}">{"+" if t.get("pos") else "−"}</div>'
+                  f'<path class="lq{" ps" if t.get("pos") else ""}" d="M50 150 L110 150 L110 252 Q110 340 80 360 Q50 340 50 252 Z" fill="{E(neg)}" /></svg>'
+                  f'<div class="tg" style="color: {E(pos if t.get("pos") else neg)}">{"+" if t.get("pos") else "−"}</div>'
                   f'<div class="tn">{E(t["l"])}</div></div>')
     chips, ccss = chips_html(sg, 930)
     body = heading("qv", rs.get("eyebrow", "READOUT"), rs.get("title", "색으로 |바로 읽는다"),
@@ -997,7 +1005,7 @@ def q_tubes(c, pal, d):
           '    tl.fromTo("#qv-blk", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.4);',
           '    tl.fromTo("#qv-heat", { opacity: 0.3 }, { opacity: 1, duration: 0.45, ease: "sine.inOut", yoyo: true, repeat: 3 }, 1.4);',
           '    tl.to("#qv-heat", { opacity: 0, duration: 0.4 }, 3.2);',
-          f'    tl.to(".lq.ps", {{ fill: "{pos}", duration: 1.0, ease: "power2.inOut", stagger: 0.15 }}, 3.4);',
+          f'    tl.to(".lq.ps", {{ fill: {J(pos)}, duration: 1.0, ease: "power2.inOut", stagger: 0.15 }}, 3.4);',
 
           '    tl.fromTo("#qv-note", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 4.6);',
           f'    tl.fromTo(".fc", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, {min(d - 2.4, 5.6):.2f});']
@@ -1006,7 +1014,7 @@ def q_tubes(c, pal, d):
         if t.get("pos"):
             tt = 3.4 + kpos * 0.15
             kpos += 1
-            js += [f'    tl.to("#qv-t{i} svg", {{ filter: "drop-shadow(0 0 22px {pos})", duration: 0.8 }}, {tt + 0.2:.2f});',
+            js += [f'    tl.to("#qv-t{i} svg", {{ filter: {J(f"drop-shadow(0 0 22px {pos})")}, duration: 0.8 }}, {tt + 0.2:.2f});',
                    f'    tl.fromTo("#qv-t{i} .tg", {{ opacity: 0, y: 12, scale: 0.6 }}, {{ opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.7)" }}, {tt + 0.8:.2f});']
         else:
             js.append(f'    tl.fromTo("#qv-t{i} .tg", {{ opacity: 0, y: 12 }}, {{ opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }}, {4.1 + i * 0.08:.2f});')

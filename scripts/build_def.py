@@ -51,10 +51,12 @@ def num_parts(big):
 
 
 def scene(sid, w, h, css, body, js, bg_cls, enter=True):
+    # keep-all keeps Korean words whole; overflow-wrap: anywhere still breaks a space-free compound wider than its line
+    # (a virus name in a title) instead of running out of its box or off the frame. Text that fits is laid out as before.
     return f"""<template>
   <style>
 {FONT}
-    #root {{ position: absolute; inset: 0; overflow: hidden; font-family: "Pretendard", "Outfit", sans-serif; word-break: keep-all; -webkit-font-smoothing: antialiased; }}
+    #root {{ position: absolute; inset: 0; overflow: hidden; font-family: "Pretendard", "Outfit", sans-serif; word-break: keep-all; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; }}
     #{sid}-in {{ position: absolute; inset: 0; }}
 {css}
   </style>
@@ -349,18 +351,20 @@ def d7(c, pal, d):
     a1, a2, a3 = pal
     chips = [(contact_label(c), contact(c)), (c.get("patlabel", "등록특허"), c["regno"])]
     ch = "".join(f'<div class="pc" id="d7-c{i}"><span>{E(k)}</span><b>{E(v)}</b></div>' for i, (k, v) in enumerate(chips))
+    hl = holder_line(c)  # "" (branding.holder "") drops the line
+    hold = f'<div id="d7-m" style="margin-top: 40px; font-size: 30px; font-weight: 600; color: #cfd8d1">{E(hl)}</div>' if hl else ""
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 200px; text-align: center">
         <div class="eye" id="d7-e">{E(c["institute"])}</div>
         <div class="h" id="d7-t" style="margin-top: 22px; font-size: 100px; color: #fff"><span class="gr" style="font-family: Outfit, Pretendard; font-weight: 800">{plain(c["name"])}</span></div>
         <div class="sub" id="d7-s" style="margin-top: 18px; font-size: 42px">{E(c["sub"])}</div>
-        <div id="d7-chips" style="display: flex; justify-content: center; gap: 22px; margin-top: 56px">{ch}</div>
+        <div id="d7-chips" style="display: flex; justify-content: center; gap: 22px; margin-top: 56px">{ch}</div>{hold}
         <div id="d7-f" style="margin-top: 54px; font-size: 28px; color: #9fb0a3">{E(disclaimer(c))}</div></div>"""
     css = d_css(pal) + """
     .pc { padding: 28px 36px; border-radius: 28px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #fff; min-width: 380px; text-align: left; }
     .pc span { display: block; font-size: 28px; color: #b7c7ba; }
     .pc b { display: block; font-size: 42px; font-weight: 800; letter-spacing: -0.03em; margin-top: 6px; white-space: nowrap; }"""
-    js = "\n".join([up("#d7-e", 0.3), blurin("#d7-t", 0.5, 1.2), up("#d7-s", 1.1), up(".pc", 1.5, 0.2, 0.8, 30), up("#d7-f", 2.3)])
+    js = "\n".join([up("#d7-e", 0.3), blurin("#d7-t", 0.5, 1.2), up("#d7-s", 1.1), up(".pc", 1.5, 0.2, 0.8, 30)] + ([up("#d7-m", 2.1)] if hl else []) + [up("#d7-f", 2.4)])
     return scene("d7", 1920, 1080, css, body, js, "dark")
 
 
@@ -425,16 +429,23 @@ def e1(c, pal, d):
     return scene("e1", 1920, 1080, e_css(pal), body, js, "dark", enter=False)
 
 
+def e3_name(name, w):
+    """Style of a flow card's step name: fitted to the card (six cards are 233px wide), but not under the 28px floor;
+    a name that still does not fit wraps (at its space or ·) instead of spilling out of the card."""
+    px = fit(name, 36, w - 56)
+    return f"font-size: {px}px" if px >= 28 else "font-size: 28px; white-space: normal; line-height: 1.2"
+
+
 def e3(c, pal, d):
     a, b, cc = pal
-    steps = c["process"]["steps"][:5]
+    steps = c["process"]["steps"][:6]
     n = len(steps)
-    w = min(330, int((1700 - (n - 1) * 60) / n))
+    w = min(330, int((1700 - (n - 1) * 60) / n))  # 233px at n=6
     flow = ""
     for i, st in enumerate(steps):
         if i:
             flow += f'<div class="arrow" id="e3-a{i}">›</div>'
-        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(process_icon(c, st), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4>{E(st["n"])}</h4>'
+        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(process_icon(c, st), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4 style="{e3_name(st["n"], w)}">{E(st["n"])}</h4>'
                  f'<div class="v gr" style="font-size: {fit(st["big"] + st.get("u", ""), 46, w - 50)}px">{E(st["big"])}<em>{E(st.get("u", ""))}</em></div><p>{E(st["d"])}</p></div>')
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 120px">
@@ -600,7 +611,7 @@ def e6(c, pal, d):
     nodes = "".join(f'<div class="node" id="e6-n{i}" style="left: {x}px; top: {y}px">{E(ap["n"])}<small>{E(ap["s"].replace("<br />", " "))}</small></div>'
                     for i, ((x, y), ap) in enumerate(zip(pos, apps)))
     body = f"""
-      <div class="eye" id="e6-e" style="position: absolute; left: 0; right: 0; top: 70px">기술이전 시 활용분야</div>
+      <div class="eye" id="e6-e" style="position: absolute; left: 0; right: 0; top: 110px">기술이전 시 활용분야</div>
       <svg style="position: absolute; left: 0; top: 0" width="1920" height="1080" viewBox="0 0 1920 1080" data-layout-ignore>{lines}</svg>
       <div class="node core" id="e6-core" style="left: {cx}px; top: {cy}px">{plain(c["name"])}</div>{nodes}"""
     css = e_css(pal) + f"""
@@ -678,7 +689,7 @@ def f2(c, pal, d):
 
 def f3(c, pal, d):
     a, b, cc = pal
-    steps = c["process"]["steps"][:5]
+    steps = c["process"]["steps"][:6]
     rows = "".join(f'<div class="ck" id="f3-r{i}" style="top: {i * 130}px"><i id="f3-b{i}">{icon(process_icon(c, st), 52, "#ffffff", 6)}</i>'
                    f'<div><b>{E(st["n"])}</b><span>{E(st["big"] + st.get("u", "") + " · ") if st["big"] else ""}{E(st["d"])}</span></div></div>' for i, st in enumerate(steps))
     body = f"""
@@ -691,8 +702,10 @@ def f3(c, pal, d):
     .ck b { display: block; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
     .ck span { display: block; font-size: 30px; font-weight: 600; color: #6e6e73; white-space: nowrap; }"""
     js = [up("#f3-t", 0.3)]
+    # rows come in 0.95 s apart; six rows are packed tighter so the last one is in (5.75 s) before the dip into f4 at 6.0 s
+    gap = min(0.95, 4.2 / max(1, len(steps) - 1))
     for i in range(len(steps)):
-        t = 0.8 + i * 0.95
+        t = 0.8 + i * gap
         js.append(up(f"#f3-r{i}", t, 0, 0.6, 30))
         js.append(f'    tl.to("#f3-b{i}", {{ backgroundColor: "{darken(b, 0.25)}", duration: 0.3 }}, {t + 0.45:.2f});')
         js.append(f'    tl.to("#f3-b{i} svg", {{ opacity: 1, duration: 0.2 }}, {t + 0.5:.2f});')
