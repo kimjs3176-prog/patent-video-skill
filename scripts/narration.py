@@ -7,13 +7,15 @@ Each scene of the built project is matched to a section by its composition file 
 are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
 The voice is picked by default_voice(): Google Chirp 3 HD (ko-KR-Chirp3-HD-Aoede, much closer to a human narrator) when a
 GOOGLE_TTS_API_KEY is set (environment or the project's .env), otherwise edge-tts 선희 (ko-KR-SunHiNeural); --voice overrides it
-(any "ko-KR-Chirp3-HD-<name>" voice goes to Google, every other name to edge-tts). Before synthesis each line goes through speak(),
-which turns what the screen writes into what a narrator says ("50~90분" → "50에서 90분", "℃" → "도", "가열·가압" → "가열, 가압"). A line that does not fit its scene is re-voiced faster
+(check_voice(): a bare name maps to its Korean voice, Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural; any "…-Chirp3-HD-<name>"
+voice goes to Google, every other name to edge-tts; an unknown voice stops the run once). Before synthesis each line goes through speak(),
+which turns what the screen writes into what a narrator says ("50~90분" → "50에서 90분", "℃" → "도", "가열·가압" → "가열, 가압",
+"41.5 cm²" → "41.5 제곱센티미터", "CO₂" → "이산화탄소", "10⁸" → "10의 8제곱"). A line that does not fit its scene is re-voiced faster
 (natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
 
 Captions of the voiced lines are burned in and written as narration.srt (captions.py); --no-captions leaves them out.
 
-Usage: python -I tools/narration.py <project dir> <content.json> [--no-captions] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural]
+Usage: python -I tools/narration.py <project dir> <content.json> [--no-captions] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural | Kore]
        python -I tools/narration.py --check data/content/<file>.json [...]   (template S: dry run, flags lines sped past +6 % or cut)
 """
 import base64
@@ -24,6 +26,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 
@@ -49,6 +52,11 @@ KEYS = {
 CACHE = os.path.join(ROOT, "data", "voice_cache")
 UVX = "uvx.exe" if os.name == "nt" else "uvx"
 EDGE_TTS = "edge-tts==7.3.1"  # pinned: the package is fetched from PyPI at run time
+SYS_CERTS = "pip-system-certs==5.3"  # edge-tts trusts only certifi's roots; this makes it use the OS store (needs Python 3.10+)
+CHIRP3_HD = ("Achernar", "Achird", "Algenib", "Algieba", "Alnilam", "Aoede", "Autonoe", "Callirrhoe", "Charon", "Despina", "Enceladus", "Erinome",
+             "Fenrir", "Gacrux", "Iapetus", "Kore", "Laomedeia", "Leda", "Orus", "Puck", "Pulcherrima", "Rasalgethi", "Sadachbia", "Sadaltager",
+             "Schedar", "Sulafat", "Umbriel", "Vindemiatrix", "Zephyr", "Zubenelgenubi")  # Google Chirp 3 HD: the same names in every language
+EDGE_KO = {"SunHi": "ko-KR-SunHiNeural", "InJoon": "ko-KR-InJoonNeural", "Hyunsu": "ko-KR-HyunsuMultilingualNeural"}  # edge-tts --list-voices
 
 
 def env_key(name):
@@ -66,6 +74,22 @@ def env_key(name):
 
 def default_voice():
     return GOOGLE_VOICE if env_key("GOOGLE_TTS_API_KEY") else EDGE_VOICE
+
+
+def check_voice(voice):
+    """Full voice id for --voice, or ValueError. A bare name maps to its Korean voice (Kore → ko-KR-Chirp3-HD-Kore, SunHi →
+    ko-KR-SunHiNeural): sent as is, 'Kore' would go to edge-tts and every video of the batch would fail on 'Invalid voice'.
+    produce.py calls this once at start, so a wrong voice stops the run with one clear message."""
+    v = (voice or "").strip()
+    known = {**{f"ko-KR-Chirp3-HD-{n}": n for n in CHIRP3_HD}, **{full: n for n, full in EDGE_KO.items()}}
+    for full, n in known.items():  # any case, with or without the language: kore, Chirp3-HD-Kore, SunHiNeural, ko-kr-sunhineural
+        if v.lower() in (full.lower(), n.lower(), full.lower().split("-", 2)[2]):
+            return full
+    m = re.fullmatch(r"([a-z]{2,3}-[A-Z]{2,})-(?:Chirp3-HD-(\w+)|Chirp-HD-\w+|\w+Neural)", v)
+    if m and m.group(1) != "ko-KR" and (not m.group(2) or m.group(2) in CHIRP3_HD):  # another language: its voice list is not kept here
+        return v
+    raise ValueError(f"unknown voice {voice!r}: use ko-KR-Chirp3-HD-<name> (Google, needs GOOGLE_TTS_API_KEY; <name> is one of {', '.join(CHIRP3_HD)}) "
+                     f"or an edge-tts voice ({', '.join(EDGE_KO.values())}); a bare name such as Kore or SunHi also works")
 
 
 VOICE = default_voice()
