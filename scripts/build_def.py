@@ -702,8 +702,9 @@ def f3(c, pal, d):
     .ck b { display: block; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
     .ck span { display: block; font-size: 30px; font-weight: 600; color: #6e6e73; white-space: nowrap; }"""
     js = [up("#f3-t", 0.3)]
-    # rows come in 0.95 s apart; six rows are packed tighter so the last one is in (5.75 s) before the dip into f4 at 6.0 s
-    gap = min(0.95, 4.2 / max(1, len(steps) - 1))
+    # rows come in 0.95 s apart; six rows are packed tighter so the last one is up at 4.6 s, held ~1.8 s (the check's read
+    # floor is 1.5 s) before the dip into f4 at 6.0 s
+    gap = min(0.95, 3.8 / max(1, len(steps) - 1))
     for i in range(len(steps)):
         t = 0.8 + i * gap
         js.append(up(f"#f3-r{i}", t, 0, 0.6, 30))

@@ -20,7 +20,7 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
   없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`)로 장면마다 한 줄씩 읽고, 엔딩은 음악만 둡니다. 화면용 기호(`~`, `℃`, `·`, 단위)는 합성 전에 읽는 말로 바뀝니다.
   보통 속도로 먼저 읽고 장면에 안 들어갈 때만 빨라집니다(`--no-narrate`로 끄기).
 - **산출물 규칙.** 동영상 `patents/{출원번호}.mp4`, 썸네일 `patents/{출원번호}.jpg`, 자막 `patents/{출원번호}.srt`(예: `patents/1020240012345.mp4`).
-- **자막 기본 포함.** 읽힌 나레이션이 화면 하단 자막으로 구워지고 `.srt`로도 나옵니다(`--no-captions`로 끔).
+- **자막 기본 포함.** 읽힌 나레이션이 화면 맨 아래의 어두운 전용 띠에 자막으로 구워지고(장면은 그만큼 위로) `.srt`로도 나옵니다(`--no-captions`로 끔).
   원본 엑셀은 그대로 두고, 사본의 마지막 열에 영상 파일명을 적습니다.
 
 자세한 사용법은 [`SKILL.md`](SKILL.md), 템플릿 구성과 모션 원칙은 [`references/templates.md`](references/templates.md),
@@ -41,17 +41,21 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
 python -I ~/.claude/skills/patent-tech-video/scripts/setup_project.py ~/patent-video-demo
 cd ~/patent-video-demo
 python -I tools/master_list.py "추천특허.xlsx"                        # 또는 출원번호들
-PYTHONIOENCODING=utf-8 python -I -u tools/kipris.py --all             # .env의 KIPRIS_API_KEY 사용
+python -I -X utf8 -u tools/kipris.py --all             # .env의 KIPRIS_API_KEY 사용
 #  … data/content/<순번>-<출원번호>.json 작성 (Claude가 CONTENT_SPEC에 따라) …
-PYTHONIOENCODING=utf-8 python -I tools/validate.py data/content/*.json
-PYTHONIOENCODING=utf-8 python -I tools/sigcheck.py data/content/*.json
-PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template S     # → patents/{출원번호}.mp4 · .jpg
+python -I -X utf8 tools/validate.py data/content/*.json
+python -I -X utf8 tools/sigcheck.py data/content/*.json
+python -I -X utf8 -u tools/produce.py --template S     # → patents/{출원번호}.mp4 · .jpg
+python -I -X utf8 -u tools/produce.py --template S 1-100   # 순번 구간만(양 끝 포함). 다른 창에서 101-200 → 렌더러 2개
 ```
+`produce.py`는 모르는 인자(오타 등)를 무시하지 않고 오류로 멈춥니다. 영상 한 편에 약 3.2분(렌더 167~187초 + 빌드·검사 약 27초, 4코어·16GB PC 실측.
+RAM 8GB 이하 PC는 렌더 worker가 1개로 고정되어 더 느림)이 걸리고, `renders*/produce.log`의 RENDERED 줄에 진행(`[i/N]`)과 남은 시간이 찍힙니다.
 
 ## 시그니처 템플릿 S — 특허의 구조가 장면이 된다
 
-16:9 · 46~55초. 장면 수와 길이는 그 특허의 데이터(단계·부품·프라이머 수)에 맞춰 정해지고, 데이터가 있을 때만 장면이 더해집니다
-(공정 비교, 두 번째 도면 경로, 프로브 비교).
+16:9 · 40.5~56.5초. 장면 수와 길이는 그 특허의 데이터(단계·부품·프라이머 수)에 맞춰 정해지고, 데이터가 있을 때만 장면이 더해집니다
+(공정 비교, 두 번째 도면 경로, 프로브 비교). 유형별로 journey 49.5~54.8초, loop 44.5~54.4초, sequence 49.5~56.5초,
+formula 41.0~46.7초, lineage 41.0~47.3초, claim 40.5~47.1초입니다.
 
 ### 공정형 (journey) — 재료가 바뀌는 길
 4~6단계마다 재료 그림이 바뀌고(침지·절단·증숙·데침·건조·로스팅·유탕·동결·발효·혼합·추출·분쇄·성형·접종·살균·코팅·포장·농축·수확·압출·굽기·발아·재배·세척·탄화·해동·광 조사·초음파 등 33종),
@@ -91,7 +95,7 @@ PYTHONIOENCODING=utf-8 python -I -u tools/produce.py --template S     # → pate
 
 장치·시스템 특허의 구성 장면(모든 템플릿 공통). 흑백 선 도면이면 선을 자동으로 뽑아 펜으로 그리듯 그리고(`figtrace.py`),
 원본 도면이 떠오른 뒤 부품마다 도면 부호 표식이 목록과 같은 순서로 그 자리에 나타납니다. 부품 위치는 `figmap.py`가 만든
-"부호의 설명" 대조표와 10×10 측정 격자를 보고 찍습니다([`references/FIGURE_ANALYSIS.md`](references/FIGURE_ANALYSIS.md)).
+"부호의 설명" 대조표와 10×10 측정 격자를 보고 찍습니다([`references/FIGURE_ANALYSIS.md`](references/FIGURE_ANALYSIS.md), 프로젝트에서는 setup이 복사한 `tools/FIGURE_ANALYSIS.md`).
 사진·컬러 렌더 도면은 선 그리기 없이 원본과 표식만 나옵니다.
 ![도면 분석](docs/previews/figure-analysis.jpg)
 
@@ -142,16 +146,19 @@ git clone https://github.com/kimjs3176-prog/patent-video-skill.git ~/.claude/ski
 python -m pip install -r ~/.claude/skills/patent-tech-video/requirements.txt
 ```
 
-필요한 것: Node.js 18+(`npx hyperframes@0.8.207`, 첫 실행 때 내려받음), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
-`openpyxl` `pypdf` `fonttools` `brotli` `numpy`, 나레이션용 `uv`(`uvx edge-tts`). `setup_project.py`가 끝나면 빠진 도구를 알려 줍니다.
-Windows에서는 한글 출력이 깨지지 않게 `PYTHONIOENCODING=utf-8`을 붙여 실행합니다.
+필요한 것: Node.js **22+**(`npx hyperframes@0.8.207`이 Node 22 이상을 요구), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
+`openpyxl` `pypdf` `fonttools` `brotli` `numpy`, `uv`(기본 나레이션 edge-tts를 `uvx`로 실행하므로 필수. `GOOGLE_TTS_API_KEY`의 Google 음성만 쓰거나
+`--no-narrate`면 없어도 됨). `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx를 검사해 없으면 바로 멈춥니다.
+첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 화면 출력 없이 내려받으므로, 미리 받아 두려면 `npx --yes hyperframes@0.8.207 browser ensure`를 실행합니다.
+edge-tts는 OS 인증서 저장소를 쓰므로 TLS 검사 프록시가 있는 기관망에서도 동작합니다.
+Windows에서 출력을 파이프나 파일로 받을 때 한글이 깨지지 않게 `python -I -X utf8 ...`으로 실행합니다(`PYTHONIOENCODING`은 `-I`가 무시합니다. 콘솔 창에서는 원래 잘 보입니다).
 
 ## 이 저장소에 없는 것
 
 | 항목 | 이유 | 대신 |
 |---|---|---|
 | KIPRIS Plus 서비스키 | 비밀 정보 | 프로젝트 `.env`에 `KIPRIS_API_KEY=...` (커밋 금지, `.gitignore` 포함). 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 추출 |
-| 배경음악 | 저작권 걱정 없음(직접 작곡) | `assets/music`이 비어 있으면 `produce.py`가 `compose.py`로 4곡을 직접 작곡·연주(키·외부 서비스 없음). 콘텐츠의 `music` 블록으로 특허마다 다른 곡. `.env`에 `GEMINI_API_KEY`가 있으면 Google Lyria 3.5(과금). 라이선스 있는 mp3를 넣어도 됨. `--no-music-gen`으로 끔 |
+| 배경음악 | 저작권 걱정 없음(직접 작곡) | `assets/music`이 비어 있으면 `produce.py`가 `compose.py`로 4곡을 직접 작곡·연주(키·외부 서비스 없음). 콘텐츠의 `music` 블록으로 특허마다 다른 곡. `.env`에 `GEMINI_API_KEY`가 있으면 Google Lyria 3.5(과금). Lyria가 실패하거나 덜 만들면 나머지는 작곡으로 채움. 곡은 다 쓴 뒤 한 번에 옮겨 놓아 중단돼도 잘린 곡이 남지 않음. 라이선스 있는 mp3를 넣어도 됨. `--no-music-gen`은 기본 4곡 자동 생성(Lyria·작곡)을 끔(콘텐츠 `music` 블록 곡은 그대로 작곡) |
 | 효과음 | Pixabay 콘텐츠를 단독 재배포하지 않음 | HyperFrames `media-use` 스킬이 설치돼 있으면 `setup_project.py`가 자동 복사(없으면 생략) |
 
 ## 보안 메모

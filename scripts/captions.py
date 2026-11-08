@@ -2,8 +2,9 @@
 
 narration.narrate() hands over the voiced lines it placed (start, length, text). Each line is split into caption-sized
 chunks (sentences first, then at commas, then at spaces), and each chunk gets a share of its clip's length by the number
-of syllables it holds, plus a breath at sentence ends. The cues become compositions/captions.html, a layer above every
-scene (and above the transitions), and narration.srt. Text uses the bundled Pretendard (OFL).
+of characters it holds (spaces aside), plus a breath at sentence ends. The cues become compositions/captions.html, a layer
+above every scene (and above the transitions), and narration.srt. White text in the bundled Pretendard (OFL) on an opaque
+dark band (#0b0b0f) across the bottom of the frame.
 
 Usage: called by narration.py; python -I tools/captions.py <project dir> rebuilds the layer from the project's narration.srt.
 """
@@ -15,10 +16,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import E  # noqa: E402
 
 FONT = "assets/fonts/pretendard/Pretendard-SemiBold.woff2"
-# Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px (its top margin
-# is empty in every template), or, for a template with a masthead at the very top (I), scaled down from the top centre
-# so nothing of the scene is lost. The captions then never cover anything a scene shows.
-BAND = {"wide": 64, "tall": 136}  # 9:16 holds two caption lines
+# Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px, or, for a template
+# with a masthead at the very top (I), scaled down from the top centre so nothing of the scene is lost. The captions then
+# never cover anything a scene shows. Moving up needs BAND px of empty top margin, and `hyperframes check` does not notice
+# text pushed past the top edge: 16:9 text starts 80 px down or more (E's e6 eyebrow sits at 110 px because its drift
+# scales it up; the ef header at 70 px keeps about 13 px of glyph margin), 9:16 text 176 px or more. Keep that in new scenes.
+BAND = {"wide": 64, "tall": 136}  # px; 9:16 has room for two lines, though a cue of ~24 characters is usually one (mount)
 SCALE_PREFIX = ("i",)  # scene files of template I: i1-front, i2-how, …
 
 
@@ -168,7 +171,9 @@ def mount(out, lines):
     if not m:
         raise RuntimeError("index.html: main composition not found")
     total, w, h = float(m.group(1)), int(m.group(2)), int(m.group(3))
-    cs = cues(lines, 24 if h > w else 26)  # 9:16: up to two lines of about 12
+    # characters per cue (spaces aside): at 9:16, 24 still fit one line (42 px Pretendard, max 960 px, about 900 px used);
+    # only a merged scrap (up to 1.25x, see chunks) wraps to the second line the 136 px band leaves room for
+    cs = cues(lines, 24 if h > w else 26)
     open(os.path.join(out, "narration.srt"), "w", encoding="utf-8").write(srt(cs))
     cap = os.path.join(out, "compositions", "captions.html")
     lift_footers(out, on=False)  # older builds lifted footers instead; clean that up

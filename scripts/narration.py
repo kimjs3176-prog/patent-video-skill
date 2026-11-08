@@ -56,8 +56,7 @@ SYS_CERTS = "pip-system-certs==5.3"  # edge-tts trusts only certifi's roots; thi
 CHIRP3_HD = ("Achernar", "Achird", "Algenib", "Algieba", "Alnilam", "Aoede", "Autonoe", "Callirrhoe", "Charon", "Despina", "Enceladus", "Erinome",
              "Fenrir", "Gacrux", "Iapetus", "Kore", "Laomedeia", "Leda", "Orus", "Puck", "Pulcherrima", "Rasalgethi", "Sadachbia", "Sadaltager",
              "Schedar", "Sulafat", "Umbriel", "Vindemiatrix", "Zephyr", "Zubenelgenubi")  # Google Chirp 3 HD: the same names in every language
-EDGE_KO = {"SunHi": "ko-KR-SunHiNeural", "InJoon": "ko-KR-InJoonNeural"}  # edge-tts --list-voices, ko-KR
-EDGE_MUTE = {"Hyunsu": "ko-KR-HyunsuMultilingualNeural"}  # listed too, but the free service sends it no audio (NoAudioReceived, 2026-11)
+EDGE_KO = {"SunHi": "ko-KR-SunHiNeural", "InJoon": "ko-KR-InJoonNeural", "Hyunsu": "ko-KR-HyunsuMultilingualNeural"}  # edge-tts --list-voices, ko-KR
 
 
 def env_key(name):
@@ -90,14 +89,15 @@ def voice_id(voice):
     """Full voice id, or ValueError. A bare name maps to its Korean voice (Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural):
     sent as is, 'Kore' went to edge-tts and every video of the batch failed on 'Invalid voice'."""
     v = (voice or "").strip()
-    known = {**{f"ko-KR-Chirp3-HD-{n}": n for n in CHIRP3_HD}, **{full: n for n, full in {**EDGE_KO, **EDGE_MUTE}.items()}}
-    for full, n in known.items():  # any case, with or without the language: kore, Chirp3-HD-Kore, SunHiNeural, ko-KR-InJoonNeural
-        if v.lower() in {x.lower() for x in (full, n, full.split("-", 2)[2], n + "Neural", f"ko-KR-{n}Neural")}:
-            if full in EDGE_MUTE.values():
-                raise ValueError(f"{full}: edge-tts lists it, but the free service returns no audio for it; use {' or '.join(EDGE_KO.values())}")
+    known = {**{f"ko-KR-Chirp3-HD-{n}": (n, f"Chirp3-HD-{n}") for n in CHIRP3_HD},  # the …Neural spellings only for edge voices (not KoreNeural)
+             **{full: (n, full.split("-", 2)[2], n + "Neural", f"ko-KR-{n}Neural") for n, full in EDGE_KO.items()}}
+    for full, alias in known.items():  # any case, with or without the language: kore, Chirp3-HD-Kore, SunHiNeural, ko-KR-HyunsuNeural
+        if v.lower() in {x.lower() for x in (full, *alias)}:
             return full
-    m = re.fullmatch(r"([a-z]{2,3}-[A-Z]{2,})-(?:Chirp3-HD-(\w+)|Chirp-HD-\w+|\w+Neural)", v)
-    if m and m.group(1) != "ko-KR" and (not m.group(2) or m.group(2) in CHIRP3_HD):  # another language: its voice list is not kept here
+    m = re.fullmatch(r"([a-z]{2,3}-[A-Z]{2,})-(?:Chirp3-HD-(\w+)|(Chirp-HD-\w+)|\w+Neural)", v)
+    # by shape: another language (its voice lists are not kept here) and Google's Chirp-HD voices (listing them needs the key);
+    # the engine's own error names a wrong one. A ko-KR id outside the lists above is a typo (ko-KR-SunHeeNeural)
+    if m and (m.group(3) or m.group(1) != "ko-KR" and (not m.group(2) or m.group(2) in CHIRP3_HD)):
         return v
     raise ValueError(f"unknown voice {voice!r}: use ko-KR-Chirp3-HD-<name> (Google, needs GOOGLE_TTS_API_KEY; <name> is one of {', '.join(CHIRP3_HD)}) "
                      f"or an edge-tts voice ({', '.join(EDGE_KO.values())}); a bare name such as Kore or SunHi also works")
@@ -108,6 +108,7 @@ VOICE = default_voice()
 
 # ---------------------------------------------------------------- spoken text
 _SUP, _SUB = "⁰¹²³⁴⁵⁶⁷⁸⁹", "₀₁₂₃₄₅₆₇₈₉"
+ENDS = ".?!。…"  # a line or sentence that ends in one of these is ended: a trailing ellipsis gets no full stop, and splits like "..."
 
 
 def _plain(ch):
@@ -125,7 +126,8 @@ def _plain(ch):
 _PAIRS = {"을": "을를", "를": "을를", "이": "이가", "가": "이가", "은": "은는", "는": "은는", "과": "과와", "와": "과와", "으로": "으로로", "로": "으로로"}
 _PART = r"(으로|을|를|이|가|은|는|과|와|로)(?![가-힣])"
 # m², cm³, ㎡ …: 제곱/세제곱 + the length; ahead of the other units, or "cm" would take "cm²" and leave the voice a bare "²"
-_LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "μm": "마이크로미터", "µm": "마이크로미터", "m": "미터"}
+_LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm": "데시미터", "nm": "나노미터", "μm": "마이크로미터", "µm": "마이크로미터",
+           "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
@@ -143,21 +145,28 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
 def speak(text):
     """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
     t = re.sub(r"<[^>]+>", " ", text.replace("|", "")).replace("−", "-")
+    # ①, ８, ⑩ → 1, 8, 10, so the rules below see a number. Sub- and superscripts stay as written (Fe₂O₃, NH₄⁺, SO₄²⁻, 95%¹):
+    # the voice reads them as before and the caption keeps them, where plain digits ran into one number (SO42⁻)
+    t = "".join(ch if ch in _SUP + _SUB else _plain(ch) for ch in t)
     for f, k in FORMULAS:  # CO₂ → 이산화탄소, H₂O₂ → 과산화수소 (not inside a longer formula or word)
+        t = re.sub(rf"{k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)  # 이산화탄소(CO₂)를: the name once, not twice
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
-    for u, k in UNITS:  # a unit right after a number, not inside a word
-        t = re.sub(rf"(\d)\s*{re.escape(u)}(?![A-Za-z])", rf"\1 {k}", t)
+    t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
+        f'{m.group(1)}의 {"마이너스 " if m.group(2) else ""}{"".join(map(_plain, m.group(3)))}제곱', m.group(4)), t)
+    t = re.sub(r"제곱(?=[A-Za-zμµ0-9])", "제곱 ", t)  # 10⁸CFU → 10의 8제곱 CFU
+    for u, k in UNITS:  # a unit right after a number (or its exponent: 10⁻³ M → …3제곱 몰), not inside a word
+        t = re.sub(rf"(\d|제곱)\s*{re.escape(u)}(?![A-Za-z])", rf"\1 {k}", t)
     for u, k in AREA:  # an area or volume with no number before it: kg/m², 주/㎡
         t = re.sub(rf"(?<![A-Za-zμµ]){re.escape(u)}(?![A-Za-z])", k, t)
     # particles written for the symbol now follow a spoken word: 3 mL을 → 3 밀리리터를
     spoken = "|".join(sorted({k for _, k in UNITS} | {"도", "퍼센트"}, key=len, reverse=True))
-    t = re.sub(rf"(\d\s*(?:{spoken})){_PART}", lambda m: josa(m.group(1), _PAIRS[m.group(2)]), t)
-    t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
-        f'{m.group(1)}의 {"마이너스 " if m.group(2) else ""}{"".join(map(_plain, m.group(3)))}제곱', m.group(4)), t)
-    t = "".join(map(_plain, t))  # any other ², ₂, ①, ８ is read as its digit (Fe₂O₃ → Fe2O3)
+    t = re.sub(rf"((?:\d|제곱)\s*(?:{spoken})){_PART}", lambda m: josa(m.group(1), _PAIRS[m.group(2)]), t)
+    # any other square or cube after a letter: R² → R 제곱, m/s² → m/s 제곱 (an ion charge such as Ca²⁺ stays as written)
+    t = re.sub(rf"([A-Za-z])([²³])(?![{_SUP}⁺⁻])(?:{_PART})?", lambda m: _say(f"{m.group(1)} {_POWER[_plain(m.group(2))]}", m.group(3)), t)
+    t = re.sub(r"제곱(?=[A-Za-z0-9])", "제곱 ", t)
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
@@ -170,9 +179,11 @@ def speak(text):
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
-    t = re.sub(r"([.?!])\.+(?=\s|$)", r"\1", t)  # a line that already ended in ? or . : '어렵다?.' → '어렵다?', '흡입한다..' → '흡입한다.'
+    # a line that already ended gets one more full stop: '흡입한다..' → '흡입한다.', '어렵다?.' → '어렵다?'; an ellipsis ('...') is a pause, kept
+    t = re.sub(r"(?<!\.)\.\.(?=\s|$)", ".", t)
+    t = re.sub(r"([?!…])\.(?=\s|$)", r"\1", t)
     t = re.sub(r"\s{2,}", " ", t).strip()
-    return t if not t or t[-1] in ".?!" else t + "."
+    return t if not t or t[-1] in ENDS else t + "."
 
 
 def _say(word, particle):
@@ -192,9 +203,9 @@ def josa(word, pair):
     """Korean particle after `word` as it is read aloud: pair is "은는", "이가", "을를", "과와" or "으로로"."""
     w = re.sub(r"[\s.,)\]]+$", "", word)
     ch = _plain(w[-1:])[-1:]  # ², ₂, ①, ８ count as the digit they stand for (looked up as they are, they raised KeyError)
-    if re.search(r"(?:[A-Za-zμµ][²³]|[㎟-㎦])$", w):  # m², cm³, ㎡ are read …미터
+    if re.search(r"(?:(?:[kcmdnμµ]?m|[㎚㎛])[²³]|[㎟-㎦])$", w):  # m², cm³, ㎡ are read …미터
         has, rieul = False, False
-    elif re.search(rf"\d⁻?[{_SUP}]+$", w):  # 10⁸ is read 10의 8제곱
+    elif re.search(rf"(?:\d⁻?[{_SUP}]+|[A-Za-z][²³])$", w):  # 10⁸ is read 10의 8제곱, R² R 제곱
         has, rieul = True, False
     elif "가" <= ch <= "힣":
         coda = (ord(ch) - 0xAC00) % 28
@@ -241,7 +252,7 @@ def _clean(s):
 def _end(s):
     """s as one sentence: '' stays '' (nothing to voice), and a full stop is added only when s has no end mark (no '?.' or '..')."""
     s = _clean(s)
-    return s if not s or s[-1] in ".?!。" else s + "."
+    return s if not s or s[-1] in ENDS else s + "."
 
 
 def _seq(i, n):
@@ -345,13 +356,14 @@ def auto_sig_script(c):
 
 def sig_script(c):
     """Scene key → line for template S: signature.narration first, then the content's section lines, then generated.
-    A line with nothing to say ('', '.', '…') counts as not written; one still empty after the fallbacks leaves its scene unvoiced."""
+    A line of punctuation only ('.', '…') counts as not written. An empty signature.narration line ("run": "" or null) keeps that
+    scene silent, as it always did; one still empty after the fallbacks leaves its scene unvoiced too."""
     base = auto_script(c)
     sec = {k: v for k, v in (c.get("narration") or {}).items() if has_words(v)}
     out = {k: sec.get(v) or base[v] for k, v in SIG_FRAME.items()}
     out.update(auto_sig_script(c))
-    out.update({k: v for k, v in (c["signature"].get("narration") or {}).items() if has_words(v)})
-    return {k: v for k, v in out.items() if k not in SILENT and has_words(speak(v))}
+    out.update({k: v for k, v in (c["signature"].get("narration") or {}).items() if not v or has_words(v)})
+    return {k: v for k, v in out.items() if k not in SILENT and v and has_words(speak(v))}
 
 
 def duration(path):
@@ -403,14 +415,20 @@ def _edge(text, voice, rate, dst):
         env.update(UV_NATIVE_TLS="1", UV_SYSTEM_CERTS="1")
     cmd = [UVX, "--python", ">=3.10", "--from", EDGE_TTS, "--with", SYS_CERTS,  # pip-system-certs needs 3.10+: never resolve on an older Python
            "edge-tts", "--voice", voice, f"--rate={rate}", f"--text={text}", "--write-media", dst]
-    try:
-        subprocess.run(cmd, check=True, capture_output=True, timeout=300, env=env)
-    except subprocess.CalledProcessError as e:  # its str() is the whole command and 'exit status 1': the cause is the last stderr line
-        err = [s.strip() for s in (e.stderr or b"").decode("utf-8", "replace").splitlines() if s.strip()]
-        last = [s for s in err if not s.startswith(("warning:", "hint:"))][-1:] or err[-1:] or ["no error output"]  # uv's notes come around it
-        raise RuntimeError(f"edge-tts failed (exit {e.returncode}, voice {voice}): {last[0]}"[:300]) from None
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"edge-tts timed out after 300 s (voice {voice})") from None
+    for tries, wait in enumerate((0, 2, 5, 15), 1):  # the same back-off as _google and duration
+        time.sleep(wait)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=300, env=env)
+            return
+        except subprocess.CalledProcessError as e:  # its str() is the whole command and 'exit status 1': the cause is the last stderr line
+            err = [s.strip() for s in (e.stderr or b"").decode("utf-8", "replace").splitlines() if s.strip()]
+            last = [s for s in err if not s.startswith(("warning:", "hint:"))][-1:] or err[-1:] or ["no error output"]  # uv's notes come around it
+            # the free service now and then sends no audio for a valid line, in bursts (Hyunsu often, 2026-11: a later try works);
+            # anything else (Invalid voice, a certificate error) is final
+            if "NoAudioReceived" not in last[0] or tries == 4:
+                raise RuntimeError(f"edge-tts failed (exit {e.returncode}, voice {voice}): {last[0]}"[:300]) from None
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"edge-tts timed out after 300 s (voice {voice})") from None
 
 
 def synth(text, voice, rate):
@@ -435,7 +453,7 @@ def synth(text, voice, rate):
 
 
 def sentences(text):
-    return [s for s in re.split(r"(?<=[.!?。])\s+", text.strip()) if has_words(s)]
+    return [s for s in re.split(r"(?<=[.!?。…])\s+", text.strip()) if has_words(s)]
 
 
 def fit(text, avail, voice):
@@ -458,7 +476,7 @@ def assign(slots, script):
         line = (script.get(sec) or "").strip()
         if not has_words(speak(line)):
             continue
-        if line[-1] not in ".?!。":  # lines are joined below: unended, hook and overview ran into one sentence fit() could only drop whole
+        if line[-1] not in ENDS:  # lines are joined below: unended, hook and overview ran into one sentence fit() could only drop whole
             line = line.rstrip(" ,;:") + "."
         if sec in have:
             texts[sec] = (texts.get(sec, "") + " " + line).strip()

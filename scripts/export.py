@@ -26,7 +26,8 @@ def appno_of(mp4):
 def captions_of(mp4):
     """The .srt beside a render when it belongs to that render, else None. produce.py copies it right after the render, so a
     sidecar older than the mp4 is left over from an earlier render (old cues and timings over new audio).
-    produce.py's skip test reads the same: a narrated render counts as captioned only when this finds its .srt."""
+    produce.py's skip test reads the same: a narrated render counts as captioned only when this finds its .srt (and as
+    captionless only when there is no .srt beside it at all)."""
     srt = mp4[:-4] + ".srt"
     return srt if os.path.exists(srt) and os.path.getmtime(srt) >= os.path.getmtime(mp4) - 1 else None  # 1 s: coarse file times
 

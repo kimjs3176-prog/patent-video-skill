@@ -5,19 +5,24 @@ The column lists the deliverable patents/{출원번호}.mp4 (see tools/export.py
 renders_* file name instead.
 Copies are saved next to the originals as <name>_영상파일명.xlsx; originals are never modified.
 The header row of each sheet is the row just above the first row that mentions a patent;
-the new column goes right after the sheet's last used column and copies its style.
+the new column goes right after the sheet's last used column (past any merged cell of the rows it writes) and copies
+its style. A sheet that already has the column (an annotated copy given again) gets it refilled, not a second one.
+Patent numbers are read as master_list.py reads them (dashes, 원출원 notes, 등록번호).
 """
 import copy
 import json
 import os
-import re
 import sys
 
 import openpyxl
+from openpyxl.cell.cell import MergedCell
 from openpyxl.styles import Alignment
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from master_list import app_numbers, norm  # noqa: E402  the same numbers as the production order
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAT = re.compile(r"(?<![0-9])(10-?\d{4}-?\d{7})(?![0-9])")
+LABEL = "기술소개 영상 파일"
 
 args = sys.argv[1:]
 tpl = None
@@ -40,44 +45,69 @@ if missing:
     print(f"no video yet for {len(missing)} patent(s), left blank:", ", ".join(missing[:10]) + (" …" if len(missing) > 10 else ""))
 
 
-def files_in(texts):
-    out = []
-    for t in texts:
-        t = str(int(t)) if isinstance(t, float) and t.is_integer() else str(t or "")
-        for m in PAT.finditer(t):
-            if "제외" in t[max(0, m.start() - 8):m.start()]:
-                continue
-            f = SLUG.get(m.group(1).replace("-", ""))
-            if f and f not in out:
-                out.append(f)
-    return out
+LISTED = {m["appno"] for m in master}
 
 
-for path in args:
+def numbers_in(values):
+    """The listed patents a row mentions, its cells read as one text (as master_list.py reads a row)."""
+    cells = [str(int(v)) if isinstance(v, float) and v.is_integer() else str(v) for v in values if v not in (None, "")]
+    return [num for _, num, why in app_numbers(norm("\n".join(cells))) if not why and num in LISTED]
+
+
+def free_col(ws, col, rows):
+    """The first column from col on that no merged range covers in any of rows (a merged cell cannot be written).
+    Merges elsewhere, e.g. a title above the header, do not move the column."""
+    spans = [m for m in ws.merged_cells.ranges if any(m.min_row <= r <= m.max_row for r in rows)]
+    while any(m.min_col <= col <= m.max_col for m in spans):
+        col += 1
+    return col
+
+
+def annotate(path):
     wb = openpyxl.load_workbook(path)
     for ws in wb.worksheets:
         used = [(c.row, c.column) for row in ws.iter_rows() for c in row if c.value not in (None, "")]
+        old = next((c for r, c in used if ws.cell(r, c).value == LABEL), None)  # this list was annotated before
+        used = [(r, c) for r, c in used if c != old]
         if not used:
             continue
         last_row = max(r for r, _ in used)
         last_col = max(c for _, c in used)
-        first = next((r for r in range(1, last_row + 1) if files_in(ws.cell(r, c).value for c in range(1, last_col + 1))), None)
+        rows = {r: numbers_in(ws.cell(r, c).value for c in range(1, last_col + 1) if c != old) for r in range(1, last_row + 1)}
+        first = next((r for r in rows if rows[r]), None)
         if first is None:
             continue
         header = max(1, first - 1)
-        col = last_col + 1
-        h = ws.cell(header, col, "기술소개 영상 파일")
+        files = {r: [f for f in dict.fromkeys(SLUG.get(a) for a in rows[r]) if f] for r in range(first, last_row + 1)}
+        if not any(files.values()):  # no video yet for any patent of this sheet
+            continue
+        col = old or free_col(ws, last_col + 1, [header] + [r for r in files if files[r]])
+        if old:  # refilling: clear the earlier run's names first
+            for r in range(header + 1, last_row + 1):
+                if not isinstance(ws.cell(r, col), MergedCell):
+                    ws.cell(r, col).value = None
+        h = ws.cell(header, col, LABEL)
         h._style = copy.copy(ws.cell(header, last_col)._style)
         n = 0
-        for r in range(first, last_row + 1):
-            files = files_in(ws.cell(r, c).value for c in range(1, last_col + 1))
-            if files:
-                c = ws.cell(r, col, "\n".join(files))
+        for r, fs in files.items():
+            if fs:
+                c = ws.cell(r, col, "\n".join(fs))
                 c._style = copy.copy(ws.cell(r, last_col)._style)
                 c.alignment = Alignment(wrap_text=True, vertical="top")
                 n += 1
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 30
-        print(os.path.basename(path), ws.title, "->", n, "rows")
+        print(os.path.basename(path), ws.title, "->", n, "rows" + (" (column refilled)" if old else ""))
     out = path[: path.rfind(".")] + "_영상파일명.xlsx"
     wb.save(out)
     print("saved", out)
+
+
+failed = 0
+for path in args:  # one bad list must not keep the others from being annotated
+    try:
+        annotate(path)
+    except Exception as e:
+        print(f"{os.path.basename(path)}: not annotated, {type(e).__name__}: {e}", flush=True)
+        failed += 1
+if failed:
+    sys.exit(f"{failed} of {len(args)} list(s) not annotated")

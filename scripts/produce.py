@@ -16,6 +16,7 @@ patent its own composed bed. --no-music-gen skips the automatic beds.
 """
 import glob
 import importlib.util
+import inspect
 import json
 import os
 import re
@@ -88,9 +89,42 @@ def preflight():
             "python -m pip install numpy  (or -r requirements.txt of the skill)")
 
 
+def voice_ready(nar, voice):
+    """The voice can speak on this machine: say so once, at start, instead of 'SKIP narration failed' for every video.
+    Returns the voice id narration records (check_voice: bare names → full IDs; unknown voices, a Chirp voice without its key)."""
+    if hasattr(nar, "check_voice"):
+        try:
+            v = nar.check_voice(voice)
+        except Exception as e:
+            die(f"voice {voice}: {e}")
+        voice = v if isinstance(v, str) and v else voice
+    google = "Chirp3-HD" in voice or "Chirp-HD" in voice  # the same routing as narration.synth
+    if not google and not shutil.which(getattr(nar, "UVX", "uvx")):
+        die(f"narration with {voice} runs edge-tts through uv's uvx, which is not installed - install uv "
+            "(https://docs.astral.sh/uv/ : 'pip install uv' or 'winget install astral-sh.uv'), "
+            "or put GOOGLE_TTS_API_KEY in .env for the Google voice, or run with --no-narrate")
+    return voice
+
+
+def voice_first(voice):
+    """voice_ready() before music.ensure(), so a wrong voice or a missing uvx stops the run before any bed is made (~25 s
+    each, or a Lyria bill). narration imports build, which lists assets/music once when imported: the tool modules loaded
+    for this check are dropped again and load afresh below, after the beds exist."""
+    here = lambda f: os.path.normcase(os.path.dirname(os.path.abspath(f)))  # noqa: E731  normcase: Windows drive-letter case
+    tools, before = here(__file__), set(sys.modules)
+    import narration as nar
+    voice_ready(nar, voice or nar.VOICE)
+    for m in set(sys.modules) - before:
+        f = getattr(sys.modules[m], "__file__", None)
+        if f and here(f) == tools:  # stdlib and numpy stay loaded
+            del sys.modules[m]
+
+
 if __name__ == "__main__":
     OPTS = options(sys.argv[1:])  # before music is made or anything is built
     preflight()
+    if "--no-narrate" not in OPTS["flags"]:
+        voice_first(OPTS["voice"])
     if "--no-music-gen" not in OPTS["flags"]:
         music.ensure()  # before the builders load: they read the assets/music list when imported
 from build import build as build_a  # noqa: E402
@@ -105,6 +139,7 @@ import narration  # noqa: E402
 import postprocess  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VALIDATE_NOTES = "warns" in inspect.signature(validate).parameters  # check(path, template, warns): S-only problems as notes
 # --yes: npm otherwise asks before installing the pinned version, and with output captured a person never sees the prompt
 HYPERFRAMES = [music.NPX, "--yes", music.HF]
 ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
@@ -151,17 +186,30 @@ def check_project(out):
 
 def rendered_voice(mp4):
     """Voice of an earlier narrated render, from the narration.txt copied beside it (house voice when it predates the copy)."""
-    try:
-        line = open(mp4[:-4] + ".narration.txt", encoding="utf-8").readline()
+    try:  # errors=replace: the voice line is ASCII even when the file was re-saved in another code page (Notepad, cp949)
+        line = open(mp4[:-4] + ".narration.txt", encoding="utf-8", errors="replace").readline()
     except OSError:
         return narration.VOICE
     return line[len("voice: "):].strip() if line.startswith("voice: ") else narration.VOICE
 
 
+def sections(out, nofit):
+    """'f2: no fit (3.8s)' → 'f2 [narration.overview]: no fit (3.8s)': the content field that voices that scene (template S:
+    signature.narration.<scene>, which overrides every other source). narration.txt has no text for such a scene."""
+    try:
+        sc = {sid: f for sid, f, _, _ in narration.scenes(open(os.path.join(out, "index.html"), encoding="utf-8").read())}
+        key = narration.scene_key if TEMPLATE == "S" else narration.section_of  # narration.narrate's keyof
+        field = {sid: ("signature.narration." if TEMPLATE == "S" else "narration.") + key(f) for sid, f in sc.items() if key(f)}
+    except Exception:  # only a hint: the warning itself must get out
+        return nofit
+    # an entry that already names its section ('f2 [overview]: no fit') has no bare scene id before the ':' and stays as it is
+    return [r.replace(":", f" [{field[r.split(':')[0]]}]:", 1) if r.split(":")[0] in field else r for r in nofit]
+
+
 def order_of(path):
     name = os.path.basename(path)
-    head = name.split("-")[0]
-    return int(head) if head.isdigit() and "-" in name else None
+    head = name.split("-")[0]  # [0-9]: str.isdigit() also passes '²' and '①', which int() then refuses
+    return int(head) if re.fullmatch(r"[0-9]+", head) and "-" in name else None
 
 
 def target(slug):
@@ -170,9 +218,12 @@ def target(slug):
 
 def current(path, mp4):
     """mp4 is an up-to-date render of path: newer than its content (edited content gets re-rendered), with the requested voice
-    and captions (the .srt beside a narrated render is there exactly when it was made with captions)."""
-    return (os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path)
-            and (not NARRATE or (rendered_voice(mp4) == VOICE and bool(captions_of(mp4)) == CAPTIONS)))
+    and captions (the .srt beside a narrated render is there exactly when it was made with captions). An .srt older than
+    the mp4 (left by older code beside a captionless re-render) counts for neither way: the video is rendered again."""
+    if not (os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path)):
+        return False
+    caps = bool(captions_of(mp4)) if CAPTIONS else not os.path.exists(mp4[:-4] + ".srt")
+    return not NARRATE or (rendered_voice(mp4) == VOICE and caps)
 
 
 def wanted(order, want):
@@ -186,6 +237,8 @@ def due(path, render, want):
         return order is not None and wanted(order, want) and not (render and current(path, target(os.path.basename(path)[:-5])))
     except OSError:  # removed or renamed meanwhile
         return False
+    except Exception:  # counted: one() meets the same problem and logs it as this file's FAIL, the batch goes on
+        return True
 
 
 def progress(prog):
@@ -196,23 +249,6 @@ def progress(prog):
     return f"[{i}/{n}{left}]"
 
 
-def voice_ready():
-    """The voice can speak on this machine: say so once, here, instead of 'SKIP narration failed' for every video."""
-    global VOICE
-    if hasattr(narration, "check_voice"):  # bare names → full voice IDs, unknown voices, a Chirp voice without its key
-        try:
-            v = narration.check_voice(VOICE)
-        except Exception as e:
-            die(f"voice {VOICE}: {e}")
-        if isinstance(v, str) and v:
-            VOICE = v
-    google = "Chirp3-HD" in VOICE or "Chirp-HD" in VOICE  # the same routing as narration.synth
-    if not google and not shutil.which(getattr(narration, "UVX", "uvx")):
-        die(f"narration with {VOICE} runs edge-tts through uv's uvx, which is not installed - install uv "
-            "(https://docs.astral.sh/uv/ : 'pip install uv' or 'winget install astral-sh.uv'), "
-            "or put GOOGLE_TTS_API_KEY in .env for the Google voice, or run with --no-narrate")
-
-
 def main():
     global TEMPLATE, NARRATE, VOICE, CAPTIONS
     o = options(sys.argv[1:])
@@ -220,8 +256,8 @@ def main():
     NARRATE = "--no-narrate" not in o["flags"]  # --narrate is the default (still accepted)
     CAPTIONS = "--no-captions" not in o["flags"]
     render, want = "--no-render" not in o["flags"], o["want"]
-    if NARRATE:
-        voice_ready()
+    if NARRATE:  # again here (cheap): main() is also called on its own, without the __main__ block's voice_first()
+        VOICE = voice_ready(narration, VOICE)
     done, prog = set(), {"i": 0, "n": 0, "t0": time.time()}
     while True:  # re-scan after each pass so contents written meanwhile are picked up
         files = [p for p in sorted(glob.glob(os.path.join(ROOT, "data", "content", "*.json")))
@@ -260,12 +296,13 @@ def one(path, render, want, prog):
     if TEMPLATE == "S" and "signature" not in json.load(open(path, encoding="utf-8")):
         log(f"{slug} SKIP template S needs a signature block (CONTENT_SPEC: 시그니처 장면)")
         return
-    v = validate(path)
+    notes = []  # validate's non-blocking findings (long unbroken words, a clamped music bpm, ...)
+    v = validate(path, TEMPLATE, notes) if VALIDATE_NOTES else validate(path)
     if TEMPLATE != "S":  # sigcheck judges the S film only: for A-I its findings are a note, never a reason to skip
-        sig = [e for e in v if e.startswith("signature: ")]
-        v = [e for e in v if e not in sig]
-        if sig:
-            log(f"{slug} note: signature problems (template S only, not blocking {TEMPLATE}): {' / '.join(sig)[:300]}")
+        notes += [e for e in v if e.startswith("signature: ")]  # an older validate.check(path) still lists them as errors
+        v = [e for e in v if not e.startswith("signature: ")]
+    if notes:
+        log(f"{slug} note (not blocking {TEMPLATE}): {' / '.join(notes)[:400]}")
     if v:
         log(f"{slug} SKIP content: {' / '.join(v)[:300]}")
         return
@@ -293,8 +330,8 @@ def one(path, render, want, prog):
         nofit = [r for r in rep if re.match(r"[^:]*: no fit", r)]  # 's5: no fit (3.1s)'
         log(f"{slug} narration " + " | ".join(r.split(":")[0] for r in rep if r not in nofit))
         if nofit:  # the video still renders, but these scenes are silent: their line is too long even at the fastest rate
-            log(f"{slug} NO-FIT {' | '.join(nofit)} - silent scene; shorten that line "
-                f"({os.path.relpath(os.path.join(out, 'narration.txt'), ROOT)})")
+            log(f"{slug} NO-FIT {' | '.join(sections(out, nofit))} - left silent, too long even spoken faster: shorten that line in "
+                f"{os.path.relpath(path, ROOT)} (or write a short one where it is generated)")
     errs, warns = check_project(out)
     if errs:
         log(f"{slug} SKIP check errors={errs} {warns[:5]}")
@@ -303,11 +340,14 @@ def one(path, render, want, prog):
         log(f"{slug} built ok warnings={len(warns)} {sorted(set(warns))[:4]}")
         return
     t = time.time()
-    try:  # -o relative to the project: npx.cmd goes through cmd.exe, which cuts an unquoted absolute path at '&' (D:\R&D\...)
-        r = subprocess.run(HYPERFRAMES + ["render", "-q", "delivery", "-o", os.path.relpath(mp4, out)], cwd=out, env=ENV,
+    # -o: npx.cmd goes through cmd.exe, which cuts an unquoted absolute path at '&' (D:\R&D\...), so on Windows it is relative
+    # to the project. Elsewhere it stays absolute: node resolves a relative one from the real directory, past a symlinked videos/
+    o = os.path.relpath(mp4, out) if os.name == "nt" else mp4
+    try:
+        r = subprocess.run(HYPERFRAMES + ["render", "-q", "delivery", "-o", o], cwd=out, env=ENV,
                            stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
     except subprocess.TimeoutExpired:
-        log(f"{slug} RENDER FAIL timeout after {time.time() - t:.0f}s")
+        log(f"{slug} RENDER FAIL {progress(prog)} timeout after {time.time() - t:.0f}s")
         return
     ok = r.returncode == 0 and os.path.exists(mp4) and os.path.getmtime(mp4) >= t - 1
     log(f"{slug} {'RENDERED' if ok else 'RENDER FAIL'} {progress(prog)} {time.time() - t:.0f}s warnings={len(warns)}"

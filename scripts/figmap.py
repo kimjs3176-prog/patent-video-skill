@@ -11,6 +11,8 @@ Nothing in the content file is changed; coordinates are written after looking at
 Usage: python -I tools/figmap.py data/content/<order>-<appno>.json [...]
        python -I tools/figmap.py data/content/<file>.json --figure fig-p11-IM42.jpg   (a figure not yet in the content)
 With no anatomy proof and no loop signature yet, it grids every drawing of the patent so one can be chosen and measured.
+A figure that is missing or cannot be read is reported and skipped (the other jobs and files still run); the exit
+code is then 1.
 """
 import json
 import os
@@ -48,15 +50,21 @@ def ref_table(appno):
 
 
 def grid(appno, fn):
-    """The figure with a 10 × 10 measuring grid; returns the image path."""
+    """The figure with a 10 × 10 measuring grid; returns (image path, None), or (None, why) when ffmpeg fails."""
     src = os.path.join(ROOT, "data", "patents", appno, fn)
     out_dir = os.path.join(ROOT, "data", "fig_map", appno)
     os.makedirs(out_dir, exist_ok=True)
     dst = os.path.join(out_dir, os.path.splitext(fn)[0] + "_grid.png")
     vf = ("scale='min(1400,iw)':-2,format=rgb24,"
           "drawgrid=w=iw/10:h=ih/10:t=1:c=0x1e90ff@0.55,drawgrid=w=iw/2:h=ih/2:t=3:c=0xff3b30@0.6")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", src, "-vf", vf, "-frames:v", "1", dst], check=True)
-    return dst
+    if os.path.exists(dst):  # never show an old grid for a figure that can no longer be read
+        os.remove(dst)
+    r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", src, "-vf", vf, "-frames:v", "1", dst],
+                       capture_output=True, text=True, errors="replace")
+    if r.returncode or not os.path.exists(dst):
+        why = (r.stderr.strip().splitlines() or [f"ffmpeg exit {r.returncode}"])[0]  # the first line names the cause
+        return None, re.sub(r"^\[[^\]]*\]\s*", "", why)[:200]
+    return dst, None
 
 
 def norm(s):
@@ -64,15 +72,20 @@ def norm(s):
 
 
 def report(path, figure=None):
-    c = json.load(open(path, encoding="utf-8"))
+    """Print the sign table and grids for one content file; returns how many jobs were skipped."""
+    try:
+        c = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print(f"== {os.path.basename(path)}  읽을 수 없음: {e} (건너뜀)")
+        return 1
     if not appno_ok(c.get("appno")):
         print(f"== {os.path.basename(path)}  appno는 숫자 13자리: {c.get('appno')!r} (건너뜀)")
-        return
+        return 1
     refs = ref_table(c["appno"])
-    jobs = []
+    jobs, skipped = [], 0
     if figure:
         jobs.append(("figure", figure, []))
-    if c["proof"].get("kind") == "anatomy":
+    if (c.get("proof") or {}).get("kind") == "anatomy":
         jobs.append(("proof.parts", c["proof"].get("figure"), c["proof"].get("parts", [])))
     sg = c.get("signature") or {}
     if sg.get("type") == "claim" and sg.get("figure"):  # claim elements marked on one drawing
@@ -96,9 +109,19 @@ def report(path, figure=None):
             continue
         if not figure_ok(fn):
             print(f"  {label}: 파일명 형식 오류 {fn!r} (건너뜀)")
+            skipped += 1
             continue
-        print(f"  {label} on {fn}  grid: {grid(c['appno'], fn)}")
-        for i, p in enumerate(parts):
+        if not os.path.exists(os.path.join(ROOT, "data", "patents", c["appno"], fn)):
+            print(f"  {label}: 도면 파일 없음 {fn!r} (격자 건너뜀; data/patents/{c['appno']}/의 fig-* 이름 확인)")
+            skipped += 1
+        else:
+            g, why = grid(c["appno"], fn)
+            if g:
+                print(f"  {label} on {fn}  grid: {g}")
+            else:
+                print(f"  {label}: 격자 생성 실패 {fn!r}: {why} (건너뜀)")
+                skipped += 1
+        for i, p in enumerate(parts):  # the sign check needs only fulltext.txt, so it runs without the grid too
             ref = str(p.get("ref") or "")
             hint = ""
             if not ref:
@@ -108,6 +131,7 @@ def report(path, figure=None):
                 hint = f"  ← 명세서 {ref} = '{refs[ref]}' (이름 확인)"
             done = "x·y 있음" if "x" in p and "y" in p else "x·y 필요"
             print(f"    [{i}] {p['n']} ({ref or '-'}) {done}{hint}")
+    return skipped
 
 
 if __name__ == "__main__":
@@ -117,5 +141,6 @@ if __name__ == "__main__":
     if "--figure" in args:
         fig = args[args.index("--figure") + 1]
         args = [a for i, a in enumerate(args) if a != "--figure" and (i == 0 or args[i - 1] != "--figure")]
-    for p in args:
-        report(p, fig)
+    skipped = sum(report(p, fig) for p in args)  # every file is processed; a skip only sets the exit code
+    if skipped:
+        sys.exit(f"{skipped}건 건너뜀 (위의 '건너뜀' 줄)")
