@@ -39,7 +39,7 @@ def die(msg):
 
 def options(argv):
     """Flags and the orders to make. Anything unknown stops the run: a typo ('--templte', '1–100') must not mean 'everything'."""
-    o = {"template": "A", "voice": None, "flags": set(), "want": set()}
+    o = {"template": "A", "voice": None, "flags": set(), "want": []}  # want: inclusive (first, last) order ranges
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -49,13 +49,14 @@ def options(argv):
             o[a[2:]] = argv[i + 1]
             i += 2
             continue
-        m = re.fullmatch(r"(\d+)[-~](\d+)", a)
+        m = re.fullmatch(r"([0-9]+)(?:[-~]([0-9]+))?", a)  # 137, 1-100, 101~205
         if a in FLAGS:
             o["flags"].add(a)
-        elif a.isdigit():
-            o["want"].add(int(a))
-        elif m and int(m.group(1)) <= int(m.group(2)):
-            o["want"] |= set(range(int(m.group(1)), int(m.group(2)) + 1))
+        elif m:
+            lo, hi = int(m.group(1)), int(m.group(2) or m.group(1))
+            if lo > hi:
+                die(f"range {a}: the first order is after the last")
+            o["want"].append((lo, hi))
         else:
             die(f"unknown argument {a!r} (see the usage at the top of tools/produce.py)")
         i += 1
@@ -173,11 +174,15 @@ def current(path, mp4):
             and (not NARRATE or (rendered_voice(mp4) == VOICE and bool(captions_of(mp4)) == CAPTIONS)))
 
 
+def wanted(order, want):
+    return not want or any(lo <= order <= hi for lo, hi in want)
+
+
 def due(path, render, want):
     """one() will build this file (for the [i/N] count)."""
     try:
         order = order_of(path)
-        return order is not None and (not want or order in want) and not (render and current(path, target(os.path.basename(path)[:-5])))
+        return order is not None and wanted(order, want) and not (render and current(path, target(os.path.basename(path)[:-5])))
     except OSError:  # removed or renamed meanwhile
         return False
 
@@ -237,7 +242,7 @@ def one(path, render, want, prog):
     if order is None:
         log(f"{os.path.basename(path)} SKIP file name is not <order>-<appno>.json")
         return
-    if want and order not in want:
+    if not wanted(order, want):
         return
     slug = os.path.basename(path)[:-5]
     appno = slug.split("-", 1)[1]
@@ -284,10 +289,10 @@ def one(path, render, want, prog):
         except Exception as e:  # network or TTS failure: skip this video (no silent render), say why
             log(f"{slug} SKIP narration failed: {e}")
             return
-        nofit = [r for r in rep if "no fit" in r]
+        nofit = [r for r in rep if re.match(r"[^:]*: no fit", r)]  # 's5: no fit (3.1s)'
         log(f"{slug} narration " + " | ".join(r.split(":")[0] for r in rep if r not in nofit))
-        if nofit:  # the video still renders, but these scenes are silent: the line is too long for them even at full speed
-            log(f"{slug} NO-FIT {' | '.join(nofit)} - silent scene; shorten its narration line (videos*/{slug}/narration.txt)")
+        if nofit:  # the video still renders, but these scenes are silent: their line is too long even at the fastest rate
+            log(f"{slug} NO-FIT {' | '.join(nofit)} - silent scene; shorten that line ({os.path.relpath(os.path.join(out, 'narration.txt'), ROOT)})")
     errs, warns = check_project(out)
     if errs:
         log(f"{slug} SKIP check errors={errs} {warns[:5]}")

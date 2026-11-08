@@ -96,7 +96,33 @@ VOICE = default_voice()
 
 
 # ---------------------------------------------------------------- spoken text
-UNITS = [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
+_SUP, _SUB = "⁰¹²³⁴⁵⁶⁷⁸⁹", "₀₁₂₃₄₅₆₇₈₉"
+
+
+def _plain(ch):
+    """², ₂, ⁸, ①, ８, ⑩ … → the ASCII digits they stand for; any other character unchanged."""
+    if ch.isascii() or not ch.isnumeric():
+        return ch
+    nf = unicodedata.normalize("NFKC", ch)
+    if nf.isascii() and nf.isdigit():
+        return nf
+    d = unicodedata.digit(ch, None)  # Arabic-Indic and other script digits, which NFKC leaves alone
+    return ch if d is None else str(d)
+
+
+# particles written after a symbol are re-picked for the word it is read as: 3 mL을 → 3 밀리리터를, H₂O를 → 물을
+_PAIRS = {"을": "을를", "를": "을를", "이": "이가", "가": "이가", "은": "은는", "는": "은는", "과": "과와", "와": "과와", "으로": "으로로", "로": "으로로"}
+_PART = r"(으로|을|를|이|가|은|는|과|와|로)(?![가-힣])"
+# m², cm³, ㎡ …: 제곱/세제곱 + the length; ahead of the other units, or "cm" would take "cm²" and leave the voice a bare "²"
+_LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "μm": "마이크로미터", "µm": "마이크로미터", "m": "미터"}
+_POWER = {"2": "제곱", "3": "세제곱"}
+AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
+    (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
+# formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
+_CHEM = {"H₂O₂": "과산화수소", "CO₂": "이산화탄소", "H₂O": "물", "CH₄": "메탄", "NH₃": "암모니아", "N₂O": "아산화질소", "NO₂": "이산화질소",
+         "SO₂": "이산화황", "O₂": "산소", "N₂": "질소", "H₂": "수소", "O₃": "오존"}
+FORMULAS = [(re.sub(f"[{_SUB}]", lambda m: f"[{m.group()}{_plain(m.group())}]", f) if len(f) > 2 else f, k) for f, k in _CHEM.items()]
+UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
          ("kDa", "킬로달톤"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
@@ -106,15 +132,21 @@ UNITS = [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피
 def speak(text):
     """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
     t = re.sub(r"<[^>]+>", " ", text.replace("|", "")).replace("−", "-")
+    for f, k in FORMULAS:  # CO₂ → 이산화탄소, H₂O₂ → 과산화수소 (not inside a longer formula or word)
+        t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
     for u, k in UNITS:  # a unit right after a number, not inside a word
         t = re.sub(rf"(\d)\s*{re.escape(u)}(?![A-Za-z])", rf"\1 {k}", t)
+    for u, k in AREA:  # an area or volume with no number before it: kg/m², 주/㎡
+        t = re.sub(rf"(?<![A-Za-zμµ]){re.escape(u)}(?![A-Za-z])", k, t)
     # particles written for the symbol now follow a spoken word: 3 mL을 → 3 밀리리터를
     spoken = "|".join(sorted({k for _, k in UNITS} | {"도", "퍼센트"}, key=len, reverse=True))
-    pairs = {"을": "을를", "를": "을를", "이": "이가", "가": "이가", "은": "은는", "는": "은는", "과": "과와", "와": "과와", "으로": "으로로", "로": "으로로"}
-    t = re.sub(rf"(\d\s*(?:{spoken}))(으로|을|를|이|가|은|는|과|와|로)(?![가-힣])", lambda m: josa(m.group(1), pairs[m.group(2)]), t)
+    t = re.sub(rf"(\d\s*(?:{spoken})){_PART}", lambda m: josa(m.group(1), _PAIRS[m.group(2)]), t)
+    t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
+        f'{m.group(1)}의 {"마이너스 " if m.group(2) else ""}{"".join(map(_plain, m.group(3)))}제곱', m.group(4)), t)
+    t = "".join(map(_plain, t))  # any other ², ₂, ①, ８ is read as its digit (Fe₂O₃ → Fe2O3)
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
@@ -127,8 +159,18 @@ def speak(text):
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
+    t = re.sub(r"([.?!])\.+", r"\1", t)  # a title that already ended in ? or . : '어렵다?.' → '어렵다?', '흡입한다..' → '흡입한다.'
     t = re.sub(r"\s{2,}", " ", t).strip()
     return t if not t or t[-1] in ".?!" else t + "."
+
+
+def _say(word, particle):
+    return josa(word, _PAIRS[particle]) if particle else word
+
+
+def has_words(text):
+    """False for a line with nothing to voice ('.', '…', ''): sent to TTS it fails the video or burns a '.' caption."""
+    return bool(re.search(r"[^\W_]", text or ""))
 
 
 _DIGIT_CODA = {"0": True, "1": True, "2": False, "3": True, "4": False, "5": False, "6": True, "7": True, "8": True, "9": False}
@@ -138,12 +180,16 @@ _RIEUL = {"1", "7", "8"}
 def josa(word, pair):
     """Korean particle after `word` as it is read aloud: pair is "은는", "이가", "을를", "과와" or "으로로"."""
     w = re.sub(r"[\s.,)\]]+$", "", word)
-    ch = w[-1:] if w else ""
-    if "가" <= ch <= "힣":
+    ch = _plain(w[-1:])[-1:]  # ², ₂, ①, ８ count as the digit they stand for (looked up as they are, they raised KeyError)
+    if re.search(r"(?:[A-Za-zμµ][²³]|[㎟-㎦])$", w):  # m², cm³, ㎡ are read …미터
+        has, rieul = False, False
+    elif re.search(rf"\d⁻?[{_SUP}]+$", w):  # 10⁸ is read 10의 8제곱
+        has, rieul = True, False
+    elif "가" <= ch <= "힣":
         coda = (ord(ch) - 0xAC00) % 28
         has, rieul = coda != 0, coda == 8
     elif ch.isdigit():
-        has, rieul = _DIGIT_CODA[ch], ch in _RIEUL
+        has, rieul = _DIGIT_CODA.get(ch, False), ch in _RIEUL
     elif ch.isalpha():
         has, rieul = ch.lower() in "lmnr", ch.lower() == "l"
     else:
@@ -196,7 +242,8 @@ def auto_script(c):
     else:
         it = pr["items"][0]
         val = speak(f'{it["big"]}{it.get("u", "")}').rstrip(".")
-        proof = f'그 결과 {josa(_clean(it["l"]), "은는")} {josa(val, "을를") + " 기록했습니다" if val[-1:].isdigit() else val + "입니다"}.'
+        # a plain number is 'recorded'; '²'.isdigit() is True too, so the test is for ASCII digits only
+        proof = f'그 결과 {josa(_clean(it["l"]), "은는")} {josa(val, "을를") + " 기록했습니다" if re.search(r"[0-9]$", val) else val + "입니다"}.'
     ft = c.get("features") or {}
     feats = [f.get("l") or f.get("t") or f.get("n") for f in (ft.get("tiles") or ft.get("items") or []) if isinstance(f, dict)]
     feats = [_clean(f) for f in feats if f][:2]
