@@ -148,7 +148,8 @@ python -m pip install -r ~/.claude/skills/patent-tech-video/requirements.txt
 
 필요한 것: Node.js **22+**(`npx hyperframes@0.8.207`이 Node 22 이상을 요구), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
 `openpyxl` `pypdf` `fonttools` `brotli` `numpy`, `uv`(기본 나레이션 edge-tts를 `uvx`로 실행하므로 필수. `GOOGLE_TTS_API_KEY`의 Google 음성만 쓰거나
-`--no-narrate`면 없어도 됨). `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx를 검사해 없으면 바로 멈춥니다.
+`--no-narrate`면 없어도 됨). `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx와 음성을 검사해,
+빠진 것이 있으면 음악을 만들거나 영상을 빌드하기 전에 멈춥니다.
 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 화면 출력 없이 내려받으므로, 미리 받아 두려면 `npx --yes hyperframes@0.8.207 browser ensure`를 실행합니다.
 edge-tts는 OS 인증서 저장소를 쓰므로 TLS 검사 프록시가 있는 기관망에서도 동작합니다.
 Windows에서 출력을 파이프나 파일로 받을 때 한글이 깨지지 않게 `python -I -X utf8 ...`으로 실행합니다(`PYTHONIOENCODING`은 `-I`가 무시합니다. 콘솔 창에서는 원래 잘 보입니다).
@@ -158,7 +159,7 @@ Windows에서 출력을 파이프나 파일로 받을 때 한글이 깨지지 �
 | 항목 | 이유 | 대신 |
 |---|---|---|
 | KIPRIS Plus 서비스키 | 비밀 정보 | 프로젝트 `.env`에 `KIPRIS_API_KEY=...` (커밋 금지, `.gitignore` 포함). 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 추출 |
-| 배경음악 | 저작권 걱정 없음(직접 작곡) | `assets/music`이 비어 있으면 `produce.py`가 `compose.py`로 4곡을 직접 작곡·연주(키·외부 서비스 없음). 콘텐츠의 `music` 블록으로 특허마다 다른 곡. `.env`에 `GEMINI_API_KEY`가 있으면 Google Lyria 3.5(과금). Lyria가 실패하거나 덜 만들면 나머지는 작곡으로 채움. 곡은 다 쓴 뒤 한 번에 옮겨 놓아 중단돼도 잘린 곡이 남지 않음. 라이선스 있는 mp3를 넣어도 됨. `--no-music-gen`은 기본 4곡 자동 생성(Lyria·작곡)을 끔(콘텐츠 `music` 블록 곡은 그대로 작곡) |
+| 배경음악 | 저작권 걱정 없음(직접 작곡) | `produce.py`가 기본 4곡(m01~m04) 중 `assets/music`에 없는 곡만 `compose.py`로 직접 작곡·연주(키·외부 서비스 없음, 사용자 mp3가 있으면 손대지 않음, 지운 기본곡은 다음 실행에 다시 생김). 콘텐츠의 `music` 블록으로 특허마다 다른 곡. `.env`에 `GEMINI_API_KEY`가 있으면 Google Lyria 3.5(과금). Lyria가 실패하거나 덜 만들면 나머지는 작곡으로 채움. 곡은 다 쓴 뒤 한 번에 옮겨 놓아 중단돼도 잘린 곡이 남지 않음. 라이선스 있는 mp3를 넣어도 됨. `--no-music-gen`은 기본 4곡 자동 생성(Lyria·작곡)을 끔(콘텐츠 `music` 블록 곡은 그대로 작곡) |
 | 효과음 | Pixabay 콘텐츠를 단독 재배포하지 않음 | HyperFrames `media-use` 스킬이 설치돼 있으면 `setup_project.py`가 자동 복사(없으면 생략) |
 
 ## 보안 메모

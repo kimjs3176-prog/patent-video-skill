@@ -9,14 +9,14 @@ unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, a
 Narrated videos carry burned-in captions (--no-captions to leave them out); the .srt goes beside the mp4 and to patents/,
 and turning captions on or off re-renders (the .srt beside the mp4 records which way it was made).
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
-One log line per video in renders*/produce.log; RENDERED lines carry [i/N] and the estimated time left. When assets/music is
-empty, background music is made first (tools/music.py):
-Google Lyria with GEMINI_API_KEY, otherwise composed by the pipeline itself (no key). A content's `music` block gives that
-patent its own composed bed. --no-music-gen skips the automatic beds.
+One log line per video in renders*/produce.log; RENDERED lines carry [i/N] and the estimated time left. Background music
+comes first (tools/music.py): whichever of the four default beds m01..m04 assets/music lacks is made - Google Lyria with
+GEMINI_API_KEY, otherwise composed by the pipeline itself (no key), and composed as well for whatever Lyria does not
+deliver. A folder with mp3s of your own is left alone. A content's `music` block gives that patent its own composed bed.
+--no-music-gen skips the default beds (a content's own bed is still composed).
 """
 import glob
 import importlib.util
-import inspect
 import json
 import os
 import re
@@ -92,14 +92,12 @@ def preflight():
 def voice_ready(nar, voice):
     """The voice can speak on this machine: say so once, at start, instead of 'SKIP narration failed' for every video.
     Returns the voice id narration records (check_voice: bare names → full IDs; unknown voices, a Chirp voice without its key)."""
-    if hasattr(nar, "check_voice"):
-        try:
-            v = nar.check_voice(voice)
-        except Exception as e:
-            die(f"voice {voice}: {e}")
-        voice = v if isinstance(v, str) and v else voice
+    try:
+        voice = nar.check_voice(voice)
+    except Exception as e:
+        die(f"voice {voice}: {e}")
     google = "Chirp3-HD" in voice or "Chirp-HD" in voice  # the same routing as narration.synth
-    if not google and not shutil.which(getattr(nar, "UVX", "uvx")):
+    if not google and not shutil.which(nar.UVX):
         die(f"narration with {voice} runs edge-tts through uv's uvx, which is not installed - install uv "
             "(https://docs.astral.sh/uv/ : 'pip install uv' or 'winget install astral-sh.uv'), "
             "or put GOOGLE_TTS_API_KEY in .env for the Google voice, or run with --no-narrate")
@@ -139,7 +137,6 @@ import narration  # noqa: E402
 import postprocess  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VALIDATE_NOTES = "warns" in inspect.signature(validate).parameters  # check(path, template, warns): S-only problems as notes
 # --yes: npm otherwise asks before installing the pinned version, and with output captured a person never sees the prompt
 HYPERFRAMES = [music.NPX, "--yes", music.HF]
 ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
@@ -296,11 +293,8 @@ def one(path, render, want, prog):
     if TEMPLATE == "S" and "signature" not in json.load(open(path, encoding="utf-8")):
         log(f"{slug} SKIP template S needs a signature block (CONTENT_SPEC: 시그니처 장면)")
         return
-    notes = []  # validate's non-blocking findings (long unbroken words, a clamped music bpm, ...)
-    v = validate(path, TEMPLATE, notes) if VALIDATE_NOTES else validate(path)
-    if TEMPLATE != "S":  # sigcheck judges the S film only: for A-I its findings are a note, never a reason to skip
-        notes += [e for e in v if e.startswith("signature: ")]  # an older validate.check(path) still lists them as errors
-        v = [e for e in v if not e.startswith("signature: ")]
+    notes = []  # validate's non-blocking findings (long unbroken words, a clamped music bpm; for A-I the S-only signature block)
+    v = validate(path, TEMPLATE, notes)
     if notes:
         log(f"{slug} note (not blocking {TEMPLATE}): {' / '.join(notes)[:400]}")
     if v:

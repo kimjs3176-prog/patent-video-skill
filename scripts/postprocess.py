@@ -6,7 +6,7 @@
    taking time in proportion to its real length (getTotalLength, measured once at mount, dashes in those same units), so
    the pen never stops; paths stay invisible until the pen reaches them. Several icons in one selector draw one after
    another with a short overlap.
-   Linear draws (ease none, e.g. a path a dot travels along) are left alone.
+   Linear draws (ease none, e.g. a path a dot travels along) keep their own tween, only in the same real units.
 2. fonts: per-video subsetting (fontsub.py).
 
 Usage: python -I tools/postprocess.py <project dir> [...]
@@ -42,6 +42,21 @@ PEN = """    const penDraw = (sel, at, dur, gap) => {
 """
 CALL = re.compile(r'tl\.fromTo\((?P<sel>[^;]*?), \{ ?strokeDasharray: 1, strokeDashoffset: 1 ?\}, \{ ?strokeDashoffset: 0, duration: (?P<d>[\d.]+), '
                   r'ease: "(?!none")[^"]+"(?:, stagger: (?P<s>[\d.]+))? ?\}, (?P<t>[^;]+?)\);')
+# A linear draw keeps its tween (its timing matches the dot riding the line) but needs the same real units: REAL_LENGTH
+# has taken pathLength off, and a 1px dash left the whole line showing from the start (template H's wave). The length is
+# measured once, before the tween exists, and passed as a constant (a function-valued var re-measures in every render
+# worker; HyperFrames flags it). The undrawn line sits half a unit inside a gap one unit longer than itself, unrounded:
+# GSAP rounds px by default, and an offset rounded just short of L (or past it, against an "L L" dash) left a round-cap
+# dot at one end of the still undrawn line.
+LINE = re.compile(r'tl\.fromTo\((?P<sel>[^;]*?), \{ ?strokeDasharray: 1, strokeDashoffset: 1 ?\}, \{ ?strokeDashoffset: 0, duration: (?P<d>[\d.]+), '
+                  r'ease: "none"(?:, stagger: (?P<s>[\d.]+))? ?\}, (?P<t>[^;]+?)\);')
+
+
+def line_sub(m):
+    at = f'{m.group("t")} + i * {m.group("s")}' if m.group("s") else m.group("t")
+    return (f'document.querySelectorAll({m.group("sel")}).forEach((el, i) => {{ el.removeAttribute("pathLength"); const L = el.getTotalLength(); '
+            f'tl.fromTo(el, {{ strokeDasharray: L + " " + (L + 1), strokeDashoffset: L + 0.5, autoRound: false }}, '
+            f'{{ strokeDashoffset: 0, duration: {m.group("d")}, ease: "none", autoRound: false }}, {at}); }});')
 
 
 def pen_draw(out):
@@ -60,6 +75,8 @@ def pen_draw(out):
         if k:
             # after the timeline is created, whatever its options (some templates set defaults)
             s2 = re.sub(r"(const tl = gsap\.timeline\([^;]*\);)", lambda m: m.group(1) + "\n" + PEN, s2, count=1)
+        s2, k2 = LINE.subn(line_sub, s2)
+        if k or k2:
             open(p, "w", encoding="utf-8").write(s2)
             n += k
     return n

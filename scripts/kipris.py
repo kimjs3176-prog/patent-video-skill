@@ -214,6 +214,7 @@ def parse_pdf(pdf, outdir):
 
 if __name__ == "__main__":
     import time
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # KIPRIS error text can be Korean; a Windows pipe is cp949
     os.makedirs(os.path.join(ROOT, "data", "patents"), exist_ok=True)
     args = sys.argv[1:]
     if args[:1] == ["--pdf"]:

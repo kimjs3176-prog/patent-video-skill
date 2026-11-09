@@ -1,13 +1,14 @@
 """Write copies of the source Excel lists with a last column naming each row's video file(s).
 
-Usage: python -I tools/annotate_lists.py [--template A..I|S] <list.xlsx> [...]
+Usage: python -I -X utf8 tools/annotate_lists.py [--template A..I|S] <list.xlsx> [...]
 The column lists the deliverable patents/{출원번호}.mp4 (see tools/export.py); --template X lists that template's
 renders_* file name instead.
 Copies are saved next to the originals as <name>_영상파일명.xlsx; originals are never modified.
 The header row of each sheet is the row just above the first row that mentions a patent;
 the new column goes right after the sheet's last used column (past any merged cell of the rows it writes) and copies
 its style. A sheet that already has the column (an annotated copy given again) gets it refilled, not a second one.
-Patent numbers are read as master_list.py reads them (dashes, 원출원 notes, 등록번호).
+Patent numbers are read as master_list.py reads them (dashes, 원출원 notes); data/master.json decides which are patents,
+so a number master_list only reported (a 등록번호-looking 1020190010000) that was added to it by hand is annotated too.
 """
 import copy
 import json
@@ -23,6 +24,7 @@ from master_list import app_numbers, norm  # noqa: E402  the same numbers as the
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LABEL = "기술소개 영상 파일"
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # sheet names and error text; a Windows pipe would be cp949
 
 args = sys.argv[1:]
 tpl = None
@@ -49,9 +51,11 @@ LISTED = {m["appno"] for m in master}
 
 
 def numbers_in(values):
-    """The listed patents a row mentions, its cells read as one text (as master_list.py reads a row)."""
+    """The listed patents a row mentions, its cells read as one text (as master_list.py reads a row). master.json is
+    the authority: only a 제외 or 원출원 mention of a listed number is not the row's patent."""
     cells = [str(int(v)) if isinstance(v, float) and v.is_integer() else str(v) for v in values if v not in (None, "")]
-    return [num for _, num, why in app_numbers(norm("\n".join(cells))) if not why and num in LISTED]
+    return [num for _, num, why in app_numbers(norm("\n".join(cells)), one_row=True)
+            if why not in ("제외", "parent") and num in LISTED]
 
 
 def free_col(ws, col, rows):

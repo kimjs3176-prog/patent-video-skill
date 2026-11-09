@@ -23,9 +23,11 @@ TEMPLATES = tuple("ABCDEFGHIS")
 # overflow-wrap: anywhere is cut at whatever syllable meets the edge. The tightest boxes (the 9:16 covers C c1-sub, B b1-sub,
 # F f1-t) hold 10 Hangul syllables and cut 11; 9em (10 syllables by em_width) leaves room for its estimate of Latin capitals.
 LONG_WORD = 9.0
-# where Chromium still wraps under keep-all besides spaces: next to punctuation that touches a Hangul syllable (· - / ( . ~ ...)
-# and after a hyphen or dash. Hangul, Latin and digits run together, and 'ㆍ' (a jamo) or '·' '/' between Latin never break.
-BREAKS = re.compile(r"\s+|(?<=[가-힣])(?=[^\w\s])|(?<=[^\w\s])(?=[가-힣])|(?<=[-–])")
+# where Chromium still wraps under keep-all besides spaces: next to punctuation that touches a Hangul syllable (· - / ( . ~ _
+# ...) and after a hyphen or dash. Hangul, Latin and digits run together, and 'ㆍ' (a jamo), '·' '/' between Latin and the
+# straight quotes " ' (UAX 14 glues them to both neighbours; the curly ” does break) never break.
+_P = r"(?:[^\w\s\"']|_)"
+BREAKS = re.compile(rf"\s+|(?<=[가-힣])(?={_P})|(?<={_P})(?=[가-힣])|(?<=[-–])")
 
 
 def appno_ok(appno):
@@ -36,8 +38,13 @@ def figure_ok(fn):
     return isinstance(fn, str) and bool(FIGURE.fullmatch(fn))
 
 
-def _num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+def _num(v):  # a JSON number: no bool, NaN or Infinity (json.load takes those); a 400-digit int is fine (isfinite is not)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and (isinstance(v, int) or math.isfinite(v))
+
+
+def _show(v, n=24):  # a value echoed in a message: a 400-digit number or a long string must not swamp the log line
+    s = (str(v) if isinstance(v, int) else f"{v:g}") if _num(v) else repr(v)
+    return s if len(s) <= n else s[:n] + "…"
 
 
 def check(path, template=None, warns=None):
@@ -47,7 +54,7 @@ def check(path, template=None, warns=None):
     w = [] if warns is None else warns
     try:
         return _check(path, (template or "S").upper(), w)
-    except (KeyError, TypeError, AttributeError, IndexError, ValueError) as e:
+    except (KeyError, TypeError, AttributeError, IndexError, ValueError, OverflowError) as e:  # Overflow: a huge int as float
         return [f"구조 오류(필드 형식·누락): {type(e).__name__} {e}"]
 
 
@@ -71,30 +78,34 @@ def _check_music(m, errs, warn):
     for k, v in m.items():
         if k not in known:  # spec_of keeps it, render never reads it: a typo ('tempo', 'perc ') would just vanish
             errs.append(f"music 알 수 없는 항목: {k} ({', '.join(known)})")
-        elif v is None:  # spec_of drops null: the preset's value
-            continue
+        elif v is None or v == "":  # spec_of drops both: the preset's value
+            if v == "" and k in enum and "none" in enum[k]:  # an empty voice is the preset's voice, not silence
+                warn.append(f"music.{k} 빈 값: 프리셋 값으로 연주됨(끄려면 \"none\")")
         elif k in enum:
             if not isinstance(v, str) or v not in enum[k]:
-                errs.append(f"music.{k} 없음: {v!r} ({', '.join(enum[k])})")
+                errs.append(f"music.{k} 없음: {_show(v)} ({', '.join(enum[k])})")
         elif k == "bpm":
             if not _num(v):
-                errs.append(f"music.bpm은 숫자: {v!r}")
+                errs.append(f"music.bpm은 숫자: {_show(v)}")
             elif not 70 <= v <= 160:  # spec_of clamps, so the piece plays at the nearer end
-                warn.append(f"music.bpm {v:g}: 70~160 밖이라 {min(160, max(70, v)):g}에 맞춰 연주됨")
+                warn.append(f"music.bpm {_show(v)}: 70~160 밖이라 {min(160, max(70, v)):g}에 맞춰 연주됨")
         elif k == "key":  # transpose() reads only a root and moves the preset's major progression there
             if not (isinstance(v, str) and re.fullmatch(r"[A-G][#b]?", v)):
-                errs.append(f"music.key는 으뜸음만(C · F# · Bb …, 장조로 옮김): {v!r}")
-            elif m.get("progression"):
-                warn.append(f"music.key {v}: progression이 있으면 쓰이지 않음(key는 프리셋 진행을 옮길 때만)")
+                errs.append(f"music.key는 으뜸음만(C · F# · Bb …, 장조로 옮김): {_show(v)}")
+            elif m.get("progression"):  # then spec_of plays the progression as written; a key equal to its root is moot
+                p = m["progression"]
+                r = re.match(r"\s*([A-G][#b]?)", p[0]) if isinstance(p, list) and isinstance(p[0], str) else None
+                if not r or compose.pc(r.group(1)) != compose.pc(v):
+                    warn.append(f"music.key {v}: progression이 있으면 쓰이지 않음(진행은 쓴 대로, key는 프리셋 진행을 옮길 때만)")
         elif k == "progression":
             if not (isinstance(v, list) and v and all(isinstance(x, str) and x.strip() for x in v)):
                 errs.append("music.progression은 화음 이름 목록(마디당 하나, 1개 이상)")
         elif k == "chord_bars":  # render: max(1, int(...)), so 0 and 1.5 would play as something else
             if not (_num(v) and v >= 1 and v == int(v)):
-                errs.append(f"music.chord_bars는 1 이상의 정수: {v!r}")
+                errs.append(f"music.chord_bars는 1 이상의 정수: {_show(v)}")
         elif k == "seed":  # numpy's default_rng takes a non-negative integer
             if not (_num(v) and v >= 0 and v == int(v)):
-                errs.append(f"music.seed는 0 이상의 정수: {v!r}")
+                errs.append(f"music.seed는 0 이상의 정수: {_show(v)}")
     if len(errs) == n:  # types are sound: now the chords themselves, as compose will play them (key applied)
         try:
             [compose.chord(x) for x in compose.spec_of(m)["progression"]]
@@ -134,9 +145,10 @@ def _check(path, template, warn):
     lim("name", c["name"], 8.6)
     lim("sub", c["sub"], 20)
     lim("headline", c["headline"], 26)
-    # the big keep-all titles (covers, scene heads); name is nowrap + fit and already under 9em
+    # the big keep-all titles (covers, scene heads); name is nowrap + fit and already under 9em. proof.title is shown
+    # only by the anatomy scene, so it is measured there
     for label, text in (("sub", c["sub"]), ("headline", c["headline"]), ("process.title", c["process"].get("title")),
-                        ("proof.title", c["proof"].get("title")), ("features.title", c["features"].get("title"))):
+                        ("features.title", c["features"].get("title"))):
         unbroken(label, text)
     if c.get("music") is not None:  # the patent's own composed bed (compose.py)
         _check_music(c["music"], errs, warn)
@@ -158,18 +170,21 @@ def _check(path, template, warn):
         lim("step.n", s["n"], 9)
         lim("step.d", s["d"], 16)
         lim("step.big", s["big"] + s.get("u", ""), 7.5)
+    # the builders join it into data/patents/<appno>/ paths, so a JSON number (which appno_ok also takes) fails there
+    appno = c["appno"] if isinstance(c["appno"], str) and appno_ok(c["appno"]) else None
     pr = c["proof"]
     if pr.get("kind") == "anatomy":
         fn = pr.get("figure")
         if not fn:  # every builder reads proof.figure for anatomy (a missing key used to pass as the patent folder itself)
             errs.append("proof.figure 필요(anatomy: 부호가 보이는 도면 파일명)")
-        elif figure_ok(fn) and appno_ok(c["appno"]) and not os.path.isfile(
-                os.path.join(ROOT, "data", "patents", str(c["appno"]), fn)):  # a bad name or appno is reported below
+        elif figure_ok(fn) and appno and not os.path.isfile(
+                os.path.join(ROOT, "data", "patents", appno, fn)):  # a bad name or appno is reported below
             errs.append(f"figure 파일 없음: {fn}")
         for p in pr.get("parts", []):
             lim("part.n", p["n"], 11)
             lim("part.d", p["d"], 21)
         lim("proof.title", pr.get("title", ""), 22)
+        unbroken("proof.title", pr.get("title"))
     else:
         items = pr.get("items", [])
         if not 1 <= len(items) <= 3:
@@ -212,11 +227,14 @@ def _check(path, template, warn):
     for at, v in strings(c):
         if re.search(r"<(?!br />)[A-Za-z/!?]", v.replace("<br/>", "<br />")):  # tags only; '<4%' is text
             errs.append(f"허용되지 않은 마크업({at}): <br /> 외 태그 금지")
-    if not appno_ok(c.get("appno")):
-        errs.append("appno는 숫자 13자리")
-    sig = c.get("signature") or {}
+    if not appno:
+        errs.append("appno는 숫자 13자리 문자열")
+
+    def obj(x):  # a misshapen S-only block is sigcheck's to report (an error for S, a note for A-I), not a crash here
+        return x if isinstance(x, dict) else {}
+    sig = obj(c.get("signature"))
     for at, fn in [("proof.figure", c["proof"].get("figure")), ("signature.figure", sig.get("figure")),
-                   ("signature.run.figure", (sig.get("run") or {}).get("figure")), ("signature.path.figure", (sig.get("path") or {}).get("figure"))]:
+                   ("signature.run.figure", obj(sig.get("run")).get("figure")), ("signature.path.figure", obj(sig.get("path")).get("figure"))]:
         if fn is not None and not figure_ok(fn):
             errs.append(f"{at} 파일명 형식 오류: {fn}")
     for i, part in enumerate(c["proof"].get("parts", [])):  # markers on the drawing: fractions of the figure image

@@ -19,8 +19,9 @@ FONT = "assets/fonts/pretendard/Pretendard-SemiBold.woff2"
 # Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px, or, for a template
 # with a masthead at the very top (I), scaled down from the top centre so nothing of the scene is lost. The captions then
 # never cover anything a scene shows. Moving up needs BAND px of empty top margin, and `hyperframes check` does not notice
-# text pushed past the top edge: 16:9 text starts 80 px down or more (E's e6 eyebrow sits at 110 px because its drift
-# scales it up; the ef header at 70 px keeps about 13 px of glyph margin), 9:16 text 176 px or more. Keep that in new scenes.
+# text pushed past the top edge. So new scenes put text 80 px or more from the top at 16:9 and 176 px or more at 9:16, and
+# lower still when a drift scales it up (E's e6 eyebrow sits at 110 px for that). The older ef header box at 70 px still
+# keeps about 13 px above its glyphs once lifted.
 BAND = {"wide": 64, "tall": 136}  # px; 9:16 has room for two lines, though a cue of ~24 characters is usually one (mount)
 SCALE_PREFIX = ("i",)  # scene files of template I: i1-front, i2-how, …
 

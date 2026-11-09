@@ -4,7 +4,7 @@ For each content JSON (anatomy proof, or a loop / claim signature) this
   - reads "부호의 설명" from data/patents/<appno>/fulltext.txt into a sign → name table,
   - matches each listed part to its sign (by `ref`, or by name when `ref` is missing — printed as a suggestion),
   - writes data/fig_map/<appno>/<figure>_grid.png: the drawing with a 10 × 10 grid (bold every 5), so a model reading it
-    can measure x/y as fractions (cell = 0.1) — see references/FIGURE_ANALYSIS.md,
+    can measure x/y as fractions (cell = 0.1) — see tools/FIGURE_ANALYSIS.md (the skill's references/, copied by setup),
   - and lists which parts still need x/y.
 Nothing in the content file is changed; coordinates are written after looking at the grid image.
 

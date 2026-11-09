@@ -13,7 +13,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import contact, contact_label, disclaimer, holder_line, E, music_for, PALETTES, ROOT, fit, rgba  # noqa: E402
+from build import contact, contact_label, disclaimer, even_wrap, holder_line, E, music_for, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
 from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
@@ -173,9 +173,12 @@ def d3(c, pal, d):
     steps = c["process"]["steps"][:6]
     n = len(steps)
     span = 1640 / n
+    # step names share one size, fitted to the widest so a space-free 9em name stays on one line at six steps; at the
+    # 28px type floor a name a few px too wide splits evenly (even_wrap) instead of leaving its last syllable alone
+    tt = max(28, min(fit(st["n"], 34, span - 24) for st in steps))
     nodes = "".join(f'<div class="tn{" k" if i == n - 1 else ""}" id="d3-n{i}" style="left: {span * (i + 0.5):.0f}px; width: {span - 20:.0f}px; margin-left: -{(span - 20) / 2:.0f}px">'
                     f'<div class="y">{E(st["big"])}<small>{E(st.get("u", ""))}</small></div><div class="dt">{icon(process_icon(c, st), 40, "currentColor", 6)}</div>'
-                    f'<div class="tt">{E(st["n"])}</div><div class="dd">{E(st["d"])}</div></div>'
+                    f'<div class="tt">{even_wrap(st["n"], tt, span - 24)}</div><div class="dd">{E(st["d"])}</div></div>'
                     for i, st in enumerate(steps))
     a1, a2, _ = pal
     body = f"""
@@ -193,7 +196,7 @@ def d3(c, pal, d):
     .tn .y small {{ font-size: 28px; margin-left: 4px; }}
     .tn .dt {{ width: 76px; height: 76px; border-radius: 50%; margin: 8px auto 0; background: #0c2216; border: 4px solid {a1}; color: {a1}; display: flex; align-items: center; justify-content: center; }}
     .tn.k .dt {{ background: {a1}; color: #08190f; box-shadow: 0 0 30px {a1}; }}
-    .tn .tt {{ font-size: 34px; font-weight: 700; margin-top: 22px; letter-spacing: -0.03em; color: #fff; }}
+    .tn .tt {{ font-size: {tt}px; font-weight: 700; margin-top: 22px; letter-spacing: -0.03em; color: #fff; }}
     .tn .dd {{ font-size: 28px; color: #a9b8ad; margin-top: 12px; line-height: 1.45; }}"""
     T = [1.0 + i * (6.6 / n) for i in range(n)]
     prof_html, prof_js = temp_profile("d3", steps, [140 + span * (i + 0.5) for i in range(n)], 820, 140, T, a1, "rgba(255,255,255,0.18)", caption="#a9b8ad")
@@ -429,11 +432,13 @@ def e1(c, pal, d):
     return scene("e1", 1920, 1080, e_css(pal), body, js, "dark", enter=False)
 
 
-def e3_name(name, w):
-    """Style of a flow card's step name: fitted to the card (six cards are 233px wide), but not under the 28px floor;
-    a name that still does not fit wraps (at its space or ·) instead of spilling out of the card."""
-    px = fit(name, 36, w - 56)
-    return f"font-size: {px}px" if px >= 28 else "font-size: 28px; white-space: normal; line-height: 1.2"
+def e3_name(steps, w):
+    """(font size, style) of the flow cards' step names: one size for the row (peer cards, so no mix of sizes), fitted
+    to the widest name in its card (six cards are 233px wide) but not under the 28px type floor. A name that still does
+    not fit wraps onto two even lines (even_wrap: at its space, or mid-word for a space-free compound) instead of
+    spilling out of the card or leaving its last syllable alone."""
+    px = min(fit(st["n"], 36, w - 56) for st in steps)
+    return (px, f"font-size: {px}px") if px >= 28 else (28, "font-size: 28px; white-space: normal; line-height: 1.2")
 
 
 def e3(c, pal, d):
@@ -441,11 +446,12 @@ def e3(c, pal, d):
     steps = c["process"]["steps"][:6]
     n = len(steps)
     w = min(330, int((1700 - (n - 1) * 60) / n))  # 233px at n=6
+    px, hs = e3_name(steps, w)
     flow = ""
     for i, st in enumerate(steps):
         if i:
             flow += f'<div class="arrow" id="e3-a{i}">›</div>'
-        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(process_icon(c, st), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4 style="{e3_name(st["n"], w)}">{E(st["n"])}</h4>'
+        flow += (f'<div class="fs card" id="e3-s{i}" style="width: {w}px"><div class="pg">{icon(process_icon(c, st), 64, darken(b, 0.3), 5)}</div><small>STEP {i + 1}</small><h4 style="{hs}">{even_wrap(st["n"], px, w - 56)}</h4>'
                  f'<div class="v gr" style="font-size: {fit(st["big"] + st.get("u", ""), 46, w - 50)}px">{E(st["big"])}<em>{E(st.get("u", ""))}</em></div><p>{E(st["d"])}</p></div>')
     body = f"""
       <div style="position: absolute; left: 0; right: 0; top: 120px">
@@ -702,9 +708,10 @@ def f3(c, pal, d):
     .ck b { display: block; font-size: 46px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
     .ck span { display: block; font-size: 30px; font-weight: 600; color: #6e6e73; white-space: nowrap; }"""
     js = [up("#f3-t", 0.3)]
-    # rows come in 0.95 s apart; six rows are packed tighter so the last one is up at 4.6 s, held ~1.8 s (the check's read
-    # floor is 1.5 s) before the dip into f4 at 6.0 s
-    gap = min(0.95, 3.8 / max(1, len(steps) - 1))
+    # rows come in 0.95 s apart; five or six rows are packed tighter so the last one is up by 3.7 s and holds ~2.7 s before
+    # the scene ends: the check's read floor is 0.75 x (0.5 s + 0.3 s a word), 2.6 s for a full 18-character step line
+    # with its value (10 words)
+    gap = min(0.95, 2.9 / max(1, len(steps) - 1))
     for i in range(len(steps)):
         t = 0.8 + i * gap
         js.append(up(f"#f3-r{i}", t, 0, 0.6, 30))

@@ -7,8 +7,9 @@ Each scene of the built project is matched to a section by its composition file 
 are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
 The voice is picked by default_voice(): Google Chirp 3 HD (ko-KR-Chirp3-HD-Aoede, much closer to a human narrator) when a
 GOOGLE_TTS_API_KEY is set (environment or the project's .env), otherwise edge-tts 선희 (ko-KR-SunHiNeural); --voice overrides it
-(check_voice(): a bare name maps to its Korean voice, Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural; any "…-Chirp3-HD-<name>"
-voice goes to Google, every other name to edge-tts; an unknown voice stops the run once). Before synthesis each line goes through speak(),
+(check_voice(): a bare name maps to its Korean voice, Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural,
+Hyunsu → ko-KR-HyunsuMultilingualNeural; any "…-Chirp3-HD-<name>" or "…-Chirp-HD-<x>" voice goes to Google, every other name to
+edge-tts; an unknown voice stops the run once). Before synthesis each line goes through speak(),
 which turns what the screen writes into what a narrator says ("50~90분" → "50에서 90분", "℃" → "도", "가열·가압" → "가열, 가압",
 "41.5 cm²" → "41.5 제곱센티미터", "CO₂" → "이산화탄소", "10⁸" → "10의 8제곱"). A line that does not fit its scene is re-voiced faster
 (natural pace first, then +6 %, +12 %, up to +18 %) and then shortened by whole sentences, so narration never runs into the next scene.
@@ -33,6 +34,9 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import ROOT, contact, contact_label  # noqa: E402
 from visuals import pick_figures  # noqa: E402
+# the titles template S puts on screen when a content leaves them out (l_run, l_path, q_ct/q_tubes/q_gel, q_problem): voiced
+# the same, where '' + '.' used to voice a bare '.'
+from build_sig import TITLES as SIG_TITLES, problem_title  # noqa: E402
 
 EDGE_VOICE = "ko-KR-SunHiNeural"  # free house voice: 선희 (SunHi)
 GOOGLE_VOICE = "ko-KR-Chirp3-HD-Aoede"  # natural narrator voice (female, calm) when a Google key is available
@@ -149,7 +153,8 @@ def speak(text):
     # the voice reads them as before and the caption keeps them, where plain digits ran into one number (SO42⁻)
     t = "".join(ch if ch in _SUP + _SUB else _plain(ch) for ch in t)
     for f, k in FORMULAS:  # CO₂ → 이산화탄소, H₂O₂ → 과산화수소 (not inside a longer formula or word)
-        t = re.sub(rf"{k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)  # 이산화탄소(CO₂)를: the name once, not twice
+        # 이산화탄소(CO₂)를: the name once, not twice. Only the bare name: 부산물(H₂O) keeps its aside (부산물, 물)
+        t = re.sub(rf"(?<![가-힣]){k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
@@ -179,7 +184,7 @@ def speak(text):
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
-    # a line that already ended gets one more full stop: '흡입한다..' → '흡입한다.', '어렵다?.' → '어렵다?'; an ellipsis ('...') is a pause, kept
+    # a full stop put after an end mark goes: '흡입한다..' → '흡입한다.', '어렵다?.' → '어렵다?'; an ellipsis ('...') is a pause and stays
     t = re.sub(r"(?<!\.)\.\.(?=\s|$)", ".", t)
     t = re.sub(r"([?!…])\.(?=\s|$)", r"\1", t)
     t = re.sub(r"\s{2,}", " ", t).strip()
@@ -225,9 +230,6 @@ def josa(word, pair):
 SIG_SCENES = ("route", "journey", "parts", "run", "path", "problem", "primers", "probe", "result", "tubes", "gel", "mix", "effect", "tree", "traits",
               "anatomy")
 SIG_FRAME = {"teaser": "hook", "proof": "proof", "features": "features", "apps": "apps", "outro": "outro"}
-# the titles build_sig.py puts on screen when the content leaves them out (l_run, l_path, q_ct/q_tubes/q_gel): voiced the same,
-# where '' + '.' used to voice a bare '.'. Keep in step with build_sig.py.
-SIG_TITLES = {"run": "작동 |원리", "path": "흐름을 |따라가면", "ct": "민감도와 |특이도", "tubes": "색으로 |바로 읽는다", "gel": "한 번에 |가린다"}
 
 
 def scene_key(fname):
@@ -323,8 +325,8 @@ def auto_sig_script(c):
             _end(f'{_seq(i, len(rs_))} {_clean(q["n"])}' + (f', {_clean(q["d"])}' if q.get("d") else "")) for i, q in enumerate(rs_)] if x)
     if sg.get("path"):
         out["path"] = _end(sg["path"].get("title", SIG_TITLES["path"]))
-    if sg.get("problem"):  # build_sig.py q_problem's default title
-        out["problem"] = _end(sg["problem"].get("title") or f'{c["sub"].split(" ")[0]} 피해, |빨리 찾아야 막는다')
+    if sg.get("problem"):
+        out["problem"] = _end(problem_title(c))
     if sg.get("primers"):
         out["primers"] = f'{len(sg["primers"])}개의 프라이머가 {sg.get("target", "표적")}의 {len(sg.get("layout", []))}개 부위를 정확히 찾아 붙습니다.'
     if sg.get("probe"):
@@ -415,7 +417,11 @@ def _edge(text, voice, rate, dst):
         env.update(UV_NATIVE_TLS="1", UV_SYSTEM_CERTS="1")
     cmd = [UVX, "--python", ">=3.10", "--from", EDGE_TTS, "--with", SYS_CERTS,  # pip-system-certs needs 3.10+: never resolve on an older Python
            "edge-tts", "--voice", voice, f"--rate={rate}", f"--text={text}", "--write-media", dst]
-    for tries, wait in enumerate((0, 2, 5, 15), 1):  # the same back-off as _google and duration
+    # the free service now and then sends no audio for a valid line, in bursts (Hyunsu often, 2026-11: a later try works).
+    # It answers a voice that does not exist the same way, so only the Korean voices known to exist get the retries
+    # (0 + 2 + 5 + 15 s); another language's voice, which check_voice passes by its shape alone, fails at once.
+    known = voice in EDGE_KO.values()
+    for tries, wait in enumerate((0, 2, 5, 15) if known else (0,), 1):  # the same back-off as _google and duration
         time.sleep(wait)
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=300, env=env)
@@ -423,10 +429,10 @@ def _edge(text, voice, rate, dst):
         except subprocess.CalledProcessError as e:  # its str() is the whole command and 'exit status 1': the cause is the last stderr line
             err = [s.strip() for s in (e.stderr or b"").decode("utf-8", "replace").splitlines() if s.strip()]
             last = [s for s in err if not s.startswith(("warning:", "hint:"))][-1:] or err[-1:] or ["no error output"]  # uv's notes come around it
-            # the free service now and then sends no audio for a valid line, in bursts (Hyunsu often, 2026-11: a later try works);
-            # anything else (Invalid voice, a certificate error) is final
-            if "NoAudioReceived" not in last[0] or tries == 4:
-                raise RuntimeError(f"edge-tts failed (exit {e.returncode}, voice {voice}): {last[0]}"[:300]) from None
+            # anything else (a certificate error, a bad option) is final
+            if "NoAudioReceived" not in last[0] or not known or tries == 4:
+                hint = "" if known or "NoAudioReceived" not in last[0] else " - is the voice right? (edge-tts --list-voices)"
+                raise RuntimeError(f"edge-tts failed (exit {e.returncode}, voice {voice}): {last[0]}"[:300] + hint) from None
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"edge-tts timed out after 300 s (voice {voice})") from None
 
@@ -453,7 +459,7 @@ def synth(text, voice, rate):
 
 
 def sentences(text):
-    return [s for s in re.split(r"(?<=[.!?。…])\s+", text.strip()) if has_words(s)]
+    return [s for s in re.split(rf"(?<=[{ENDS}])\s+", text.strip()) if has_words(s)]
 
 
 def fit(text, avail, voice):

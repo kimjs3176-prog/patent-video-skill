@@ -225,6 +225,25 @@ def fit(text, max_px, width, k=None):
     return int(max_px if w <= 0 else min(max_px, width / w))
 
 
+def even_wrap(text, px, width):
+    """E(text) with <wbr> inside each space-free word wider than width at px, splitting it into the fewest pieces of
+    near-equal width at character boundaries. Under keep-all + overflow-wrap: anywhere such a word otherwise breaks
+    wherever the line runs out ('저온숙성병입공' / '정'); keep-all honours <wbr>, so the lines come out even instead."""
+    out = []
+    for word in text.split(" "):
+        cum, acc = [], 0.0
+        for ch in word:
+            acc += em_width(ch)
+            cum.append(acc)
+        k = int(-(-acc * px // width)) if width > 0 else 1  # pieces needed (ceil)
+        if k <= 1 or len(word) < 2:
+            out.append(E(word))
+            continue
+        cuts = sorted({min(range(len(word) - 1), key=lambda j: abs(cum[j] - acc * i / k)) + 1 for i in range(1, k)})
+        out.append("<wbr>".join(E(word[a:b]) for a, b in zip([0, *cuts], [*cuts, len(word)])))
+    return " ".join(out)
+
+
 def gtext(s):
     """'plain|grad' -> html with the part after | in the gradient."""
     if "|" in s:

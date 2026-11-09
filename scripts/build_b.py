@@ -71,8 +71,9 @@ def head(sid, pal, idx):
     return css, top
 
 
-def wrap(sid, css, top, body, script, dur, extra_css="", swipe_out=True):
-    out = f'tl.to("#{sid}-card", {{ x: -1080, duration: 0.45, ease: "power3.in" }}, {dur - 0.45:.2f});' if swipe_out else ""
+def wrap(sid, css, top, body, script, dur, extra_css="", swipe_out=True, prog=None):
+    out = (f'tl.to("#{sid}-card", {{ x: -1080, duration: 0.45, ease: "power3.in" }}, {dur - 0.45:.2f});' if swipe_out
+           else f'tl.set({{}}, {{}}, {dur:.2f});  // no swipe-out: the timeline still spans the whole scene')
     return f"""{css}
   <style>{extra_css}</style>
   <div id="root" data-composition-id="{sid}" data-width="{W}" data-height="{H}">
@@ -84,7 +85,7 @@ def wrap(sid, css, top, body, script, dur, extra_css="", swipe_out=True):
     const tl = gsap.timeline({{ paused: true }});
     // swipe in from the right, swipe out to the left (card-news carousel)
     tl.fromTo("#{sid}-card", {{ x: {0 if sid == "b1" else 1080} }}, {{ x: 0, duration: 0.5, ease: "power3.out" }}, 0);
-    tl.fromTo("#{sid}-prog", {{ scaleX: 0 }}, {{ scaleX: 1, duration: {dur:.2f}, ease: "none" }}, 0);
+    tl.fromTo("#{sid}-prog", {{ scaleX: 0 }}, {{ scaleX: 1, duration: {prog or dur:.2f}, ease: "none" }}, 0);
     {script}
     {out}
     window.__timelines["{sid}"] = tl;
@@ -317,8 +318,9 @@ def b7(c, pal, d):
     .b7-row b {{ font-size: 44px; font-weight: 900; color: {acc}; }}"""
     script = """
     tl.fromTo(["#b7-code", "#b7-sub", "#b7-r1", "#b7-meta", "#b7-disc"], { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.12 }, 0.3);"""
-    # the outro holds to the end: no swipe-out, and its progress bar fills over the scene's own length
-    return wrap("b7", css, top, body, script, d, extra, swipe_out=False)
+    # the outro holds to the end: no swipe-out. Its progress bar is full when the end fade (add_transitions, the film's
+    # last 0.85 s) starts, so the full bar shows before the screen dims
+    return wrap("b7", css, top, body, script, d, extra, swipe_out=False, prog=d - 0.85)
 
 
 SCENES = {"b1-cover": b1, "b2-summary": b2, "b3-process": b3, "b4-proof": b4, "bf-figures": bf, "b5-features": b5, "b6-apps": b6, "b7-outro": b7}

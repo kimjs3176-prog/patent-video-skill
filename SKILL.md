@@ -66,7 +66,7 @@ Windows에서 파이프·파일로 받는 한글 출력이 깨지지 않게 파�
   사람 성우에 가까운 Google Chirp 3 HD `ko-KR-Chirp3-HD-Aoede`로, 없으면 무료 edge-tts 선희 `ko-KR-SunHiNeural`로 읽는다.
   키가 없을 때 더 자연스러운 음성을 원하면 키 발급을 한 줄 권한다(응답에 키를 다시 적지 않는다). `--voice`로 바꿀 수 있다. 전체 음성 ID로 적는다:
   `--voice ko-KR-Chirp3-HD-Kore`(다른 Chirp 3 HD 음성도 `ko-KR-Chirp3-HD-<이름>`: Kore·Leda·Zephyr 여성, Charon·Puck·Fenrir 남성; `GOOGLE_TTS_API_KEY` 필요),
-  `--voice ko-KR-SunHiNeural`(edge-tts). 이름만 주면(`Kore`, `SunHi`) 전체 ID로 바꿔 쓰고, 모르는 음성이나 키 없는 Chirp 음성은 시작할 때 한 번 오류로 멈춘다.
+  `--voice ko-KR-SunHiNeural`(edge-tts 여성, 기본. 남성은 `ko-KR-InJoonNeural`, `ko-KR-HyunsuMultilingualNeural`. 무료 서비스가 가끔 음성을 보내지 않으면(현수에서 잦음) 이 한국어 세 음성은 줄마다 4번까지(약 22초) 다시 시도한다. 다른 언어의 edge 음성은 없는 음성도 같은 응답이 오므로 다시 시도하지 않고 바로 실패한다). 이름만 주면(`Kore`, `SunHi`, `Hyunsu`) 전체 ID로 바꿔 쓰고, 모르는 음성이나 키 없는 Chirp 음성은 시작할 때 한 번 오류로 멈춘다.
   대본은 합성 직전에 말하는 꼴로 다듬어진다(`50~90분`→"50에서 90분", `℃`→"도", `가열·가압`→"가열, 가압", `3 mL을`→"3 밀리리터를"). 엔딩(outro) 장면은 항상 음성 없이 음악만.
   edge-tts는 마이크로소프트 Edge 온라인 읽기 서비스를 비공식으로 쓰므로(Google은 유료 공식 API, 월 무료 한도 있음) 네트워크가 필요하고, 공공 배포 전 이용 조건을 사용자가 확인하도록 한 줄 알린다.
   edge-tts는 `uvx`로 실행되며 OS 인증서 저장소를 쓰므로(`pip-system-certs`, uv의 native TLS) 기관망의 TLS 검사 프록시 뒤에서도 동작한다.
@@ -75,7 +75,7 @@ Windows에서 파이프·파일로 받는 한글 출력이 깨지지 않게 파�
   `GOOGLE_TTS_API_KEY`로 Google 음성만 쓰거나 `--no-narrate`면 없어도 됨). 첫 검사(check) 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB),
   합쳐 약 450MB를 화면 출력 없이 몇 분간 내려받는다. 미리 받아 두려면 `npx --yes hyperframes@0.8.207 browser ensure`.
   처음이면 `python -I $SKILL_DIR/scripts/setup_project.py PROJ`가 끝난 뒤 빠진 도구가 있는지 알려 주고, `produce.py`도 시작할 때
-  Node 22+·numpy·(나레이션 시) `uvx`와 음성을 검사해, 빠진 것이 있으면 영상을 하나도 만들기 전에 멈춘다.
+  Node 22+·numpy·(나레이션 시) `uvx`와 음성을 검사해, 빠진 것이 있으면 기본 음악을 만들거나 영상을 빌드하기 전에 멈춘다.
 
 | 템플릿 | 비율·길이 | 성격 | 적합 |
 |---|---|---|---|
@@ -89,6 +89,7 @@ Windows에서 파이프·파일로 받는 한글 출력이 깨지지 않게 파�
 | H 오가닉 소프트테크 | 16:9 · 57.5초 | 베이지, 둥근 카드, 방사형 노드, 도면 카드 부채꼴 | 부드러운 홍보 |
 | I 뉴스룸 에디토리얼 | 16:9 · 56초 | 신문 지면, 세리프, 축 차트, 도면 포토 에세이 | 보도자료·기사형 |
 | **S 시그니처** | 16:9 · 40.5~56.5초(유형·데이터별) | 특허의 구조가 장면이 됨(재료 여정·도면 위 매질 흐름·서열 인식과 판독), 콘텐츠 `signature` 필요 | **특허마다 다른 영상(기본 권장)** |
+
 자세한 장면 구성은 `references/templates.md`. S의 길이는 유형마다 다르다: journey 49.5~54.8초, loop 44.5~54.4초, sequence 49.5~56.5초,
 formula 41.0~46.7초, lineage 41.0~47.3초, claim 40.5~47.1초(단계·부품·프라이머 수에 따라).
 
@@ -138,8 +139,10 @@ python -I tools/extract_figs.py --all                           # 흑백 기계�
   격자 도면을 Read로 보며 `proof.parts[].x/y`(장치 시그니처는 `callouts`, 청구항 시그니처는 `claim.elements`)를 찍는다. 확신이 없는 부품은 비워 둔다.
 - 시그니처 나레이션은 쓴 뒤 `python -I tools/narration.py --check data/content/<파일>.json`으로 미리 읽혀 본다(빌드 없이 장면 길이에 맞춰 음성 생성,
   음성 캐시에 남아 렌더 때 다시 쓴다). "sped up"(+12% 이상)이나 "cut" 표시가 나온 줄은 짧게 고친다. 잘린 줄이 있으면 실패 코드(1)로 끝난다.
-- 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다(시그니처 구조 검사 포함: 단계 그림이 모두 같거나,
-  흐르는 매질이 없거나, 도면 좌표가 0~1 밖이거나, 서열이 염기가 아니면 오류).
+- 작성 후 `python -I tools/validate.py data/content/<파일>.json`이 OK여야 한다(`--template` 없이 돌리면 시그니처 구조 검사까지 모두 오류로 본다:
+  단계 그림이 모두 같거나, 흐르는 매질이 없거나, 도면 좌표가 0~1 밖이거나, 서열이 염기가 아니면 오류). 만들 템플릿을
+  `--template A`처럼 주면 S만 읽는 signature 블록의 문제는 경고(`~`)로 바뀐다(파일명·마크업 검사는 그대로 오류). `produce.py`도 같은 규칙이다:
+  A~I에서는 시그니처 문제로 SKIP하지 않고 `produce.log`에 `<slug> note (not blocking A): signature: …`로 남기며, S에서만 SKIP한다.
 - 여러 건이면 `python -I tools/sigcheck.py data/content/*.json`으로 영상끼리 구성이 겹치지 않는지 본다. "같은 구성으로 보일 수 있음" 묶음은
   그 특허만의 요소(단계 그림·매질·판독·두 번째 도면·공정 편집) 하나 이상을 바꾼다.
 - 기관명 보정: `python -I tools/fix_institute.py data/content/*.json` (주관기관/과제수행기관명에서 국립○○원 추출).
@@ -165,20 +168,21 @@ python -I -X utf8 -u tools/produce.py --template G --no-narrate 137  # 나레이
   템플릿별 작업 사본은 A `renders/<순번>-<출원번호>_nar.mp4`, 나머지 `renders_<t>/<순번>-<출원번호>_<t>_nar.mp4`로 남고, 같은 특허를 다른 템플릿으로 다시 렌더링하면 `patents/`의 파일은 최신 것으로 바뀐다.
   예전에 렌더링한 파일만 내보낼 때: `python -I tools/export.py renders_s/<파일>.mp4`. 로그는 각 폴더 `produce.log`.
 - 나레이션: 장면 파일명으로 항목을 매칭하고(엔딩 제외), 장면에 안 들어가면 빠르게(보통 속도 → +6·+12·+18%, 최대 +18%) → 뒤 문장부터 생략. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시).
-  한 문장도 안 들어가는 줄은 그 장면이 음성 없이 렌더되고, `produce.log`에 `<slug> NO-FIT f2: no fit (3.8s) - silent scene; shorten that line (…/narration.txt)` 경고가 남는다 → 그 줄을 줄여 다시 돌린다. 음성 캐시 `data/voice_cache/`. 배경음악은 0.22로 낮춘다.
+  한 문장도 안 들어가는 줄은 그 장면이 음성 없이 렌더되고, `produce.log`에 `<slug> NO-FIT f2 [narration.overview]: no fit (3.8s) - left silent, … shorten that line in data/content/<파일>.json` 경고가 남는다
+  (`[ ]` 안이 그 장면을 읽는 콘텐츠 필드, S는 `signature.narration.<장면>`) → 그 줄을 줄여 다시 돌린다. 음성 캐시 `data/voice_cache/`. 배경음악은 0.22로 낮춘다.
 - 검사(`hyperframes check`) 오류가 있으면 렌더링하지 않고 SKIP으로 기록한다. SKIP 원인은 대개 글자 수 초과나 도면 파일명 오류라 JSON을 고치면 된다.
 - 한 편당 약 3.2분(4코어·16GB·GPU 없음 실측: 렌더 167~187초 + 빌드·검사 약 27초, 나레이션은 처음 만들 때 조금 더). 100건이면 약 5~6시간.
   RAM 8GB 이하 PC는 hyperframes가 렌더 worker를 1개로 고정해 훨씬 느리다. 파일럿 1편의 RENDERED 초를 보고 계획한다.
   `produce.log`의 RENDERED 줄에는 `[i/N ~1h05m left]`(이번 실행에서 만들 N편 중 몇 번째인지, 지금까지의 속도로 남은 시간)가 붙는다.
   수백 건이면 백그라운드로 돌리고, 위처럼 겹치지 않는 구간으로 나눠(`1-100`, `101-200`) 렌더러 2개까지 병렬 실행한다.
   `assets/music`의 기본곡이 아직 없으면 첫 렌더러가 곡을 다 만든 뒤 두 번째를 띄운다(둘이 같은 곡을 함께 만들지 않게).
-- 파일럿이나 템플릿 변경 뒤에는 `npx hyperframes@0.8.207 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
+- 파일럿이나 템플릿 변경 뒤에는 `npx --yes hyperframes@0.8.207 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
 
 ## 5. 마무리
 ```bash
 python -I tools/annotate_lists.py "<목록1.xlsx>" "<목록2.xlsx>"   # 사본 <이름>_영상파일명.xlsx, 마지막 열에 patents/{출원번호}.mp4
 ```
-최종 점검: `sigcheck.py` 구조 오류 0건, 모든 출원번호의 `patents/{출원번호}.mp4`·`.jpg` 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56초.
+최종 점검: (S로 만들었으면) `sigcheck.py` 구조 오류 0건, 모든 출원번호의 `patents/{출원번호}.mp4`·`.jpg` 존재, 길이(A 60 / B 50 / C 49.5 / D 60 / E 56.5 / F 40.5 / G 60 / H 57.5 / I 56초.
 S는 고정값이 없고 유형·데이터마다 40.5~56.5초이므로, 빌드 때 출력되는 `<slug> built (S · <유형> · <total>s)`의 total
 (= `videos_s/<slug>/index.html` 루트의 `data-duration`)과 ffprobe 길이가 ±0.2초 안인지 본다. 모두 60초를 넘기지 않는다), 영상+음성 스트림, mp4가 JSON보다 새 파일.
 전달 메시지(간결하게): 편수·길이·템플릿·음악 규칙, 확인이 필요한 점(명세서 모순 처리, 공개특허 건, 도면 부호 미확인 건, 소리는 측정만 함).

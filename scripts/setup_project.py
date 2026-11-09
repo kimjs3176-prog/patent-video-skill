@@ -7,8 +7,9 @@ and the content spec, the figure-analysis guide (FIGURE_ANALYSIS.md) + examples 
 Sound effects and background music are not redistributed with the public skill:
 - sfx: taken from this skill's assets/sfx when present, else from the HyperFrames media-use skill
   (~/.claude/skills/media-use/audio/assets/sfx, Pixabay Content License) when it is installed.
-- music: produce.py composes beds itself when <project>/assets/music is empty (compose.py, no key); or put your own
-  licensed mp3 files there (any names; they rotate in production order).
+- music: produce.py makes whichever of the four default beds m01..m04 <project>/assets/music lacks (compose.py, no key;
+  with GEMINI_API_KEY Google Lyria, and compose.py for whatever Lyria does not deliver); or put your own licensed mp3
+  files there (any names; they rotate in production order, and the default beds are then left out).
 Videos still build without either — the missing audio clips are simply left out.
 Re-running updates tools/*.py; a file that differs from the skill (your edits, or the copy of an older skill version) is
 first kept as tools/<name>.py.<YYYYmmdd-HHMMSS>.bak. A backup is never overwritten, so edits survive any number of updates.
@@ -72,7 +73,10 @@ def main(dst):
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, "assets", sub), dirs_exist_ok=True)
         else:
-            os.makedirs(os.path.join(dst, "assets", sub), exist_ok=True)
+            have = os.path.join(dst, "assets", sub)
+            os.makedirs(have, exist_ok=True)
+            if any(f.lower().endswith((".mp3", ".wav", ".m4a")) for f in os.listdir(have)):
+                continue  # a re-run (skill update) of a project that already has its beds or sfx: nothing to say
             print(f"note: assets/{sub} is empty - " + ("produce.py composes 4 beds on its own (no key; with GEMINI_API_KEY in .env "
                   "it has billed Google Lyria make them, and composes what Lyria does not deliver); or add licensed mp3s"
                   if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
@@ -142,4 +146,6 @@ def doctor(dst):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # the notes are partly Korean; a Windows pipe would get cp949
+    if len(sys.argv) != 2:
+        sys.exit("usage: python -I -X utf8 setup_project.py <project-dir>")
     main(os.path.abspath(sys.argv[1]))

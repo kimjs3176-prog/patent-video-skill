@@ -15,8 +15,16 @@ import json
 
 import build as A
 from build import E, fit, rgba
+from sigcheck import HEX
 
 COMP = ["#7ee787", "#79c0ff", "#ffa657", "#ff9bce", "#f2cc60", "#d2a8ff"]
+
+
+def comp_color(p, i):
+    """A component's own colour only when it is '#RRGGBB'/'#RGB' (sigcheck reports anything else; a build that skipped
+    validate must still not write CSS or a quote into fill/style), else the palette's."""
+    v = p.get("color")
+    return v if isinstance(v, str) and HEX.fullmatch(v) else COMP[i % len(COMP)]
 
 
 def _sc():
@@ -44,7 +52,7 @@ def fx_mix(c, pal, d):
     for i, p in enumerate(comps):
         h = max(14, H * float(p["v"]) / tot * 0.96)
         y -= h
-        col = p.get("color") or COMP[i % len(COMP)]
+        col = comp_color(p, i)
         bands += f'<rect class="fx-band" id="fx-b{i}" x="{vx0}" y="{y:.0f}" width="{vx1 - vx0}" height="{h + 1:.0f}" fill="{col}" opacity="0.85" />'
         streams += (f'<rect id="fx-s{i}" x="{(vx0 + vx1) / 2 - 9:.0f}" y="210" width="18" height="{y - 210:.0f}" rx="9" fill="{col}" opacity="0" />')
     vessel = (f'<path d="M{vx0 - 20} 300 L{vx1 + 20} 300 M{vx0} 300 L{vx0} {vy1 - 40} Q{vx0} {vy1 + 20} {vx0 + 60} {vy1 + 20} '
@@ -54,7 +62,7 @@ def fx_mix(c, pal, d):
     rows = ""
     top0 = 560 - n * 112 / 2 + 40
     for i, p in enumerate(comps):
-        col = p.get("color") or COMP[i % len(COMP)]
+        col = comp_color(p, i)
         val = _num(p["v"]) + p.get("u", "")
         rows += (f'<div class="fx-r" id="fx-r{i}" style="top: {top0 + i * 112:.0f}px"><i style="background: {col}"></i>'
                  f'<div class="tx"><div class="n" style="font-size: {fit(p["n"], 38, 520)}px">{E(p["n"])}</div><div class="s">{E(p.get("role", ""))}</div></div>'
