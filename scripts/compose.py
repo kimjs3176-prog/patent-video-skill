@@ -14,8 +14,8 @@ and writes the mp3.
    "perc": "light", "seed": 7}            # none | light | pulse
 
 Where it is used:
-- music.py --mode compose (and produce.py when assets/music is empty and no GEMINI_API_KEY): four preset beds
-  m01..m04 in assets/music that the videos rotate through.
+- music.py --mode compose (and produce.py for whichever of them assets/music lacks, with no GEMINI_API_KEY or for what
+  Lyria did not deliver): four preset beds m01..m04 in assets/music that the videos rotate through.
 - a content JSON's own `music` block: that patent gets its own bed, data/music/<appno>-<hash>.mp3 (made by produce.py
   before the build; postprocess copies it into the video project).
 
@@ -376,10 +376,18 @@ def write_wav(mix, path):
         w.writeframes(data.tobytes())
 
 
-def bed(spec, dst):
-    """Compose, perform and master one bed as dst (mp3, 60.5 s with fades). Returns the resolved spec."""
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+def _music():
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
     import music
+    return music
+
+
+def bed(spec, dst):
+    """Compose, perform and master one bed as dst (mp3, 60.5 s with fades). Returns the resolved spec. dst appears only
+    once whole (music.to_bed encodes into a .part and moves it into place)."""
+    music = _music()
     mix, s = render(spec)
     with tempfile.TemporaryDirectory(prefix="compose-") as d:
         wav = os.path.join(d, "bed.wav")
@@ -404,8 +412,12 @@ def ensure_track(c):
         return None
     d = os.path.join(ROOT, "data", "music")
     os.makedirs(d, exist_ok=True)
-    if not os.path.exists(os.path.join(d, name)):
-        bed(c["music"], os.path.join(d, name))
+    music = _music()
+    music.clean_parts(d)
+    path = os.path.join(d, name)
+    # a file cut short is made again: older versions encoded straight into it, and an interrupted encode still plays
+    if not (os.path.exists(path) and music.complete(path)):
+        bed(c["music"], path)
     return name
 
 

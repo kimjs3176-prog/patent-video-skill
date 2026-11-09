@@ -22,6 +22,7 @@ SCENES = {"journey": {"route", "journey"}, "loop": {"parts", "run", "path"},
           "sequence": {"problem", "primers", "probe", "result", "tubes", "gel"},
           "formula": {"mix", "effect"}, "lineage": {"tree", "traits"}, "claim": {"anatomy", "tree"}}
 BASES = re.compile(r"[ACGTURYKMSWBDHVNI]+")
+HEX = re.compile(r"#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})")  # colours a builder writes into fill/style/GSAP as they are
 
 
 def _frac(v):
@@ -45,6 +46,13 @@ def _points(pts, at, errs, lo=3, hi=6, named=False):
         x, y = (p.get("x"), p.get("y")) if named else (p[0], p[1]) if len(p) == 2 else (None, None)
         if not (_frac(x) and _frac(y)):
             errs.append(f"{at}[{i}]: 좌표는 도면 비율 0~1")
+
+
+def _hex(v, at, errs):
+    """An optional colour the builder writes as is: '#RRGGBB' (or '#RGB') only. A colour word ('보라색', 'sky blue')
+    renders black or stays unchanged, and a quote would break the scene's script."""
+    if v not in (None, "") and not (isinstance(v, str) and HEX.fullmatch(v)):
+        errs.append(f"{at} '{str(v)[:24]}': #RRGGBB 16진 색만 (명세서의 색을 바꿔 적기, 예: 보라 #8e5bd6 · 하늘 #56b8e6 · 노랑 #f2cc60)")
 
 
 def _num(v):
@@ -197,6 +205,7 @@ def _problems(c):
         for i, p in enumerate(comps):
             if not p.get("n") or not isinstance(p.get("v"), (int, float)) or p["v"] <= 0:
                 errs.append(f"components[{i}]: n과 양수 v(명세서의 비율·함량) 필요")
+            _hex(p.get("color"), f"components[{i}].color", errs)  # optional: the band and swatch fill
         if not 1 <= len(eff) <= 4:
             errs.append(f"effects 1~4개({len(eff)}개): 대조군 대비 효능 수치")
         for i, e in enumerate(eff):
@@ -240,6 +249,8 @@ def _problems(c):
             tb = rs.get("tubes") or []
             if not 3 <= len(tb) <= 6 or not any(t.get("pos") for t in tb) or all(t.get("pos") for t in tb):
                 errs.append("result.tubes 3~6개, 양성·음성 모두 포함")
+            for k in ("pos_color", "neg_color"):
+                _hex(rs.get(k), f"result.{k}", errs)
         elif rk == "gel":
             lad, lanes = rs.get("ladder") or [], rs.get("lanes") or []
             if len(lad) < 3 or not 3 <= len(lanes) <= 8:

@@ -3,9 +3,10 @@
 1. pen_draw: line-icon / connector draw-ons were one stroke-dashoffset tween per path with a stagger, so every short path
    accelerated, stopped and the next one started — it read as choppy, and the round caps of not-yet-drawn paths showed as dots.
    Each such tween is rewritten to penDraw(): one eased progress per icon drives all of its paths in sequence, each path
-   taking time in proportion to its real length (getTotalLength, measured once at mount), so the pen never stops; paths stay
-   invisible until the pen reaches them. Several icons in one selector draw one after another with a short overlap.
-   Linear draws (ease none, e.g. a path a dot travels along) are left alone.
+   taking time in proportion to its real length (getTotalLength, measured once at mount, dashes in those same units), so
+   the pen never stops; paths stay invisible until the pen reaches them. Several icons in one selector draw one after
+   another with a short overlap.
+   Linear draws (ease none, e.g. a path a dot travels along) keep their own tween, only in the same real units.
 2. fonts: per-video subsetting (fontsub.py).
 
 Usage: python -I tools/postprocess.py <project dir> [...]
@@ -20,17 +21,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fontsub import subset_project  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Dashes are in real user units (the measured length), not 0→1: REAL_LENGTH strips pathLength="1" before the timeline is
+# built, and a "1 1" dash without it is a 1px dotted line (butt-capped connectors stayed hatched, icons popped in whole).
+# pathLength is dropped here too, so the units match whichever pass ran first.
 PEN = """    const penDraw = (sel, at, dur, gap) => {
       const els = Array.from(document.querySelectorAll(sel)); const groups = new Map();
       for (const el of els) { const svg = el.ownerSVGElement || el; if (!groups.has(svg)) groups.set(svg, []); groups.get(svg).push(el); }
       let k = 0;
       for (const list of groups.values()) {
-        const len = list.map((el) => { try { return Math.max(1, el.getTotalLength()); } catch (e) { return 40; } });
+        const len = list.map((el) => { el.removeAttribute("pathLength"); try { return Math.max(1, el.getTotalLength()); } catch (e) { return 40; } });
         const total = len.reduce((a, b) => a + b, 0); const start = []; let acc = 0;
         for (const l of len) { start.push(acc); acc += l; }
         const put = (p) => { const pos = p * total;
           list.forEach((el, i) => { const u = Math.min(1, Math.max(0, (pos - start[i]) / len[i]));
-            el.style.strokeDasharray = "1 1"; el.style.strokeDashoffset = String(1 - u); el.style.opacity = u > 0 ? "" : "0"; }); };
+            el.style.strokeDasharray = len[i] + " " + len[i]; el.style.strokeDashoffset = String((1 - u) * len[i]); el.style.opacity = u > 0 ? "" : "0"; }); };
         put(0); const o = { p: 0 };
         tl.to(o, { p: 1, duration: dur, ease: "power1.inOut", onUpdate: () => put(o.p) }, at + k * gap); k += 1;
       }
@@ -38,6 +42,21 @@ PEN = """    const penDraw = (sel, at, dur, gap) => {
 """
 CALL = re.compile(r'tl\.fromTo\((?P<sel>[^;]*?), \{ ?strokeDasharray: 1, strokeDashoffset: 1 ?\}, \{ ?strokeDashoffset: 0, duration: (?P<d>[\d.]+), '
                   r'ease: "(?!none")[^"]+"(?:, stagger: (?P<s>[\d.]+))? ?\}, (?P<t>[^;]+?)\);')
+# A linear draw keeps its tween (its timing matches the dot riding the line) but needs the same real units: REAL_LENGTH
+# has taken pathLength off, and a 1px dash left the whole line showing from the start (template H's wave). The length is
+# measured once, before the tween exists, and passed as a constant (a function-valued var re-measures in every render
+# worker; HyperFrames flags it). The undrawn line sits half a unit inside a gap one unit longer than itself, unrounded:
+# GSAP rounds px by default, and an offset rounded just short of L (or past it, against an "L L" dash) left a round-cap
+# dot at one end of the still undrawn line.
+LINE = re.compile(r'tl\.fromTo\((?P<sel>[^;]*?), \{ ?strokeDasharray: 1, strokeDashoffset: 1 ?\}, \{ ?strokeDashoffset: 0, duration: (?P<d>[\d.]+), '
+                  r'ease: "none"(?:, stagger: (?P<s>[\d.]+))? ?\}, (?P<t>[^;]+?)\);')
+
+
+def line_sub(m):
+    at = f'{m.group("t")} + i * {m.group("s")}' if m.group("s") else m.group("t")
+    return (f'document.querySelectorAll({m.group("sel")}).forEach((el, i) => {{ el.removeAttribute("pathLength"); const L = el.getTotalLength(); '
+            f'tl.fromTo(el, {{ strokeDasharray: L + " " + (L + 1), strokeDashoffset: L + 0.5, autoRound: false }}, '
+            f'{{ strokeDashoffset: 0, duration: {m.group("d")}, ease: "none", autoRound: false }}, {at}); }});')
 
 
 def pen_draw(out):
@@ -56,6 +75,8 @@ def pen_draw(out):
         if k:
             # after the timeline is created, whatever its options (some templates set defaults)
             s2 = re.sub(r"(const tl = gsap\.timeline\([^;]*\);)", lambda m: m.group(1) + "\n" + PEN, s2, count=1)
+        s2, k2 = LINE.subn(line_sub, s2)
+        if k or k2:
             open(p, "w", encoding="utf-8").write(s2)
             n += k
     return n

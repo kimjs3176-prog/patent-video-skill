@@ -925,7 +925,9 @@ def i_fig(c, pal, d):
         boxes = [(120, 320, 820, 560), (980, 320, 820, 560)]
     else:
         boxes = [(120, 320, 1000, 600), (1180, 320, 620, 250), (1180, 670, 620, 250)]
-    n0 = 2 if len(pick_figures(c, 4)) > 1 else 1
+    # numbering goes on from i1 (그림 1, figs[0]) and, for anatomy, i3 (그림 2, the anatomy figure); a lone figure is
+    # the one i1 showed, so it keeps 그림 1
+    n0 = (3 if c["proof"].get("kind") == "anatomy" else 2) if len(pick_figures(c, 4)) > 1 else 1
     plates = "".join(f'<div class="pl" id="if-p{i}" style="left: {x}px; top: {y}px; width: {w}px; height: {h}px"><img src="assets/fig/{E(f["file"])}" alt="그림 {n0 + i}" /></div>'
                      f'<div class="cap serif" id="if-c{i}" style="left: {x}px; top: {y + h + 12}px"><b class="acc">그림 {n0 + i}.</b> 명세서 도면 ({f["page"]}쪽)</div>'
                      for i, (f, (x, y, w, h)) in enumerate(zip(figs, boxes)))
