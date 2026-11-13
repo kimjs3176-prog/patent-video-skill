@@ -10,7 +10,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import contact, contact_label, disclaimer, holder_line, E, music_for, PALETTES, ROOT, fit  # noqa: E402
+from build import contact, contact_label, disclaimer, holder_line, E, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
 from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
@@ -302,7 +302,6 @@ SCENES = {"c1-hook": c1, "c2-headline": c2, "c3-process": c3, "c4-proof": c4, "c
 
 
 def index(c):
-    music = music_for(c)
     hosts = "\n".join(
         f'      <div id="{sid}" data-composition-id="{sid}" data-composition-src="compositions/{f}.html" data-start="{st}" data-duration="{du}" '
         f'data-track-index="{1 if i % 2 == 0 else 2}" data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {i + 1}"></div>'
@@ -326,7 +325,7 @@ def index(c):
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="{TOTAL}" data-width="{W}" data-height="{H}">
 {hosts}
-      <audio id="bgm" class="clip" src="assets/music/{music}" data-start="0" data-duration="{TOTAL}" data-track-index="10" data-volume="0.65" data-fade-in="0.2" data-fade-out="2.5"></audio>
+      <!-- audio -->
 {sfx}
     </div>
     <script>
@@ -345,9 +344,9 @@ def build(path, out_root="videos_c"):
     out = os.path.join(ROOT, out_root, slug)
     os.makedirs(os.path.join(out, "compositions"), exist_ok=True)
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
-    for sub in ("fonts", "sfx", "music"):
+    for sub in ("fonts", "sfx"):
         dst = os.path.join(out, "assets", sub)
-        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        # fonts once (postprocess subsets them in place); sfx every build so sfx added later are picked up
         if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
             shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     if c["proof"].get("kind") == "anatomy":

@@ -13,7 +13,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import E  # noqa: E402
+from build import AUDIO_MARK, E  # noqa: E402
 
 FONT = "assets/fonts/pretendard/Pretendard-SemiBold.woff2"
 # Captions get a band of their own at the bottom: while they are on, every scene is moved up by BAND px, or, for a template
@@ -187,7 +187,7 @@ def mount(out, lines):
     open(cap, "w", encoding="utf-8").write(composition(cs, w, h, total))
     host = (f'      <div id="cap" data-composition-id="cap" data-composition-src="compositions/captions.html" data-start="0" '
             f'data-duration="{total}" data-track-index="4" data-track-kind="graphics" data-width="{w}" data-height="{h}" style="z-index: 60"></div>\n')
-    anchor = '      <audio id="bgm"' if '      <audio id="bgm"' in html else '      <audio id="nar-'
+    anchor = AUDIO_MARK if AUDIO_MARK in html else '      <audio id="nar-'
     if anchor in html:
         html = html.replace(anchor, host + anchor, 1)
     else:

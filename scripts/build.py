@@ -1,7 +1,7 @@
 """Build one Unpacked-style HyperFrames project per patent from data/content/<order>-<appno>.json.
 
 Usage: python -I tools/build.py data/content/001-1020190145266.json [...]
-Output: videos/<order>-<appno>/ (index.html, compositions/, assets -> shared fonts, sfx, music)
+Output: videos/<order>-<appno>/ (index.html, compositions/, assets -> shared fonts, sfx)
 """
 import html
 import json
@@ -14,23 +14,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from icons import icon  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# background music: whatever mp3s sit in assets/music, assigned in production order (1→2→3→4→1…)
-_MD = os.path.join(ROOT, "assets", "music")
-MUSIC = sorted(f for f in os.listdir(_MD) if f.lower().endswith(".mp3")) if os.path.isdir(_MD) else []
-MUSIC = MUSIC or ["m1-untitled.mp3"]  # placeholder name; postprocess drops the tag when the file is absent
+AUDIO_MARK = "      <!-- audio -->"  # where layers and voice clips are mounted in index.html (before the sfx clips)
 
 
-def music_for(c):
-    """The bed for content c: its own composed track (a `music` block, data/music via compose.py) when one exists,
-    else the assets/music rotation in production order."""
-    try:
-        from compose import track_name
-        own = track_name(c)
-    except (ImportError, ValueError):
-        own = None
-    if own and os.path.exists(os.path.join(ROOT, "data", "music", own)):
-        return own
-    return MUSIC[(int(c["order"]) - 1) % len(MUSIC)]
 PALETTES = {
     "amber": ("#ffd36e", "#ff9f43", "#ff6b6b"),
     "violet": ("#c77dff", "#8e6bff", "#5b8cff"),
@@ -808,7 +794,7 @@ def s7(c, pal):
     tl.fromTo("#s7-ribbon", {{ xPercent: -95, rotation: 8 }}, {{ xPercent: 95, rotation: 8, duration: 1.2, ease: "power3.inOut" }}, 0.2);
     tl.fromTo("#s7-name", {{ opacity: 0, scale: 1.15, filter: "blur(24px)" }}, {{ opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: "expo.out" }}, 0.7);
     tl.fromTo("#s7-sub", {{ opacity: 0, filter: "blur(12px)" }}, {{ opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }}, 1.2);
-    tl.to("#s7-in", {{ opacity: 0, duration: 0.8, ease: "power2.in" }}, {DUR["s7"] - 0.9});  // fade out with the music
+    tl.to("#s7-in", {{ opacity: 0, duration: 0.8, ease: "power2.in" }}, {DUR["s7"] - 0.9});  // fade out at the end
     tl.fromTo("#s7-card", {{ opacity: 0, scale: 0.92 }}, {{ opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }}, 1.7);
     tl.fromTo(".s7-row", {{ opacity: 0, x: -20 }}, {{ opacity: 1, x: 0, duration: 0.6, ease: "expo.out", stagger: 0.2 }}, 2.0);
     tl.fromTo("#s7-meta", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7, ease: "expo.out" }}, 1.9);
@@ -820,7 +806,6 @@ def s7(c, pal):
 
 
 def index(c):
-    music = music_for(c)
     hosts = "\n".join(
         f'      <div id="{sid}" data-composition-id="{sid}" data-composition-src="compositions/{f}.html" data-start="{st}" data-duration="{du}" '
         f'data-track-index="{1 if i % 2 == 0 else 2}" data-track-kind="graphics" data-width="1920" data-height="1080" style="z-index: {i + 1}"></div>'
@@ -846,8 +831,7 @@ def index(c):
     <div id="root" data-composition-id="main" data-start="0" data-duration="{TOTAL}" data-width="1920" data-height="1080">
 {hosts}
 
-      <!-- Background music: one track per video, assigned in production order -->
-      <audio id="bgm" class="clip" src="assets/music/{music}" data-start="0" data-duration="{TOTAL}" data-track-index="10" data-volume="0.6" data-fade-in="0.4" data-fade-out="2.5"></audio>
+      <!-- audio -->
 {sfx_html}
     </div>
     <script>
@@ -867,9 +851,9 @@ def build(path):
     out = os.path.join(ROOT, "videos", slug)
     os.makedirs(os.path.join(out, "compositions"), exist_ok=True)
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
-    for sub in ("fonts", "sfx", "music"):
+    for sub in ("fonts", "sfx"):
         dst = os.path.join(out, "assets", sub)
-        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        # fonts once (postprocess subsets them in place); sfx every build so sfx added later are picked up
         if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
             shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     if c["proof"].get("kind") == "anatomy":
@@ -887,7 +871,7 @@ def build(path):
     from visuals import add_transitions, copy_figures
     copy_figures(c, out)
     add_transitions(out, "A", SLOTS, TOTAL, 1920, 1080)
-    print(slug, "built", "music:", music_for(c))
+    print(slug, "built")
     return out
 
 

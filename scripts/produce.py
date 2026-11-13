@@ -1,7 +1,7 @@
 """Build, check and render every content JSON in production order. Resumable.
 
 Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate]
-       [--no-captions] [--no-render] [--no-music-gen] [order | N-M | N~M ...]
+       [--no-captions] [--no-render] [order | N-M | N~M ...]
 Orders pick contents by their file-name prefix (7 137 146); N-M or N~M is an inclusive range (1-100, 101~205), so two renderers
 can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.8.207).
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
@@ -9,11 +9,8 @@ unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, a
 Narrated videos carry burned-in captions (--no-captions to leave them out); the .srt goes beside the mp4 and to patents/,
 and turning captions on or off re-renders (the .srt beside the mp4 records which way it was made).
 Each successful render is also delivered as patents/{출원번호}.mp4 with a thumbnail patents/{출원번호}.jpg (tools/export.py).
-One log line per video in renders*/produce.log; RENDERED lines carry [i/N] and the estimated time left. Background music
-comes first (tools/music.py): whichever of the four default beds m01..m04 assets/music lacks is made - Google Lyria with
-GEMINI_API_KEY, otherwise composed by the pipeline itself (no key), and composed as well for whatever Lyria does not
-deliver. A folder with mp3s of your own is left alone. A content's `music` block gives that patent its own composed bed.
---no-music-gen skips the default beds (a content's own bed is still composed).
+One log line per video in renders*/produce.log; RENDERED lines carry [i/N] and the estimated time left.
+Videos carry no background music: narration, captions and the transition sound effects only.
 """
 import glob
 import importlib.util
@@ -29,9 +26,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # python -I ignores PYTHONIOENCODING: keep progress output (Korean, CLI bars) printable on a cp949 console
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-import music  # noqa: E402
+from hfpin import HF, NPX  # noqa: E402
 
-FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render", "--no-music-gen"}
+FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render"}
 
 
 def die(msg):
@@ -80,11 +77,11 @@ def node_major():
 def preflight():
     """Stop before any work when no video could get through; otherwise every one fails on its own, an hour or more later."""
     v = node_major()
-    if v is None or not shutil.which(music.NPX):
+    if v is None or not shutil.which(NPX):
         die("Node.js (node and npx) not found on PATH - HyperFrames needs Node.js 22 or newer: https://nodejs.org")
     if v < 22:  # hyperframes@0.8.207 declares engines node >=22; on 18/20 every check fails after build and narration
-        die(f"Node.js {v} found - {music.HF} needs Node.js 22 or newer: install the current LTS from https://nodejs.org")
-    if importlib.util.find_spec("numpy") is None:  # music beds (compose.py) and the drawings' pen strokes (figtrace.py)
+        die(f"Node.js {v} found - {HF} needs Node.js 22 or newer: install the current LTS from https://nodejs.org")
+    if importlib.util.find_spec("numpy") is None:  # the drawings' pen strokes (figtrace.py)
         die("python package numpy is missing for this Python (python -I does not see user-site packages): "
             "python -m pip install numpy  (or -r requirements.txt of the skill)")
 
@@ -105,26 +102,16 @@ def voice_ready(nar, voice):
 
 
 def voice_first(voice):
-    """voice_ready() before music.ensure(), so a wrong voice or a missing uvx stops the run before any bed is made (~25 s
-    each, or a Lyria bill). narration imports build, which lists assets/music once when imported: the tool modules loaded
-    for this check are dropped again and load afresh below, after the beds exist."""
-    here = lambda f: os.path.normcase(os.path.dirname(os.path.abspath(f)))  # noqa: E731  normcase: Windows drive-letter case
-    tools, before = here(__file__), set(sys.modules)
+    """voice_ready() before anything is built, so a wrong voice or a missing uvx stops the run at once."""
     import narration as nar
     voice_ready(nar, voice or nar.VOICE)
-    for m in set(sys.modules) - before:
-        f = getattr(sys.modules[m], "__file__", None)
-        if f and here(f) == tools:  # stdlib and numpy stay loaded
-            del sys.modules[m]
 
 
 if __name__ == "__main__":
-    OPTS = options(sys.argv[1:])  # before music is made or anything is built
+    OPTS = options(sys.argv[1:])  # before anything is built
     preflight()
     if "--no-narrate" not in OPTS["flags"]:
         voice_first(OPTS["voice"])
-    if "--no-music-gen" not in OPTS["flags"]:
-        music.ensure()  # before the builders load: they read the assets/music list when imported
 from build import build as build_a  # noqa: E402
 import build_b  # noqa: E402
 import build_c  # noqa: E402
@@ -138,7 +125,7 @@ import postprocess  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # --yes: npm otherwise asks before installing the pinned version, and with output captured a person never sees the prompt
-HYPERFRAMES = [music.NPX, "--yes", music.HF]
+HYPERFRAMES = [NPX, "--yes", HF]
 ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 
 
@@ -293,20 +280,13 @@ def one(path, render, want, prog):
     if TEMPLATE == "S" and "signature" not in json.load(open(path, encoding="utf-8")):
         log(f"{slug} SKIP template S needs a signature block (CONTENT_SPEC: 시그니처 장면)")
         return
-    notes = []  # validate's non-blocking findings (long unbroken words, a clamped music bpm; for A-I the S-only signature block)
+    notes = []  # validate's non-blocking findings (long unbroken words; for A-I the S-only signature block)
     v = validate(path, TEMPLATE, notes)
     if notes:
         log(f"{slug} note (not blocking {TEMPLATE}): {' / '.join(notes)[:400]}")
     if v:
         log(f"{slug} SKIP content: {' / '.join(v)[:300]}")
         return
-    try:  # the patent's own bed, when its content carries a `music` block (composed once, kept in data/music)
-        import compose
-        own = compose.ensure_track(json.load(open(path, encoding="utf-8")))
-        if own:
-            log(f"{slug} music {own}")
-    except Exception as e:  # music is optional: fall back to the rotation
-        log(f"{slug} music block skipped: {e}")
     try:  # the ending's holder line comes from the gazette; say so when it cannot (no biblio / full text fetched yet)
         from build import gazette_holder
         if not gazette_holder(json.load(open(path, encoding="utf-8")))[0]:

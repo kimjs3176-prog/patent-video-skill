@@ -4,13 +4,9 @@ Usage: python -I -X utf8 setup_project.py <project-dir>
 Copies the pipeline scripts into <project>/tools, fonts into <project>/assets, render templates into <project>/template,
 and the content spec, the figure-analysis guide (FIGURE_ANALYSIS.md) + examples into <project>/tools.
 
-Sound effects and background music are not redistributed with the public skill:
-- sfx: taken from this skill's assets/sfx when present, else from the HyperFrames media-use skill
-  (~/.claude/skills/media-use/audio/assets/sfx, Pixabay Content License) when it is installed.
-- music: produce.py makes whichever of the four default beds m01..m04 <project>/assets/music lacks (compose.py, no key;
-  with GEMINI_API_KEY Google Lyria, and compose.py for whatever Lyria does not deliver); or put your own licensed mp3
-  files there (any names; they rotate in production order, and the default beds are then left out).
-Videos still build without either — the missing audio clips are simply left out.
+Videos carry no background music. Sound effects are not redistributed with the public skill: they are taken from this
+skill's assets/sfx when present, else from the HyperFrames media-use skill (~/.claude/skills/media-use/audio/assets/sfx,
+Pixabay Content License) when it is installed. Videos still build without them: the missing clips are simply left out.
 Re-running updates tools/*.py; a file that differs from the skill (your edits, or the copy of an older skill version) is
 first kept as tools/<name>.py.<YYYYmmdd-HHMMSS>.bak. A backup is never overwritten, so edits survive any number of updates.
 branding.json (ending credits: 기술이전 문의처, 특허권자, 면책 문구) is written once with the defaults and never overwritten.
@@ -28,7 +24,7 @@ import time
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SFX_FALLBACK = os.path.join(os.path.expanduser("~"), ".claude", "skills", "media-use", "audio", "assets", "sfx")
 sys.path.insert(0, os.path.join(SKILL, "scripts"))
-from music import HF  # noqa: E402  the HyperFrames pin produce.py checks and renders with
+from hfpin import HF  # noqa: E402  the HyperFrames pin produce.py checks and renders with
 NODE_MIN = 22  # the pin's package.json: engines node >=22 (on 18/20 every video fails at its check, after build and narration)
 
 
@@ -66,7 +62,7 @@ def main(dst):
     for doc in ("CONTENT_SPEC.md", "FIGURE_ANALYSIS.md"):  # read in the project as tools/<doc> (agents and sub-agents)
         shutil.copy(os.path.join(SKILL, "references", doc), tools)
     shutil.copytree(os.path.join(SKILL, "references", "examples"), os.path.join(tools, "examples"), dirs_exist_ok=True)
-    for sub in ("fonts", "fonts_serif", "sfx", "music"):
+    for sub in ("fonts", "fonts_serif", "sfx"):
         src = os.path.join(SKILL, "assets", sub)
         if sub == "sfx" and not os.path.isdir(src) and os.path.isdir(SFX_FALLBACK):
             src = SFX_FALLBACK
@@ -76,10 +72,8 @@ def main(dst):
             have = os.path.join(dst, "assets", sub)
             os.makedirs(have, exist_ok=True)
             if any(f.lower().endswith((".mp3", ".wav", ".m4a")) for f in os.listdir(have)):
-                continue  # a re-run (skill update) of a project that already has its beds or sfx: nothing to say
-            print(f"note: assets/{sub} is empty - " + ("produce.py composes 4 beds on its own (no key; with GEMINI_API_KEY in .env "
-                  "it has billed Google Lyria make them, and composes what Lyria does not deliver); or add licensed mp3s"
-                  if sub == "music" else "install the HyperFrames media-use skill or add whoosh sfx"))
+                continue  # a re-run (skill update) of a project that already has its sfx: nothing to say
+            print(f"note: assets/{sub} is empty - install the HyperFrames media-use skill or add whoosh sfx")
     shutil.copytree(os.path.join(SKILL, "assets", "template"), os.path.join(dst, "template"), dirs_exist_ok=True)
     for d in ("data/content", "data/patents", "data/raw", "videos", "renders"):
         os.makedirs(os.path.join(dst, d), exist_ok=True)
@@ -129,7 +123,7 @@ def doctor(dst):
         v = node_major()
         if v is None or v < NODE_MIN:
             missing.append(f"Node.js {NODE_MIN}+ for {HF} (found {'a node that does not answer --version' if v is None else f'v{v}'})")
-    # numpy: music beds (compose.py) and the drawings' pen strokes (figtrace.py); python -I sees no user-site packages
+    # numpy: the drawings' pen strokes (figtrace.py); python -I sees no user-site packages
     missing += [f"python package {m}" for m in ("openpyxl", "pypdf", "fontTools", "brotli", "numpy") if importlib.util.find_spec(m) is None]
     if sys.version_info < (3, 10):
         missing.append("Python 3.10+")

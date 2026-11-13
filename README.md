@@ -15,9 +15,9 @@ Claude Code용 스킬입니다. 특허 목록(출원번호·엑셀)을 받아 KI
 - **템플릿 10종.** A 언팩 · B 카드뉴스(9:16) · C 키네틱(9:16) · D 그린 에디토리얼 · E 모노 콘트라스트 · F 스테이트먼트(9:16) ·
   G 스위스 그리드 · H 오가닉 소프트테크 · I 뉴스룸 에디토리얼 · **S 시그니처(기본 권장)**. 같은 콘텐츠 JSON으로 모두 뽑을 수 있습니다.
 - **엔딩 문구는 `branding.json`에서, 특허권자는 공보에서.** 기술이전 문의처·면책 문구는 프로젝트의 `branding.json`에서 바꾸고(특허마다 다르면 콘텐츠 JSON의 `branding`), 특허권자는 공보 첫 장의 (73) 특허권자(공개공보는 (71) 출원인)를 그대로 씁니다.
-- **키 없이도 끝까지.** 배경음악은 파이프라인이 직접 작곡·연주하고(`compose.py`), 나레이션은 무료 edge-tts, 그림·장면은 코드로 그립니다. 키(Google TTS·Lyria)는 품질을 올리는 선택 사항입니다. KIPRIS 키가 없으면 공보 PDF를 직접 받아 `kipris.py --pdf`로 씁니다.
+- **키 없이도 끝까지.** 나레이션은 무료 edge-tts, 그림·장면은 코드로 그립니다. 배경음악은 넣지 않습니다. 키(Google TTS)는 음성 품질을 올리는 선택 사항입니다. KIPRIS 키가 없으면 공보 PDF를 직접 받아 `kipris.py --pdf`로 씁니다.
 - **한국어 나레이션 기본 포함.** `.env`에 `GOOGLE_TTS_API_KEY`가 있으면 Google Chirp 3 HD(`ko-KR-Chirp3-HD-Aoede`, 사람 성우에 가까운 음성),
-  없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`)로 장면마다 한 줄씩 읽고, 엔딩은 음악만 둡니다. 화면용 기호(`~`, `℃`, `·`, 단위)는 합성 전에 읽는 말로 바뀝니다.
+  없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`)로 장면마다 한 줄씩 읽고, 엔딩은 읽지 않습니다. 화면용 기호(`~`, `℃`, `·`, 단위)는 합성 전에 읽는 말로 바뀝니다.
   보통 속도로 먼저 읽고 장면에 안 들어갈 때만 빨라집니다(`--no-narrate`로 끄기).
 - **산출물 규칙.** 동영상 `patents/{출원번호}.mp4`, 썸네일 `patents/{출원번호}.jpg`, 자막 `patents/{출원번호}.srt`(예: `patents/1020240012345.mp4`).
 - **자막 기본 포함.** 읽힌 나레이션이 화면 맨 아래의 어두운 전용 띠에 자막으로 구워지고(장면은 그만큼 위로) `.srt`로도 나옵니다(`--no-captions`로 끔).
@@ -149,7 +149,7 @@ python -m pip install -r ~/.claude/skills/patent-tech-video/requirements.txt
 필요한 것: Node.js **22+**(`npx hyperframes@0.8.207`이 Node 22 이상을 요구), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
 `openpyxl` `pypdf` `fonttools` `brotli` `numpy`, `uv`(기본 나레이션 edge-tts를 `uvx`로 실행하므로 필수. `GOOGLE_TTS_API_KEY`의 Google 음성만 쓰거나
 `--no-narrate`면 없어도 됨). `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx와 음성을 검사해,
-빠진 것이 있으면 음악을 만들거나 영상을 빌드하기 전에 멈춥니다.
+빠진 것이 있으면 영상을 빌드하기 전에 멈춥니다.
 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 화면 출력 없이 내려받으므로, 미리 받아 두려면 `npx --yes hyperframes@0.8.207 browser ensure`를 실행합니다.
 edge-tts는 OS 인증서 저장소를 쓰므로 TLS 검사 프록시가 있는 기관망에서도 동작합니다.
 Windows에서 출력을 파이프나 파일로 받을 때 한글이 깨지지 않게 `python -I -X utf8 ...`으로 실행합니다(`PYTHONIOENCODING`은 `-I`가 무시합니다. 콘솔 창에서는 원래 잘 보입니다).
@@ -159,7 +159,6 @@ Windows에서 출력을 파이프나 파일로 받을 때 한글이 깨지지 �
 | 항목 | 이유 | 대신 |
 |---|---|---|
 | KIPRIS Plus 서비스키 | 비밀 정보 | 프로젝트 `.env`에 `KIPRIS_API_KEY=...` (커밋 금지, `.gitignore` 포함). 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 추출 |
-| 배경음악 | 저작권 걱정 없음(직접 작곡) | `produce.py`가 기본 4곡(m01~m04) 중 `assets/music`에 없는 곡만 `compose.py`로 직접 작곡·연주(키·외부 서비스 없음, 사용자 mp3가 있으면 손대지 않음, 지운 기본곡은 다음 실행에 다시 생김). 콘텐츠의 `music` 블록으로 특허마다 다른 곡. `.env`에 `GEMINI_API_KEY`가 있으면 Google Lyria 3.5(과금). Lyria가 실패하거나 덜 만들면 나머지는 작곡으로 채움. 곡은 다 쓴 뒤 한 번에 옮겨 놓아 중단돼도 잘린 곡이 남지 않음. 라이선스 있는 mp3를 넣어도 됨. `--no-music-gen`은 기본 4곡 자동 생성(Lyria·작곡)을 끔(콘텐츠 `music` 블록 곡은 그대로 작곡) |
 | 효과음 | Pixabay 콘텐츠를 단독 재배포하지 않음 | HyperFrames `media-use` 스킬이 설치돼 있으면 `setup_project.py`가 자동 복사(없으면 생략) |
 
 ## 보안 메모
