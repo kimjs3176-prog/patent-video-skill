@@ -19,5 +19,5 @@ The particle text effect in `visuals.py` follows the technique of the HyperFrame
 
 ## Not included
 
-Background music and sound effects are not redistributed (see README). Patent data fetched from KIPRIS is not part of this
+The videos carry no background music. Sound effects are not redistributed (see README). Patent data fetched from KIPRIS is not part of this
 repository; the three example content files in `references/examples/` describe public Korean patents.

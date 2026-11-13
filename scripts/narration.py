@@ -4,7 +4,7 @@ Script source: content["narration"] = {"hook", "overview", "process", "proof", "
 (1–2 spoken sentences each; see CONTENT_SPEC "narration"). Sections it leaves out get a plain line assembled from the content fields.
 
 Each scene of the built project is matched to a section by its composition file name. Sections a template has no scene for
-are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced: music only.
+are merged into the previous scene (figures is dropped instead). The ending (outro) is never voiced.
 The voice is picked by default_voice(): Google Chirp 3 HD (ko-KR-Chirp3-HD-Aoede, much closer to a human narrator) when a
 GOOGLE_TTS_API_KEY is set (environment or the project's .env), otherwise edge-tts 선희 (ko-KR-SunHiNeural); --voice overrides it
 (check_voice(): a bare name maps to its Korean voice, Kore → ko-KR-Chirp3-HD-Kore, SunHi → ko-KR-SunHiNeural,
@@ -32,7 +32,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build import ROOT, contact, contact_label  # noqa: E402
+from build import AUDIO_MARK, ROOT, contact, contact_label  # noqa: E402
 from visuals import pick_figures  # noqa: E402
 # the titles template S puts on screen when a content leaves them out (l_run, l_path, q_ct/q_tubes/q_gel, q_problem): voiced
 # the same, where '' + '.' used to voice a bare '.'
@@ -41,7 +41,7 @@ from build_sig import TITLES as SIG_TITLES, problem_title  # noqa: E402
 EDGE_VOICE = "ko-KR-SunHiNeural"  # free house voice: 선희 (SunHi)
 GOOGLE_VOICE = "ko-KR-Chirp3-HD-Aoede"  # natural narrator voice (female, calm) when a Google key is available
 GOOGLE_TTS = "https://texttospeech.googleapis.com/v1/text:synthesize"
-SILENT = {"outro"}  # the ending is never voiced (music only)
+SILENT = {"outro"}  # the ending is never voiced
 ORDER = ["hook", "overview", "process", "proof", "figures", "features", "apps", "outro"]
 KEYS = {
     "hook": ("teaser", "cover", "hook", "hero", "open", "front"),
@@ -497,7 +497,7 @@ def assign(slots, script):
     return texts
 
 
-def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22, captions=True):
+def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
     # a bare name (Kore) is voiced and recorded in narration.txt under its full id. The Google key is checked per clip, not here,
     # so lines already in the voice cache still work without it (produce.py checks it once with check_voice)
     voice = voice_id(voice)
@@ -535,11 +535,10 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, bgm_volume=0.22, captions
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
         voiced.append((start, dur, t))
         report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == speak(texts[sec]) else ' (shortened)'}: {t}")
-    html = re.sub(r'(<audio id="bgm"[^>]*data-volume=")[\d.]+(")', rf"\g<1>{bgm_volume}\2", html)
     block = "\n".join(clips)
-    if '      <audio id="bgm"' in html:
-        html = html.replace('      <audio id="bgm"', block + '\n      <audio id="bgm"', 1)
-    elif clips:  # no music (postprocess dropped the bgm tag): close the voice clips into the main composition instead
+    if AUDIO_MARK in html:
+        html = html.replace(AUDIO_MARK, block + "\n" + AUDIO_MARK, 1)
+    elif clips:  # an older build without the mark: close the voice clips into the main composition instead
         html, k = re.subn(r'(\n\s*</div>\s*\n\s*<script>)', lambda m: "\n" + block + m.group(1), html, count=1)
         if not k:
             raise RuntimeError("index.html: no place to mount the narration clips")

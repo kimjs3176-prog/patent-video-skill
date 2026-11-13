@@ -13,7 +13,7 @@ is taken as the 등록번호, alone it is not added and is reported for the user
 or given as an argument, it is an application number). Rows that add no patent (a 등록번호 only, no number, …) and
 rows that add several are printed for checking.
 Duplicates keep their first position; later sources are appended to "sources".
-Order decides the output file names and the background-music rotation, so do not re-run it after rendering.
+Order decides the output file names, so do not re-run it after rendering.
 """
 import json
 import os

@@ -14,7 +14,6 @@ Usage: python -I tools/postprocess.py <project dir> [...]
 import glob
 import os
 import re
-import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -83,17 +82,13 @@ def pen_draw(out):
 
 
 def drop_missing_audio(out):
-    """Remove <audio> clips whose file is not in the project (music / sfx are optional assets)."""
+    """Remove <audio> clips whose file is not in the project (sfx are an optional asset; older builds also carried a music bed)."""
     ip = os.path.join(out, "index.html")
     s = open(ip, encoding="utf-8").read()
     gone = []
 
     def keep(m):
         dst = os.path.join(out, m.group(1).replace("/", os.sep))
-        own = os.path.join(ROOT, "data", "music", os.path.basename(dst))  # a patent's own bed (compose.py), copied on demand
-        if not os.path.exists(dst) and m.group(1).startswith("assets/music/") and os.path.exists(own):
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(own, dst)
         if os.path.exists(dst):
             return m.group(0)
         gone.append(m.group(1))

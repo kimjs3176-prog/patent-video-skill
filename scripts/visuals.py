@@ -8,7 +8,7 @@ import os
 import re
 import struct
 
-from build import ROOT
+from build import AUDIO_MARK, ROOT
 
 STEP_ICONS = [
     (("동결", "냉동", "냉각", "저온", "식힘", "응결", "해동", "냉장"), "snow"),
@@ -305,7 +305,7 @@ def add_transitions(out, style, slots, total, w, h, pal=None):
     if 'id="tx"' not in idx:
         host = (f'      <div id="tx" data-composition-id="tx" data-composition-src="compositions/tx.html" data-start="0" data-duration="{total}" '
                 f'data-track-index="3" data-track-kind="graphics" data-width="{w}" data-height="{h}" style="z-index: 50"></div>\n')
-        open(ip, "w", encoding="utf-8").write(idx.replace('      <audio id="bgm"', host + '      <audio id="bgm"', 1))
+        open(ip, "w", encoding="utf-8").write(idx.replace(AUDIO_MARK, host + AUDIO_MARK, 1))
 
 
 def grain(opacity=0.07):

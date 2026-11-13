@@ -58,61 +58,6 @@ def check(path, template=None, warns=None):
         return [f"구조 오류(필드 형식·누락): {type(e).__name__} {e}"]
 
 
-def _check_music(m, errs, warn):
-    """The content's own bed (compose.py) against what compose.spec_of/render actually perform. A value compose would
-    ignore or misread (pad 'string', perc 'pulses', seed 'abc', bpm '120', key 'Em') must not quietly swap the
-    arrangement, drop the percussion or the whole bed. Keep this in step with compose.py when the engine changes."""
-    if not isinstance(m, dict):
-        errs.append("music는 객체여야 함")
-        return
-    try:
-        import compose  # numpy; only needed when a content carries its own bed
-    except ImportError as e:
-        warn.append(f"music 블록을 검사하지 못함({e}): python -m pip install numpy")
-        return
-    voices = (*compose.VOICE, "none")
-    enum = {"mood": tuple(compose.PRESETS), "keys": voices, "arp": voices, "lead": voices,
-            "pad": ("pad", "strings", "none"), "perc": ("none", "light", "pulse")}  # pad/perc: the branches of render()
-    known = (*enum, "bpm", "key", "progression", "chord_bars", "seed")
-    n = len(errs)
-    for k, v in m.items():
-        if k not in known:  # spec_of keeps it, render never reads it: a typo ('tempo', 'perc ') would just vanish
-            errs.append(f"music 알 수 없는 항목: {k} ({', '.join(known)})")
-        elif v is None or v == "":  # spec_of drops both: the preset's value
-            if v == "" and k in enum and "none" in enum[k]:  # an empty voice is the preset's voice, not silence
-                warn.append(f"music.{k} 빈 값: 프리셋 값으로 연주됨(끄려면 \"none\")")
-        elif k in enum:
-            if not isinstance(v, str) or v not in enum[k]:
-                errs.append(f"music.{k} 없음: {_show(v)} ({', '.join(enum[k])})")
-        elif k == "bpm":
-            if not _num(v):
-                errs.append(f"music.bpm은 숫자: {_show(v)}")
-            elif not 70 <= v <= 160:  # spec_of clamps, so the piece plays at the nearer end
-                warn.append(f"music.bpm {_show(v)}: 70~160 밖이라 {min(160, max(70, v)):g}에 맞춰 연주됨")
-        elif k == "key":  # transpose() reads only a root and moves the preset's major progression there
-            if not (isinstance(v, str) and re.fullmatch(r"[A-G][#b]?", v)):
-                errs.append(f"music.key는 으뜸음만(C · F# · Bb …, 장조로 옮김): {_show(v)}")
-            elif m.get("progression"):  # then spec_of plays the progression as written; a key equal to its root is moot
-                p = m["progression"]
-                r = re.match(r"\s*([A-G][#b]?)", p[0]) if isinstance(p, list) and isinstance(p[0], str) else None
-                if not r or compose.pc(r.group(1)) != compose.pc(v):
-                    warn.append(f"music.key {v}: progression이 있으면 쓰이지 않음(진행은 쓴 대로, key는 프리셋 진행을 옮길 때만)")
-        elif k == "progression":
-            if not (isinstance(v, list) and v and all(isinstance(x, str) and x.strip() for x in v)):
-                errs.append("music.progression은 화음 이름 목록(마디당 하나, 1개 이상)")
-        elif k == "chord_bars":  # render: max(1, int(...)), so 0 and 1.5 would play as something else
-            if not (_num(v) and v >= 1 and v == int(v)):
-                errs.append(f"music.chord_bars는 1 이상의 정수: {_show(v)}")
-        elif k == "seed":  # numpy's default_rng takes a non-negative integer
-            if not (_num(v) and v >= 0 and v == int(v)):
-                errs.append(f"music.seed는 0 이상의 정수: {_show(v)}")
-    if len(errs) == n:  # types are sound: now the chords themselves, as compose will play them (key applied)
-        try:
-            [compose.chord(x) for x in compose.spec_of(m)["progression"]]
-        except ValueError as e:
-            errs.append(f"music: {e}")
-
-
 def _check(path, template, warn):
     errs = []
     try:
@@ -150,8 +95,8 @@ def _check(path, template, warn):
     for label, text in (("sub", c["sub"]), ("headline", c["headline"]), ("process.title", c["process"].get("title")),
                         ("features.title", c["features"].get("title"))):
         unbroken(label, text)
-    if c.get("music") is not None:  # the patent's own composed bed (compose.py)
-        _check_music(c["music"], errs, warn)
+    if c.get("music") is not None:  # videos carry no background music any more
+        warn.append("music 블록은 쓰이지 않음(배경음악 없음): 지워도 됨")
     # ending credits (branding.json or the content's own "branding"): the 9:16 endings are the narrowest
     lim("contact(기술이전 문의처)", contact(c), 14)
     lim("contact_label", contact_label(c), 8)

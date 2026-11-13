@@ -1132,9 +1132,9 @@ def build(path):
     out = os.path.join(ROOT, "videos_s", slug)
     os.makedirs(os.path.join(out, "compositions"), exist_ok=True)
     os.makedirs(os.path.join(out, "assets", "fig"), exist_ok=True)
-    for sub in ("fonts", "sfx", "music"):
+    for sub in ("fonts", "sfx"):
         dst = os.path.join(out, "assets", sub)
-        # fonts once (postprocess subsets them in place); sfx/music every build so music added later is picked up
+        # fonts once (postprocess subsets them in place); sfx every build so sfx added later are picked up
         if os.path.isdir(os.path.join(ROOT, "assets", sub)) and (sub != "fonts" or not os.path.exists(dst)):
             shutil.copytree(os.path.join(ROOT, "assets", sub), dst, dirs_exist_ok=True)
     sg = c["signature"]
