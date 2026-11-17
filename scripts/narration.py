@@ -133,6 +133,7 @@ _PART = r"(으로|을|를|이|가|은|는|과|와|로)(?![가-힣])"
 _LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm": "데시미터", "nm": "나노미터", "μm": "마이크로미터", "µm": "마이크로미터",
            "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
+PER = {"10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
 # formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
@@ -156,6 +157,7 @@ def speak(text):
         # 이산화탄소(CO₂)를: the name once, not twice. Only the bare name: 부산물(H₂O) keeps its aside (부산물, 물)
         t = re.sub(rf"(?<![가-힣]){k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
+    t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
@@ -173,6 +175,10 @@ def speak(text):
     t = re.sub(rf"([A-Za-z])([²³])(?![{_SUP}⁺⁻])(?:{_PART})?", lambda m: _say(f"{m.group(1)} {_POWER[_plain(m.group(2))]}", m.group(3)), t)
     t = re.sub(r"제곱(?=[A-Za-z0-9])", "제곱 ", t)
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
+    t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
+    # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
+               lambda m: f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", t)
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)도", r"영하 \1도", t)  # -40도 → 영하 40도
@@ -181,6 +187,8 @@ def speak(text):
     t = re.sub(r"(\S+)\s+\+\s+", lambda m: josa(m.group(1), "과와") + " ", t)  # 팽화미 + 맥아 → 팽화미와 맥아
     t = re.sub(r"\s*[→⇒]\s*", ", 그다음 ", t)
     t = re.sub(r"[\"“”‘’'「」『』《》〈〉\[\]{}]", "", t)
+    # an aside with a particle written after it would leave ', 딸기,은': say the word with its own particle (설향(딸기)은 → 설향은)
+    t = re.sub(rf"(\S+?)\s*\(([^()]*)\){_PART}", lambda m: _say(m.group(1), m.group(3)), t)
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
