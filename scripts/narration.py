@@ -189,6 +189,8 @@ def speak(text):
     t = re.sub(r"[\"“”‘’'「」『』《》〈〉\[\]{}]", "", t)
     # an aside with a particle written after it would leave ', 딸기,은': say the word with its own particle (설향(딸기)은 → 설향은)
     t = re.sub(rf"(\S+?)\s*\(([^()]*)\){_PART}", lambda m: _say(m.group(1), m.group(3)), t)
+    # a particle that does not change with the word (에, 의, 에서 …) keeps it and the aside follows: 세포(45%)에 → 세포에, 45%,
+    t = re.sub(r"(\S+?)\s*\(([^()]*)\)(에서|에게|에|의|도|만|까지|부터|보다)(?![가-힣])", r"\1\3, \2,", t)
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
