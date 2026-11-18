@@ -144,7 +144,7 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
          ("kDa", "킬로달톤"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
-         ("hr", "시간"), ("h", "시간"), ("g", "그램"), ("L", "리터"), ("M", "몰")]
+         ("hr", "시간"), ("h", "시간"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰")]
 
 
 def speak(text):
@@ -159,6 +159,8 @@ def speak(text):
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
+    t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)  # 당도: 12 °Brix, °Brix 12
+    t = re.sub(r"(\d)\s*±\s*(\d)", r"\1 플러스마이너스 \2", t)  # 6.5±0.2
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
     t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
@@ -190,14 +192,14 @@ def speak(text):
     # an aside with a particle written after it would leave ', 딸기,은': say the word with its own particle (설향(딸기)은 → 설향은)
     t = re.sub(rf"(\S+?)\s*\(([^()]*)\){_PART}", lambda m: _say(m.group(1), m.group(3)), t)
     # a particle that does not change with the word (에, 의, 에서 …) keeps it and the aside follows: 세포(45%)에 → 세포에, 45%,
-    t = re.sub(r"(\S+?)\s*\(([^()]*)\)(에서|에게|에|의|도|만|까지|부터|보다)(?![가-힣])", r"\1\3, \2,", t)
+    t = re.sub(r"(\S+?)\s*\(([^()]*)\)(에서|에게|에|의|도|만|까지|부터|보다|간|동안)(?![가-힣])", r"\1\3, \2,", t)
     t = re.sub(r"\s*\(([^)]*)\)", r", \1,", t)  # asides in brackets become a short pause on each side
     t = re.sub(r",\s*([,.?!])", r"\1", t)
     t = re.sub(r"\s+([,.?!])", r"\1", t)
     # a full stop put after an end mark goes: '흡입한다..' → '흡입한다.', '어렵다?.' → '어렵다?'; an ellipsis ('...') is a pause and stays
     t = re.sub(r"(?<!\.)\.\.(?=\s|$)", ".", t)
     t = re.sub(r"([?!…])\.(?=\s|$)", r"\1", t)
-    t = re.sub(r"\s{2,}", " ", t).strip()
+    t = re.sub(r"\s{2,}", " ", t).strip().rstrip(",").rstrip()  # an aside at the very end leaves no ',' before the stop
     return t if not t or t[-1] in ENDS else t + "."
 
 
