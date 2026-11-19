@@ -836,6 +836,7 @@ def i3(c, pal, d):
     .br .lb {{ position: absolute; right: calc(100% + 24px); top: 0; height: 120px; width: 270px; display: flex; align-items: center; justify-content: flex-end; text-align: right; font-size: 28px; font-weight: 600; line-height: 1.3; }}
     .br .fl {{ position: absolute; left: 0; top: 34px; height: 52px; background: #a9a296; transform-origin: 0% 50%; }}
     .br.hi .fl {{ background: {NEWS_RED}; }}
+    .br .lb .me {{ display: block; font-size: 22px; font-weight: 700; color: {NEWS_RED}; letter-spacing: 0.04em; }}  /* 본 특허: under the label, not after the value (ran off the right edge) */
     .br .vl {{ position: absolute; top: 34px; height: 52px; display: flex; align-items: center; font-size: 30px; white-space: nowrap; }}
     .br.hi .vl {{ color: {NEWS_RED}; font-weight: 700; }}
     .lg {{ display: grid; grid-template-columns: 76px 1fr; align-items: center; border-top: 1px solid #cfc9bb; height: 100px; }}
@@ -871,9 +872,9 @@ def i3(c, pal, d):
             rows = ""
             for j, br in enumerate(bars):
                 w = W * max(0.01, min(1, br["v"] / mx))
-                rows += (f'<div class="br{" hi" if br.get("hi") else ""}" style="top: {j * 130:.0f}px; width: {W}px"><div class="lb">{E(br["l"])}</div>'
+                rows += (f'<div class="br{" hi" if br.get("hi") else ""}" style="top: {j * 130:.0f}px; width: {W}px"><div class="lb"><div>{E(br["l"])}{'<span class="me">본 특허</span>' if br.get("hi") else ""}</div></div>'
                          f'<div class="fl" id="i3-f{i}-{j}" style="width: {w:.0f}px"></div>'
-                         f'<div class="vl mono" id="i3-v{i}-{j}" style="left: {w + 16:.0f}px">{E(br.get("t", ""))}{" ◀ 본 특허" if br.get("hi") else ""}</div></div>')
+                         f'<div class="vl mono" id="i3-v{i}-{j}" style="left: {w + 16:.0f}px">{E(br.get("t", ""))}</div></div>')
                 js.append(f'    tl.fromTo("#i3-f{i}-{j}", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 1.3, ease: "expo.out" }}, {bar_at(T[i] + 0.8, j, bars):.2f});')
                 js.append(f'    tl.fromTo("#i3-v{i}-{j}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, {T[i] + 1.4 + j * 0.2:.2f});')
             right = (f'<div style="position: absolute; left: 1000px; top: 200px; width: 800px">'
