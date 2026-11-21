@@ -134,7 +134,7 @@ _LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm
            "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
 DOSE = {"mg": "밀리그램", "g": "그램", "μg": "마이크로그램", "µg": "마이크로그램"}  # 30 mg/kg/day
-PER = {"10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
+PER = {"min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
 # formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
@@ -173,6 +173,7 @@ def speak(text):
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
+    t = re.sub(r"(\d)\s*[xX]\s*(?=10⁻?[{_SUP}])".replace("{_SUP}", _SUP), r"\1 곱하기 ", t)  # 1x10⁸ written with a letter x
     t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
         f'{m.group(1)}의 {"마이너스 " if m.group(2) else ""}{"".join(map(_plain, m.group(3)))}제곱', m.group(4)), t)
     t = re.sub(r"제곱(?=[A-Za-zμµ0-9])", "제곱 ", t)  # 10⁸CFU → 10의 8제곱 CFU
@@ -189,7 +190,7 @@ def speak(text):
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
                lambda m: f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", t)
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
