@@ -135,7 +135,7 @@ _LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm
            "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
 DOSE = {"mg": "밀리그램", "g": "그램", "μg": "마이크로그램", "µg": "마이크로그램"}  # 30 mg/kg/day
-PER = {"s": "초", "min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
+PER = {"s": "초", "min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "ml": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
 # formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
@@ -145,8 +145,10 @@ FORMULAS = [(re.sub(f"[{_SUB}]", lambda m: f"[{m.group()}{_plain(m.group())}]", 
 UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
-         ("kDa", "킬로달톤"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
-         ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰")]
+         ("kDa", "킬로달톤"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
+         ("Pa", "파스칼"), ("mmol", "밀리몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
+         ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰"),
+         ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
 
 
 def speak(text):
@@ -160,6 +162,10 @@ def speak(text):
         # 이산화탄소(CO₂)를: the name once, not twice. Only the bare name: 부산물(H₂O) keeps its aside (부산물, 물)
         t = re.sub(rf"(?<![가-힣]){k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
+    t = re.sub(r"(?<![A-Za-z])(?:ca|approx)\.\s*(?=\d)|~\s*약\s*", "약 ", t)  # ca. 5배, ~약 30 → 약
+    t = re.sub(r"(?<![A-Za-z])FIGS?\.\s*(?=\d)|(?<![A-Za-z])Figs?\.\s*(?=\d)", "도 ", t)  # Fig. 3 → 도 3
+    # a particle written after an acronym follows how it is read, letter by letter: PCR으로 → PCR로, ELISA을 → ELISA를
+    t = re.sub(rf"(?<![A-Za-z])([A-Z][A-Z0-9]*[A-Z]){_PART}", lambda m: _say(m.group(1), m.group(2)), t)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)  # 당도: 12 °Brix, °Brix 12
@@ -167,12 +173,17 @@ def speak(text):
     # a dose per body weight per day: 30 mg/kg/day → 하루 체중 킬로그램당 30 밀리그램
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*(mg|g|μg|µg)\s*/\s*kg\s*/\s*(?:day|d|일)(?![A-Za-z가-힣])",
                lambda m: f"하루 체중 킬로그램당 {m.group(1)} {DOSE[m.group(2)]}", t)
-    t = re.sub(r"(\d+)\s*:\s*(\d+)(?=\s*(?:비율|비|의 비율|로 혼합|으로 혼합))", r"\1 대 \2", t)  # 1:10 비율 → 1 대 10 비율
+    # 1:10 비율 → 1 대 10 비율, 1:2:3 → 1 대 2 대 3, 1:0.5의 중량비
+    t = re.sub(r"\d+(?:\.\d+)?(?:\s*:\s*\d+(?:\.\d+)?)+(?=\s*(?:비율|비|의 비율|의 중량비|의 부피비|의 몰비|중량비|부피비|몰비|로 혼합|으로 혼합))",
+               lambda m: re.sub(r"\s*:\s*", " 대 ", m.group()), t)
     t = re.sub(r"(\d+)\s*회\s*/\s*(일|주|월)", lambda m: f'{dict(일="하루", 주="주", 월="월")[m.group(2)]} {m.group(1)}회', t)  # 1회/일 → 하루 1회
     t = re.sub(r"(?<![\d/.])(\d)\s*/\s*(\d{1,2})(?=\s*(?:로|으로|수준|이하|이상|가량|정도|만큼))", r"\2분의 \1", t)  # 1/3로 → 3분의 1로
     t = re.sub(r"[Ø⌀]\s*(?=\d)", "지름 ", t)  # Ø 30 mm → 지름 30 밀리미터
     t = re.sub(r"(?<=[\d%배])\s*↑", " 증가", t)  # 2.5배↑ → 2.5배 증가 (an arrow after a figure)
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
+    t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
+    t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
+    t = re.sub(r"(\d)\s*(?:vol|v/v)\s*\.?\s*%", r"\1부피퍼센트", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*[×x]\s*g(?![A-Za-z])", r"\1 지", t)  # 1,500×g: a centrifugal force, not a product
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
@@ -185,7 +196,7 @@ def speak(text):
     for u, k in AREA:  # an area or volume with no number before it: kg/m², 주/㎡
         t = re.sub(rf"(?<![A-Za-zμµ]){re.escape(u)}(?![A-Za-z])", k, t)
     # particles written for the symbol now follow a spoken word: 3 mL을 → 3 밀리리터를
-    spoken = "|".join(sorted({k for _, k in UNITS} | {"도", "퍼센트"}, key=len, reverse=True))
+    spoken = "|".join(sorted({k for _, k in UNITS} | {"도", "퍼센트", "중량퍼센트", "부피퍼센트", "퍼센트포인트"}, key=len, reverse=True))
     t = re.sub(rf"((?:\d|제곱)\s*(?:{spoken})){_PART}", lambda m: josa(m.group(1), _PAIRS[m.group(2)]), t)
     # any other square or cube after a letter: R² → R 제곱, m/s² → m/s 제곱 (an ion charge such as Ca²⁺ stays as written)
     t = re.sub(rf"([A-Za-z])([²³])(?![{_SUP}⁺⁻])(?:{_PART})?", lambda m: _say(f"{m.group(1)} {_POWER[_plain(m.group(2))]}", m.group(3)), t)
@@ -193,10 +204,15 @@ def speak(text):
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분 (before a rate)
+    t = re.sub(r"(\d[\d,]*(?:\.\d+)?\s*시간)\s*/\s*(?:day|d|일)(?![A-Za-z가-힣])", r"하루 \1", t)  # 2 h/day, 12시간/일 → 하루 2 시간
+    # a count per gram or millilitre: 10⁸ CFU/g → 그램당 10의 8제곱 CFU
+    t = re.sub(r"((?:\d[\d,]*(?:\.\d+)?\s*곱하기\s*)?(?:\d[\d,]*(?:\.\d+)?의 (?:마이너스 )?\d+제곱|\d[\d,]*(?:\.\d+)?)\s*"
+               r"(?:CFU|cfu|PFU|pfu|cells?|개))\s*/\s*(g|mL|ml|L)(?![A-Za-z])", lambda m: f"{PER[m.group(2)]}당 {m.group(1)}", t)
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
     t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|주|개|마리|포기|그루|평)(?:{_PART})?(?![A-Za-z가-힣])",
                lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
+    t = re.sub(r"(pH\s*\d+(?:\.\d+)?)\s*-\s*(?=\d)", r"\1에서 ", t)  # pH 6.5-7.0 (bare hyphens elsewhere stay: numbers, dates)
     # an inequality before a figure is read after it: <5% → 5퍼센트 미만, ≤ 40℃ → 40도 이하, <5 mg/L → 리터당 5 밀리그램 미만
     t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:\s*(?:{spoken}))?)",
                lambda m: f'{m.group(2)} {dict(zip("<>≤≥＜＞", ["미만", "초과", "이하", "이상", "미만", "초과"]))[m.group(1)]}', t)
@@ -204,9 +220,16 @@ def speak(text):
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)에서 (?=영하)", r"영하 \1에서 ", t)
     t = re.sub(r"\s*[·•ㆍ]\s*", ", ", t)  # 가열·가압 → 가열, 가압 (the voice breathes at the comma)
     t = re.sub(r"(\S+)\s+\+\s+", lambda m: josa(m.group(1), "과와") + " ", t)  # 팽화미 + 맥아 → 팽화미와 맥아
+    t = re.sub(rf"(\d(?:[\d,]*\d)?(?:\.\d+)?\s*(?:{spoken})?)\s*[→⇒]\s*(?=\d)", r"\1에서 ", t)  # 23.6→14.6으로 → 23.6에서 14.6으로
     t = re.sub(r"\s*[→⇒]\s*", ", 그다음 ", t)
     t = re.sub(r"[\"“”‘’'「」『』《》〈〉\[\]{}]", "", t)
     # an aside with a particle written after it would leave ', 딸기,은': say the word with its own particle (설향(딸기)은 → 설향은)
+    # company forms are read out: (주)에이비씨 → 주식회사 에이비씨, 한국(주) → 한국 주식회사
+    for short, full in (("주", "주식회사"), ("재", "재단법인"), ("사", "사단법인"), ("유", "유한회사")):
+        t = re.sub(rf"(?<=\S)\s*(?:\(\s*{short}\s*\){'|㈜' if short == '주' else ''})", " " + full, t)
+        t = re.sub(rf"(?:\(\s*{short}\s*\){'|㈜' if short == '주' else ''})\s*", full + " ", t)
+    # an aside first on the line with a particle after it: (KIST)가 → KIST가
+    t = re.sub(rf"(?:^|(?<=\s))\(([^()]*)\){_PART}", lambda m: _say(m.group(1), m.group(2)), t)
     t = re.sub(rf"(\S+?)\s*\(([^()]*)\){_PART}", lambda m: _say(m.group(1), m.group(3)), t)
     # a particle that does not change with the word (에, 의, 에서 …) keeps it and the aside follows: 세포(45%)에 → 세포에, 45%,
     t = re.sub(r"(\S+?)\s*\(([^()]*)\)(에서|에게|에|의|도|만|까지|부터|보다|간|동안)(?![가-힣])", r"\1\3, \2,", t)
@@ -216,7 +239,7 @@ def speak(text):
     # a full stop put after an end mark goes: '흡입한다..' → '흡입한다.', '어렵다?.' → '어렵다?'; an ellipsis ('...') is a pause and stays
     t = re.sub(r"(?<!\.)\.\.(?=\s|$)", ".", t)
     t = re.sub(r"([?!…])\.(?=\s|$)", r"\1", t)
-    t = re.sub(r"\s{2,}", " ", t).strip().rstrip(",").rstrip()  # an aside at the very end leaves no ',' before the stop
+    t = re.sub(r"\s{2,}", " ", t).strip().lstrip(",").strip().rstrip(",").rstrip()  # an aside at the very end leaves no ',' before the stop
     return t if not t or t[-1] in ENDS else t + "."
 
 
@@ -246,8 +269,10 @@ def josa(word, pair):
         has, rieul = coda != 0, coda == 8
     elif ch.isdigit():
         has, rieul = _DIGIT_CODA.get(ch, False), ch in _RIEUL
-    elif ch.isalpha():
-        has, rieul = ch.lower() in "lmnr", ch.lower() == "l"
+    elif ch.isalpha() and ch.isupper():  # an acronym is read letter by letter: 엘, 엠, 엔, 알 end in a consonant (PCR로, DNA를)
+        has, rieul = ch in "LMNR", ch in "LR"
+    elif ch.isalpha():  # a word read in English: sensor가, polymer를, film을
+        has, rieul = ch in "lmn" or w.endswith("ng"), ch == "l"
     else:
         has, rieul = False, False
     if pair == "으로로":
@@ -517,8 +542,18 @@ def synth(text, voice, rate):
     return mp3, duration(mp3)
 
 
+_NOEND = re.compile(r"(?:(?<![A-Za-z])(?:Fig|FIG|No|ca|vs|al|approx|e\.g|i\.e|cf)|(?<![\d.,])\d{1,2})\.(?=\s)")
+
+
 def sentences(text):
-    return [s for s in re.split(rf"(?<=[{ENDS}])\s+", text.strip()) if has_words(s)]
+    """Sentences of a spoken line. The stop of an abbreviation (Fig. 3, ca. 5) or a list number (1. 혼합) ends none."""
+    hold = _NOEND.sub(lambda m: m.group()[:-1] + "\u2024", text.strip())  # one dot leader holds that stop through the split
+    return [s.replace("\u2024", ".") for s in re.split(rf"(?<=[{ENDS}])\s+", hold) if has_words(s)]
+
+
+def spoken(text):
+    """The whole line as fit() voices it when nothing has to be cut (a stray '…' piece is dropped there too)."""
+    return " ".join(sentences(speak(text)))
 
 
 def fit(text, avail, voice):
@@ -599,7 +634,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
         voiced.append((start, dur, t))
-        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == speak(texts[sec]) else ' (shortened)'}: {t}")
+        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == spoken(texts[sec]) else ' (shortened)'}: {t}")
     block = "\n".join(clips)
     if AUDIO_MARK in html:
         html = html.replace(AUDIO_MARK, block + "\n" + AUDIO_MARK, 1)
@@ -642,7 +677,7 @@ def check(paths, voice=VOICE, lead=0.45, tail=0.55):
                 cut += 1
                 continue
             t, _, dur, rate = got
-            shortened = t != speak(texts[key])
+            shortened = t != spoken(texts[key])
             cut += shortened
             flag = "  <-- cut: shorten the line" if shortened else ("  <-- sped up " + rate if rate not in ("+0%", "+6%") else "")
             print(f"{os.path.basename(p)[:3]} {key:9s} {dur:4.1f}/{avail:4.1f}s {rate}{flag}")
