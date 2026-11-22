@@ -18,10 +18,10 @@ DARK = {"A", "C", "D", "E", "F", "S"}  # covers on a dark ground: rings and ligh
 COUNT = 380  # particles: fewer than the 650 of the pilot, nearly the same look, less time per frame
 # where the swirl sits (scene units; 0 = middle, lower is negative), per template: under the title on A/S, in the
 # bottom band elsewhere so it never runs through the words or the drawing
-YB = {"A": -3.3, "S": -3.3, "D": -3.6, "E": -4.7, "G": -3.8, "H": -3.9, "I": -4.0, "B": -7.0, "C": -7.0, "F": -6.2}
+YB = {"A": -3.3, "S": -3.3, "D": -4.4, "E": -4.7, "G": -3.8, "H": -3.9, "I": -4.0, "B": -7.0, "C": -7.0, "F": -6.2}
 # where the layer starts to show (percent from the top): above it the canvas fades out, so the far side of the swirl,
 # which the camera sees higher up, never sits behind the small lines under a centred title
-FADE = {"A": 69, "S": 69, "E": 79}
+FADE = {"A": 69, "S": 69, "E": 79, "D": 77}
 SCALE = 0.75  # the canvas draws at 3/4 size and is shown full size (soft particles lose nothing, the GPU-less render gains)
 
 # particle shape by the patent's hero pictogram (CONTENT_SPEC 'hero'); anything else is a small faceted crystal
