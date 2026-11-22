@@ -52,7 +52,8 @@ def temp_range(st):
     """(low, high) ℃ of a process step when its value is a stated temperature, else None."""
     if not any(u in st.get("u", "") for u in TEMP_UNITS) or not is_value(st.get("big")):
         return None
-    parts = re.split(r"(?<=\d)\s*[-–~—]\s*(?=-?\d)", st["big"])
+    big = str(st["big"]).translate(str.maketrans({"∼": "~", "～": "~", "〜": "~", "−": "-"}))  # 60∼80, −20 as written in specs
+    parts = re.split(r"(?<=\d)\s*[-–~—]\s*(?=-?\d)", big)
     try:
         vals = [float(p) for p in parts if p.strip()]
     except ValueError:
@@ -183,6 +184,20 @@ def fig_markers(c, pr, sid, box, t0, step, color=None, text="#ffffff"):
     layer = (f'<div id="{sid}-fm" style="position: absolute; left: {bx}px; top: {by}px; width: {bw}px; height: {bh}px; pointer-events: none" '
              f'data-layout-ignore>{draw_html}{html}</div>')
     return layer, draw_js + js
+
+
+def fit_bars(bars, n):
+    """At most n of a proof item's bars, in their order, never dropping the patent's own (hi) bars: those first, then the
+    first bar (the control the others are read against), then the rest."""
+    bars = list(bars or [])
+    if len(bars) <= n:
+        return bars
+    order = [i for i, b in enumerate(bars) if b.get("hi")] + [0] + list(range(1, len(bars)))
+    keep = []
+    for i in order:
+        if i not in keep and len(keep) < n:
+            keep.append(i)
+    return [bars[i] for i in sorted(keep)]
 
 
 def bar_at(base, j, bars, gap=0.12, last=0.25):

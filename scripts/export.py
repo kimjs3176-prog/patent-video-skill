@@ -36,13 +36,18 @@ def export(mp4, appno=None):
     appno = appno or appno_of(mp4)
     os.makedirs(OUT, exist_ok=True)
     dst, jpg = os.path.join(OUT, appno + ".mp4"), os.path.join(OUT, appno + ".jpg")
+    # temporary names are per process: two renderers (split ranges, or A and S of the same patents) never share one
+    part, jpart = f"{dst}.{os.getpid()}.part", f"{jpg[:-4]}.{os.getpid()}.part.jpg"
     try:
-        shutil.copyfile(mp4, dst + ".part")
-        os.replace(dst + ".part", dst)
+        shutil.copyfile(mp4, part)
+        os.replace(part, dst)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(THUMB_AT), "-i", mp4, "-frames:v", "1", "-q:v", "2", jpart],
+                       check=True)
+        os.replace(jpart, jpg)
     finally:  # copy or replace failed (disk full, the old file open in a player on Windows): leave no .part behind
-        with contextlib.suppress(OSError):
-            os.remove(dst + ".part")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(THUMB_AT), "-i", dst, "-frames:v", "1", "-q:v", "2", jpg], check=True)
+        for x in (part, jpart):
+            with contextlib.suppress(OSError):
+                os.remove(x)
     srt, out_srt = captions_of(mp4), os.path.join(OUT, appno + ".srt")
     if srt:  # captions of the narrated render (YouTube / accessibility upload)
         shutil.copyfile(srt, out_srt)

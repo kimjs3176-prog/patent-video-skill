@@ -915,6 +915,11 @@ def chart_reveal(sid, w, t, dur=2.4):
             f'    tl.to("#{sid}-cur", {{ opacity: 0, duration: 0.3 }}, {t + dur:.2f});']
 
 
+def ct_tag(ct, cut):
+    """The legend of one amplification curve: no Ct (not detected) or one past the cutoff reads N/A, in every chart alike."""
+    return "N/A" if not isinstance(ct, (int, float)) or not ct or ct > cut else f"Ct {ct:.1f}"
+
+
 def q_probe(c, pal, d):
     """Why the probe: with SYBR alone the no-template controls rise too; with the probe they stay flat."""
     a, b, cc = pal
@@ -954,8 +959,8 @@ def q_result(c, pal, d):
     rs = sg["result"]
     cyc, cut = sg["cycles"], sg["cutoff"]
     scol = ["#ff6b6b", "#ffa657", "#56d4dd", "#4c6ef5"]
-    sens = [{"l": s["l"], "ct": s["ct"], "col": scol[i % 4], "tag": "N/A" if s["ct"] > cut else f"Ct {s['ct']:.1f}"} for i, s in enumerate(rs["sensitivity"])]
-    spec = [{"l": s["l"], "ct": s["ct"], "col": "#ff6b6b" if i == 0 else "#4c6ef5", "tag": f"Ct {s['ct']:.1f}" if s["ct"] else "N/A"} for i, s in enumerate(rs["specificity"])]
+    sens = [{"l": s["l"], "ct": s.get("ct"), "col": scol[i % 4], "tag": ct_tag(s.get("ct"), cut)} for i, s in enumerate(rs["sensitivity"])]
+    spec = [{"l": s["l"], "ct": s.get("ct"), "col": "#ff6b6b" if i == 0 else "#4c6ef5", "tag": ct_tag(s.get("ct"), cut)} for i, s in enumerate(rs["specificity"])]
     body = heading("qr", rs.get("eyebrow", "RESULTS"), rs.get("title", TITLES["ct"]),
                    f"left: 300px; top: -300px; background: radial-gradient(circle, {rgba(b, 0.26)} 0%, rgba(0,0,0,0) 65%)") + f"""
       <div id="qr-L">{chart("qrl", rs.get("sens_title", "민감도"), sens, 160, 360, 700, 380, cyc, cut, rs.get("sens_note", ""))}</div>

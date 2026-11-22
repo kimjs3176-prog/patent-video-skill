@@ -201,12 +201,30 @@ def target(slug):
     return os.path.join(render_dir(), slug + ("" if TEMPLATE == "A" else "_" + TEMPLATE.lower()) + ("_nar" if NARRATE else "") + ".mp4")
 
 
+def newest_input(path):
+    """mtime of the newest file this video is made from: its content, branding.json (contact, holder and disclaimer of every
+    ending) and the patent's gazette data (holder, figures). Editing any of them makes the render out of date."""
+    appno = os.path.basename(path)[:-5].split("-", 1)[-1]
+    srcs = [path, os.path.join(ROOT, "branding.json"), os.path.join(ROOT, "data", "patents", appno, "biblio.json")]
+    return max(os.path.getmtime(p) for p in srcs if os.path.exists(p))
+
+
+def opts_stamp():
+    """The render options that change the picture but not the files above (written beside each render as <mp4>.opts)."""
+    return "3d" if COVER3D else "no-3d"
+
+
 def current(path, mp4):
     """mp4 is an up-to-date render of path: newer than its content (edited content gets re-rendered), with the requested voice
     and captions (the .srt beside a narrated render is there exactly when it was made with captions). An .srt older than
     the mp4 (left by older code beside a captionless re-render) counts for neither way: the video is rendered again."""
-    if not (os.path.exists(mp4) and os.path.getmtime(mp4) > os.path.getmtime(path)):
+    if not (os.path.exists(mp4) and os.path.getmtime(mp4) > newest_input(path)):
         return False
+    try:  # rendered with the other --no-3d setting (renders from before the stamp count as matching: no batch-wide redo)
+        if open(mp4[:-4] + ".opts", encoding="utf-8").read().strip() != opts_stamp():
+            return False
+    except OSError:
+        pass
     caps = bool(captions_of(mp4)) if CAPTIONS else not os.path.exists(mp4[:-4] + ".srt")
     return not NARRATE or (rendered_voice(mp4) == VOICE and caps)
 
@@ -337,6 +355,8 @@ def one(path, render, want, prog):
             shutil.copyfile(srt, side)
         elif os.path.exists(side):
             os.remove(side)  # a render without captions: the old cues must not be delivered with it (export drops patents/*.srt)
+    with open(mp4[:-4] + ".opts", "w", encoding="utf-8") as f:
+        f.write(opts_stamp())
     if os.path.getmtime(path) != src_mtime:  # edited while being built or rendered: this video shows the older content
         os.utime(mp4, (src_mtime, src_mtime))  # not newer than the edit, so this run's re-scan (or the next run) renders it again
         log(f"{slug} content changed during build/render - rendering again")

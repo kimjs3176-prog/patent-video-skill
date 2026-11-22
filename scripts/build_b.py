@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_line, E, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon, step_icon  # noqa: E402
+from visuals import fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 SLOTS = [("b1", "b1-cover", 0.0, 5.0), ("b2", "b2-summary", 4.5, 6.5), ("b3", "b3-process", 10.5, 10.0),
@@ -203,7 +203,7 @@ def b4(c, pal, d):
     blocks, js = "", []
     for i, it in enumerate(items):
         big = it["big"] + it.get("u", "")
-        bars = it.get("bars") or []
+        bars = fit_bars(it.get("bars"), 4)
         rows = ""
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15

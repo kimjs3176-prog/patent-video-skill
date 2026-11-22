@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_line, E, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
+from visuals import fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
 
 W, H = 1080, 1920
 DARK, PAPER = "#0d0d12", "#f3efe6"
@@ -180,7 +180,7 @@ def c4(c, pal, d):
         bg = [DARK, fl[1], PAPER][i % 3]
         fg = ink(bg)
         big = it["big"] + it.get("u", "")
-        bars = it.get("bars") or []
+        bars = fit_bars(it.get("bars"), 3)
         rows = ""
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
