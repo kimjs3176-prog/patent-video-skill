@@ -134,7 +134,7 @@ _LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm
            "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
 DOSE = {"mg": "밀리그램", "g": "그램", "μg": "마이크로그램", "µg": "마이크로그램"}  # 30 mg/kg/day
-PER = {"min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
+PER = {"s": "초", "min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
 # formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
@@ -145,7 +145,7 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
          ("kDa", "킬로달톤"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
-         ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰")]
+         ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰")]
 
 
 def speak(text):
@@ -172,6 +172,7 @@ def speak(text):
     t = re.sub(r"(?<=[\d%배])\s*↑", " 증가", t)  # 2.5배↑ → 2.5배 증가 (an arrow after a figure)
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
+    t = re.sub(r"(\d)\s*[×x]\s*g(?![A-Za-z])", r"\1 지", t)  # 1,500×g: a centrifugal force, not a product
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
     t = re.sub(r"(\d)\s*[xX]\s*(?=10⁻?[{_SUP}])".replace("{_SUP}", _SUP), r"\1 곱하기 ", t)  # 1x10⁸ written with a letter x
     t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
@@ -190,7 +191,7 @@ def speak(text):
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
                lambda m: f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", t)
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
