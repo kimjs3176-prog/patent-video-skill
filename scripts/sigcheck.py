@@ -163,6 +163,8 @@ def _problems(c):
         if len({s.get("key") for s in st}) < 2:
             errs.append("모든 단계의 그림(key)이 같음: 재료가 바뀌는 모습이 보이지 않음")
         # fewer than two stated temperatures is fine: the stage rail and each stage's label carry the journey
+        if len(sg.get("conventional") or []) > 8:  # the pills of the old route run off the 1920 px frame from 9 on
+            errs.append(f"conventional {len(sg['conventional'])}단계: 8단계 이하로 묶어 적기")
         if sg.get("removed") and sg["removed"] not in (sg.get("conventional") or []):
             errs.append("removed는 conventional 안의 단계 이름이어야 함")
     elif kind == "loop":
@@ -183,9 +185,20 @@ def _problems(c):
                 if not f.get("label"):
                     errs.append(f"run.flows[{i}].label 필요(범례에 쓰는 매질 이름)")
                 _points(f.get("pts") or [], f"run.flows[{i}].pts", errs)
+            refs = {str(p.get("ref")) for p in sg.get("callouts") or [] if isinstance(p, dict)}
+            if any(isinstance(p, dict) and p.get("ref") in (None, "") for p in sg.get("callouts") or []):
+                errs.append("callouts: 모든 항목에 ref(도면 부호) 필요")
             for i, g in enumerate(run.get("glows") or []):
                 if g.get("color") not in MEDIA:
                     errs.append(f"run.glows[{i}].color: {', '.join(sorted(MEDIA))}")
+                if "ref" in g:
+                    if str(g["ref"]) not in refs:
+                        errs.append(f"run.glows[{i}].ref '{g['ref']}': callouts에 있는 부호여야 함")
+                elif "at_flow" in g:
+                    if not (isinstance(g["at_flow"], int) and 0 <= g["at_flow"] < len(flows)):
+                        errs.append(f"run.glows[{i}].at_flow: 0~{len(flows) - 1} (flows 번호)")
+                elif not (_frac(g.get("x")) and _frac(g.get("y"))):
+                    errs.append(f"run.glows[{i}]: ref, at_flow 또는 x·y(도면 비율 0~1) 중 하나 필요")
             logic, steps = run.get("logic"), run.get("steps")
             if bool(logic) == bool(steps):
                 errs.append("run에는 logic(4단계 제어 루프)+rules 또는 steps(3~5) 중 하나만")
@@ -261,6 +274,13 @@ def _problems(c):
         elif rk == "ct":
             if not rs.get("sensitivity") or not rs.get("specificity") or not sg.get("cycles") or not sg.get("cutoff"):
                 errs.append("result(ct): sensitivity·specificity와 최상위 cycles·cutoff 필요")
+            for part in ("sensitivity", "specificity"):
+                for i, q in enumerate(rs.get(part) or []):
+                    if not (q.get("ct") is None or _num(q.get("ct"))):
+                        errs.append(f"result.{part}[{i}].ct: 숫자, 검출 안 됨이면 null")
+            pb = sg.get("probe")
+            if pb and not (isinstance(pb.get("sybr_ntc"), list) and all(_num(v) for v in pb["sybr_ntc"])):
+                errs.append("probe.sybr_ntc: NTC의 Ct 숫자 목록 (예: [34.2, 36.1])")
         else:
             errs.append("result.kind는 ct·tubes·gel 중 하나")
         if not 2 <= len(sg.get("field") or []) <= 4:

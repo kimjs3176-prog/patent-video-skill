@@ -1,9 +1,9 @@
 """Templates G, H, I — 16:9 styles adapted from the HyperFrames registry examples (via nexu-io/open-design, Apache-2.0),
 driven by the same content JSON as A–F.
 
-G  Swiss grid       16:9, 56 s    paper + hairline grid, giant Archivo numerals, one red accent, black data bar (ref: frame-swiss-grid / frame-pentagram-stat)
-H  Organic soft-tech 16:9, 52.5 s beige ground, frosted cards, radial node graphs, wave timeline (ref: frame-takram-organic)
-I  Newsroom editorial 16:9, 51.5 s cream paper, serif headlines, ruled tables, axis bar charts, colophon (ref: frame-nyt-graph / frame-data-chart-nyt)
+G  Swiss grid       16:9, 60 s    paper + hairline grid, giant Archivo numerals, one red accent, black data bar (ref: frame-swiss-grid / frame-pentagram-stat)
+H  Organic soft-tech 16:9, 57.5 s beige ground, frosted cards, radial node graphs, wave timeline (ref: frame-takram-organic)
+I  Newsroom editorial 16:9, 56 s   cream paper, serif headlines, ruled tables, axis bar charts, colophon (ref: frame-nyt-graph / frame-data-chart-nyt)
 
 Usage: python -I tools/build_ghi.py G|H|I data/content/<order>-<appno>.json [...]
 """

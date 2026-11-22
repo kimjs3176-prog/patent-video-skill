@@ -114,12 +114,12 @@ def _concentrate(a, b, cc):
     flame = "".join(f'<path class="cf" d="M{200 + k * 80} 432 C {184 + k * 80} 410, {204 + k * 80} 392, {200 + k * 80} 372 C {222 + k * 80} 394, {218 + k * 80} 414, {200 + k * 80} 432 Z" fill="#ff7a3c" />' for k in range(3))
     marks = "".join(f'<line x1="132" y1="{220 + k * 40}" x2="152" y2="{220 + k * 40}" stroke="rgba(255,255,255,0.5)" stroke-width="3" />' for k in range(4))
     return (f'<rect x="120" y="170" width="320" height="200" rx="30" {V} />'
-            f'<rect class="cl" x="138" y="200" width="284" height="154" rx="20" fill="{rgba(a, 0.4)}" />{marks}{steam}{flame}')
+            f'<rect class="cl" x="138" y="200" width="284" height="154" rx="20" fill="{a}" fill-opacity="0.4" />{marks}{steam}{flame}')
 
 
 def _concentrate_js(i, t):
     return [f'    tl.fromTo("#jj-m{i} .cs", {{ opacity: 0, y: 20 }}, {{ opacity: 1, y: -10, duration: 0.9, ease: "sine.out", stagger: {{ each: 0.2, repeat: 2, yoyo: true }} }}, {t + 0.45:.2f});',
-            f'    tl.fromTo("#jj-m{i} .cl", {{ scaleY: 1, transformOrigin: "50% 100%" }}, {{ scaleY: 0.5, fillOpacity: 2.2, duration: 1.8, ease: "power1.inOut" }}, {t + 0.5:.2f});',
+            f'    tl.fromTo("#jj-m{i} .cl", {{ scaleY: 1, fillOpacity: 0.4, transformOrigin: "50% 100%" }}, {{ scaleY: 0.5, fillOpacity: 0.85, duration: 1.8, ease: "power1.inOut" }}, {t + 0.5:.2f});',
             f'    tl.fromTo("#jj-m{i} .cf", {{ scaleY: 0.7, transformOrigin: "50% 100%" }}, {{ scaleY: 1.15, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7, stagger: 0.1 }}, {t + 0.2:.2f});']
 
 

@@ -27,7 +27,8 @@ def service_key():
         return key
     env = os.path.join(ROOT, ".env")
     if os.path.exists(env):
-        with open(env, encoding="utf-8-sig") as f:  # -sig: Windows Notepad writes a BOM
+        # -sig: Windows Notepad writes a BOM; replace: a Korean comment saved as ANSI (cp949) must not stop the fetch
+        with open(env, encoding="utf-8-sig", errors="replace") as f:
             for line in f:
                 if line.strip().startswith("KIPRIS_API_KEY="):
                     key = line.split("=", 1)[1].strip().strip('"\'')

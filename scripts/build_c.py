@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_line, E, PALETTES, ROOT, fit  # noqa: E402
 from icons import icon  # noqa: E402
 from build import count_js as build_count  # noqa: E402
-from visuals import fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
+from visuals import nobr, fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon  # noqa: E402
 
 W, H = 1080, 1920
 DARK, PAPER = "#0d0d12", "#f3efe6"
@@ -267,7 +267,7 @@ def c5(c, pal, d):
 def c6(c, pal, d):
     a = pal[0]
     rows = "".join(f'<div class="ap" style="top: {i * 150}px"><span class="nm">{E(ap["n"])}</span>'
-                   + (f'<em style="background: {a}">청구항</em>' if ap.get("claim") else "") + f'<div class="sb">{E(ap["s"].replace("<br />", " "))}</div></div>'
+                   + (f'<em style="background: {a}">청구항</em>' if ap.get("claim") else "") + f'<div class="sb">{E(nobr(ap["s"]))}</div></div>'
                    for i, ap in enumerate(c["apps"][:5]))
     body = f"""
       <div class="ghost" style="color: {PAPER}" data-layout-ignore>USE</div>

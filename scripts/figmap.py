@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from validate import appno_ok, figure_ok  # noqa: E402  same file-name rules as the content check
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SIGN = re.compile(r"(?<![0-9A-Za-z])([0-9]{1,4}[a-z]?(?:[-_][0-9a-z]+)?|S[0-9]{2,4})\s*[:：.]\s*([^\n\[:：]+?)(?=\s{2,}|\s+[0-9]{1,4}[a-z]?\s*[:：]|\[|$)", re.M)
+SIGN = re.compile(r"(?<![0-9A-Za-z])([0-9]{1,4}[a-z]?(?:[-_][0-9a-z]+)?|S[0-9]{2,4})\s*[:：.]\s*([^\n\[:：]+?)(?=\s{2,}|\s+S?[0-9]{1,4}[a-z]?\s*(?:[:：]|\.\s)|\[|$)", re.M)
 
 
 def ref_table(appno):

@@ -348,7 +348,7 @@ def j_journey(c, pal, d):
         {rail}
       </svg>
       <div id="jj-halo" style="position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; border: 3px solid {a}; opacity: 0" data-layout-ignore></div>
-      <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
+      <div id="jj-dot" style="position: absolute; left: -14px; top: -14px; opacity: 0; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px {a}" data-layout-ignore></div>
       {labels}
       {temp_cap}"""
     css = """    .jc { position: absolute; left: 1040px; top: 270px; width: 720px; opacity: 0; }
@@ -586,7 +586,7 @@ def l_run(c, pal, d):
                   f'" fill="none" stroke="{col}" stroke-width="4" stroke-dasharray="3 12" stroke-linecap="round" opacity="0" />')
     for gi, g in enumerate(rn.get("glows", [])):
         if "ref" in g:
-            cp = next((q for q in sg["callouts"] if q["ref"] == g["ref"]), sg["callouts"][0])
+            cp = next((q for q in sg["callouts"] if str(q.get("ref")) == str(g["ref"])), sg["callouts"][0])  # 2 or "2"
             gx, gy = m(cp["x"], cp["y"])
         elif "at_flow" in g:
             gx, gy = paths[g["at_flow"]][1]
@@ -1152,16 +1152,10 @@ def build(path):
         open(os.path.join(out, fn), "w", encoding="utf-8").write(s)
     slots, total = slots_for(c)
     keep_dur = dict(A.DUR)  # A's frame scenes read their length from A.DUR; restored below so A builds stay untouched
-    A.DUR.update({sid: du for sid, _, _, du in slots})
-    frame = {"s1-teaser": lambda: A.s1(c, pal), "s4-proof": lambda: A.s4_anatomy(c, pal) if c["proof"].get("kind") == "anatomy" else A.s4_stats(c, pal),
-             "s5-features": lambda: A.s5(c, pal), "s6-apps": lambda: A.s6(c, pal), "s7-outro": lambda: A.s7(c, pal)}
-    for sid, f, st, du in slots:
-        html = frame[f]() if f in frame else SIG[f](c, pal, du)
-        open(os.path.join(out, "compositions", f + ".html"), "w", encoding="utf-8").write(html)
     keep = (A.SLOTS, A.TOTAL)
-    A.SLOTS, A.TOTAL = slots, total
-    try:
-        open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(A.index(c))
+    A.DUR.update({sid: du for sid, _, _, du in slots})
+    try:  # also when a scene raises: the next video built in this process (template A) must see A's own lengths
+        _write_scenes(c, pal, out, slots, total)
     finally:
         A.SLOTS, A.TOTAL = keep
         A.DUR.clear()
@@ -1169,6 +1163,16 @@ def build(path):
     add_transitions(out, "A", slots, total, 1920, 1080)
     print(slug, f"built (S · {kind} · {total}s)")
     return out
+
+
+def _write_scenes(c, pal, out, slots, total):
+    frame = {"s1-teaser": lambda: A.s1(c, pal), "s4-proof": lambda: A.s4_anatomy(c, pal) if c["proof"].get("kind") == "anatomy" else A.s4_stats(c, pal),
+             "s5-features": lambda: A.s5(c, pal), "s6-apps": lambda: A.s6(c, pal), "s7-outro": lambda: A.s7(c, pal)}
+    for sid, f, st, du in slots:
+        html = frame[f]() if f in frame else SIG[f](c, pal, du)
+        open(os.path.join(out, "compositions", f + ".html"), "w", encoding="utf-8").write(html)
+    A.SLOTS, A.TOTAL = slots, total
+    open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(A.index(c))
 
 
 if __name__ == "__main__":

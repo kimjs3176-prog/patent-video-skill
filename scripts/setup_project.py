@@ -142,4 +142,4 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # the notes are partly Korean; a Windows pipe would get cp949
     if len(sys.argv) != 2:
         sys.exit("usage: python -I -X utf8 setup_project.py <project-dir>")
-    main(os.path.abspath(sys.argv[1]))
+    main(os.path.abspath(os.path.expanduser(sys.argv[1])))  # a literal ~ (Windows shells do not expand it)
