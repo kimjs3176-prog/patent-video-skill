@@ -95,6 +95,7 @@ def parse(root):
 
 # ---------------------------------------------------------------- patent holder (특허권자) from the gazette
 _ADDR = re.compile(r"(특별시|광역시|특별자치|[가-힣]+도\s|[가-힣]+시\s|[가-힣]+군\s|[가-힣]+구\s|[가-힣\d]+(로|길)\s*\d|번지|\d+-\d+|[가-힣]+(읍|면|동)\s|\b\d{5}\b)")
+_CORP = re.compile(r"[(（]\s*(?:주|재|사|유|학|합)\s*[)）]|㈜")  # (주)한국바이오 is a name, not an address tail
 _CODE = re.compile(r"\(\s*(\d{2})\s*\)")
 
 
@@ -112,9 +113,12 @@ def holders_from_text(txt):
         names = []
         for line in re.split(r"\n+", block):
             line = re.sub(r"\s+", " ", line).strip(" ,;")
-            if not line or line[0] in "(（0123456789":  # a wrapped address tail or a postcode
+            if not line or (line[0] in "(（0123456789" and not _CORP.match(line)):  # a wrapped address tail, a postcode
                 continue
-            cut = _ADDR.search(line + " ")  # an address line, or a name with its address on the same line
+            if " " not in line:  # one word: a name, even one ending like an address (경기도, 대구광역시, 김영동)
+                cut = None
+            else:  # an address line, or a name with its address on the same line
+                cut = _ADDR.search(line + " ", len(_CORP.match(line).group(0)) if _CORP.match(line) else 0)
             line = (line[:cut.start()] if cut else line).strip(" ,;")
             if line and len(line) <= 60 and line not in names:
                 names.append(line)
@@ -228,10 +232,14 @@ if __name__ == "__main__":
             os.makedirs(outdir, exist_ok=True)
             ft = parse_pdf(pdf, outdir)
             hs, hk = gazette_holders(outdir)
-            with open(os.path.join(outdir, "biblio.json"), "w", encoding="utf-8") as f:
-                json.dump({"applicationNumber": num, "claims": [], "source": "pdf", "fulltext": ft, "fulltext_kind": None,
-                           "holders": hs, "holder_kind": hk},
-                          f, ensure_ascii=False, indent=2)
+            bp = os.path.join(outdir, "biblio.json")
+            try:  # fetched by API before (its full text failed): keep its claims, applicants, title and 등록번호
+                info = json.load(open(bp, encoding="utf-8"))
+            except (OSError, ValueError):
+                info = {"applicationNumber": num, "claims": [], "source": "pdf"}
+            info.update({"fulltext": ft, "fulltext_kind": None, "holders": hs, "holder_kind": hk})
+            with open(bp, "w", encoding="utf-8") as f:
+                json.dump(info, f, ensure_ascii=False, indent=2)
             print(num, "ok from PDF:", ft["pages"], "pages,", len(ft["figures"]), "figures (claims: read them in fulltext.txt)")
         sys.exit(0)
     if args == ["--all"]:

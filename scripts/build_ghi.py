@@ -17,7 +17,7 @@ import build_def  # noqa: E402
 from build import contact, contact_label, disclaimer, holder_line, E, fit, rgba  # noqa: E402
 from build_def import count, darken, grad_text, plain, pop, scene, up  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
+from visuals import fit_bars, fig_markers, bar_at, add_transitions, blobs, copy_figures, fig_boxes, grain, particle_text, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
 
 def oneline(s):
@@ -222,7 +222,7 @@ def g4(c, pal, d):
     blocks, js = "", list(gjs)
     for i, it in enumerate(items):
         big, u = it["big"], it.get("u", "")
-        bars = (it.get("bars") or [])[:4]
+        bars = fit_bars(it.get("bars"), 4)
         ghost = "".join(ch for ch in big if ch.isdigit())[:2] or big[:2]
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
@@ -559,7 +559,7 @@ def h3(c, pal, d):
     blocks, js = "", []
     for i, it in enumerate(items):
         big, u = it["big"], it.get("u", "")
-        bars = (it.get("bars") or [])[:4]
+        bars = fit_bars(it.get("bars"), 4)
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
             rows = "".join(f'<div class="hb{" hi" if br.get("hi") else ""}"><div class="nm"><span>{E(br["l"])}</span><b>{E(br.get("t", ""))}</b></div>'
@@ -740,8 +740,8 @@ def i_css():
 
 def i_frame(sid, c, section):
     html = (f'<div class="mast" id="{sid}-mh"><span>TECH TRANSFER BRIEF · {E(section)}</span><span>{E(c.get("patlabel", "등록특허"))} {E(c["regno"])}</span></div>'
-            f'<div class="r2" id="{sid}-r2"></div>')
-    js = [f'    tl.fromTo("#{sid}-r2", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 1.0, ease: "expo.out" }}, 0);', up(f"#{sid}-mh", 0.15, 0, 0.6, 14)]
+            f'<div class="r2" id="{sid}-rule"></div>')
+    js = [f'    tl.fromTo("#{sid}-rule", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 1.0, ease: "expo.out" }}, 0);', up(f"#{sid}-mh", 0.15, 0, 0.6, 14)]
     return html, js
 
 
@@ -863,7 +863,7 @@ def i3(c, pal, d):
     blocks, js = "", list(fjs)
     for i, it in enumerate(items):
         big, u = it["big"], it.get("u", "")
-        bars = (it.get("bars") or [])[:4]
+        bars = fit_bars(it.get("bars"), 4)
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
             W = 470

@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, even_wrap, holder_line, E, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
+from visuals import fit_bars, fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
 FONT = """    @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-Medium.woff2") format("woff2"); font-weight: 500; }
     @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
@@ -247,7 +247,7 @@ def d4(c, pal, d):
     blocks, js = "", []
     for i, it in enumerate(items):
         big = it["big"]
-        bars = it.get("bars") or []
+        bars = fit_bars(it.get("bars"), 4)
         if bars:
             mx = it.get("max") or max(x["v"] for x in bars) * 1.15
             rows = "".join(f'<div class="crow{" hi" if br.get("hi") else ""}"><div class="nm">{E(br["l"])}</div><div class="bar"><i id="d4-f{i}-{j}"></i></div><div class="v">{E(br.get("t", ""))}</div></div>'
@@ -510,7 +510,7 @@ def e4(c, pal, d):
     blocks, js = "", []
     for i, it in enumerate(items):
         big = it["big"]
-        bars = it.get("bars") or []
+        bars = fit_bars(it.get("bars"), 4)
         dark = i % 2 == 0
         fg = "#f5f5f7" if dark else "#1d1d1f"
         bg = "#000" if dark else "#f5f5f7"
@@ -739,7 +739,7 @@ def f4(c, pal, d):
         js = js + "\n" + "\n".join(fm_js)
         return scene("f4", 1080, 1920, css, body, js, "gry")
     it = pr["items"][0]
-    bars = it.get("bars") or []
+    bars = fit_bars(it.get("bars"), 4)
     rows = ""
     js = []
     if bars:

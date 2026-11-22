@@ -48,7 +48,13 @@ def app_numbers(text, one_row=False):
     found = []
     for m in PAT.finditer(text):
         num = m.group(1).replace("-", "")
-        if "제외" in text[max(0, m.start() - 8):m.start()]:  # may sit in the cell to the left, as it always could
+        # may sit in the cell to the left, but only in this row: a 제외 ending the row above belongs to that row
+        # or in a 비고 cell at the end of the row (…,10-2019-0145266,발명A,제외)
+        lo = 0 if one_row else text.rfind("\n", 0, m.start()) + 1
+        hi = len(text) if one_row or text.find("\n", m.end()) < 0 else text.find("\n", m.end())
+        last = re.split(r"[,\t;|\n]", text[m.end():hi])[-1].strip()
+        if "제외" in text[max(lo, m.start() - 8):m.start()] or "제외" in text[m.end():min(hi, m.end() + 6)] \
+                or (last.startswith("제외") and len(last) <= 12):
             why = "제외"
         elif PARENT.search(text[text.rfind("\n", 0, m.start()) + 1:m.start()]):
             why = "parent"

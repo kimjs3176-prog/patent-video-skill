@@ -21,6 +21,7 @@ Usage: python -I tools/narration.py <project dir> <content.json> [--no-captions]
 """
 import base64
 import hashlib
+import html
 import json
 import os
 import re
@@ -150,7 +151,8 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
 
 def speak(text):
     """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
-    t = re.sub(r"<[^>]+>", " ", text.replace("|", "")).replace("−", "-")
+    # only tag-shaped text goes (<br />, <b>): '수분 <5%, 순도 >99%' keeps its figures
+    t = html.unescape(re.sub(r"</?[A-Za-z][^<>]*>", " ", text.replace("|", ""))).replace("−", "-")
     # ①, ８, ⑩ → 1, 8, 10, so the rules below see a number. Sub- and superscripts stay as written (Fe₂O₃, NH₄⁺, SO₄²⁻, 95%¹):
     # the voice reads them as before and the caption keeps them, where plain digits ran into one number (SO42⁻)
     t = "".join(ch if ch in _SUP + _SUB else _plain(ch) for ch in t)
@@ -190,11 +192,14 @@ def speak(text):
     t = re.sub(r"제곱(?=[A-Za-z0-9])", "제곱 ", t)
     t = re.sub(r"(\d)\s*/\s*(분|시간|일|초)", r"\1 \2당", t)
     t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
+    t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분 (before a rate)
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|주|개|마리|포기|그루|평)(?![A-Za-z가-힣])",
-               lambda m: f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", t)
-    t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|주|개|마리|포기|그루|평)(?:{_PART})?(?![A-Za-z가-힣])",
+               lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
+    # an inequality before a figure is read after it: <5% → 5퍼센트 미만, ≤ 40℃ → 40도 이하, <5 mg/L → 리터당 5 밀리그램 미만
+    t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:\s*(?:{spoken}))?)",
+               lambda m: f'{m.group(2)} {dict(zip("<>≤≥＜＞", ["미만", "초과", "이하", "이상", "미만", "초과"]))[m.group(1)]}', t)
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)도", r"영하 \1도", t)  # -40도 → 영하 40도
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)에서 (?=영하)", r"영하 \1에서 ", t)
     t = re.sub(r"\s*[·•ㆍ]\s*", ", ", t)  # 가열·가압 → 가열, 가압 (the voice breathes at the comma)
