@@ -166,6 +166,7 @@ def speak(text):
     t = re.sub(r"(?<![A-Za-z])FIGS?\.\s*(?=\d)|(?<![A-Za-z])Figs?\.\s*(?=\d)", "도 ", t)  # Fig. 3 → 도 3
     # a particle written after an acronym follows how it is read, letter by letter: PCR으로 → PCR로, ELISA을 → ELISA를
     t = re.sub(rf"(?<![A-Za-z])([A-Z][A-Z0-9]*[A-Z]){_PART}", lambda m: _say(m.group(1), m.group(2)), t)
+    t = re.sub(r"\s*[·∙⋅]\s*(kg|g|L|mL|h|min|s|d)⁻¹(?![A-Za-z])", r"/\1", t)  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)  # 당도: 12 °Brix, °Brix 12
@@ -213,6 +214,7 @@ def speak(text):
                lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
     t = re.sub(r"(pH\s*\d+(?:\.\d+)?)\s*-\s*(?=\d)", r"\1에서 ", t)  # pH 6.5-7.0 (bare hyphens elsewhere stay: numbers, dates)
+    t = re.sub(rf"(\d\s*(?:{spoken}))\s*[×xX]\s*(?=\d)", r"\1 곱하기 ", t)  # 10 mm × 20 mm: the sizes of a part
     # an inequality before a figure is read after it: <5% → 5퍼센트 미만, ≤ 40℃ → 40도 이하, <5 mg/L → 리터당 5 밀리그램 미만
     t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:\s*(?:{spoken}))?)",
                lambda m: f'{m.group(2)} {dict(zip("<>≤≥＜＞", ["미만", "초과", "이하", "이상", "미만", "초과"]))[m.group(1)]}', t)
