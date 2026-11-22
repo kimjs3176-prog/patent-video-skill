@@ -318,6 +318,36 @@ def auto_script(c):
     }
 
 
+def short_script(c):
+    """Shorter stand-ins per section, longest first, for scenes the full line cannot fill (short-form B/C/F scenes run
+    3-5 s): a scene that would otherwise stay silent says one of these instead. Each is a complete sentence."""
+    def first(xs):
+        return [_clean(x) for x in xs if x]
+    steps = first(st.get("n") for st in c["process"]["steps"])
+    pr = c["proof"]
+    ft = c.get("features") or {}
+    feats = first((f.get("l") or f.get("t") or f.get("n")) for f in (ft.get("tiles") or ft.get("items") or []) if isinstance(f, dict))
+    apps = first(a.get("n") for a in c.get("apps") or [])
+    inst = (c.get("institute") or "").split()
+    out = {
+        "hook": first([c.get("headline")]) and [f'{_clean(c["headline"])}.'] + ([f'{_clean(c["name"])}.'] if c.get("name") else []),
+        "overview": [f'{josa(inst[-1], "이가")} 개발한 기술입니다.'] if inst else [],
+        "process": ([f'{steps[0]}부터 {steps[-1]}까지 {len(steps)}단계입니다.'] if len(steps) > 1 else [])
+                   + ([f'{len(steps)}단계 공정입니다.'] if steps else []),
+        "figures": ["명세서 도면입니다."],
+        "features": ([f'강점은 {feats[0]}, {feats[1]}입니다.'] if len(feats) > 1 else [])
+                    + ([f'강점은 {feats[0]}입니다.'] if feats else []),
+        "apps": ([f'{apps[0]}, {apps[1]}에 활용됩니다.'] if len(apps) > 1 else []) + ([f'{apps[0]}에 활용됩니다.'] if apps else []),
+    }
+    if pr.get("kind") == "anatomy":
+        parts = first(p.get("n") for p in pr.get("parts") or [])
+        out["proof"] = ([f'핵심은 {parts[0]}, {parts[1]}입니다.'] if len(parts) > 1 else []) + ([f'핵심은 {parts[0]}입니다.'] if parts else [])
+    elif pr.get("items"):
+        it = pr["items"][0]
+        out["proof"] = [f'{_clean(it["l"])} {speak(str(it["big"]) + str(it.get("u", ""))).rstrip(".")}.']
+    return {k: [x for x in v if has_words(x)] for k, v in out.items()}
+
+
 def auto_sig_script(c):
     """Per-scene lines for template S when the signature block has no authored narration."""
     sg = c["signature"]
@@ -529,6 +559,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
     html = open(ip, encoding="utf-8").read()
     html = re.sub(r'\s*<audio id="nar-[^>]*></audio>', "", html)
     slots = scenes(html)
+    shorts = {}  # template S scenes are written to fit (signature.narration, checked by --check)
     if c.get("signature") and any(scene_key(f) in SIG_SCENES for _, f, _, _ in slots):
         texts, keyof = sig_script(c), scene_key
     else:
@@ -537,6 +568,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         if not pick_figures(c):  # the figures scene falls back to step pictograms: no line about drawings
             script.pop("figures", None)
         texts, keyof = assign(slots, script), section_of
+        shorts = short_script(c)
     vdir = os.path.join(out, "assets", "voice")
     os.makedirs(vdir, exist_ok=True)
     clips, report, voiced = [], [], []
@@ -548,6 +580,10 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         start = st + (0.6 if st == 0 else lead)
         avail = max(1.0, nxt + 0.25 - start - tail)  # may run into the cross-fade, never past it
         got = fit(texts[sec], avail, voice)
+        for alt in ([] if got else shorts.get(sec, [])):  # too long even spoken faster: a shorter line beats a silent scene
+            got = fit(alt, avail, voice)
+            if got:
+                break
         if not got:
             report.append(f"{sid}: no fit ({avail:.1f}s)")
             continue

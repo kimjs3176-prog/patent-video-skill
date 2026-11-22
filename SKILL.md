@@ -147,8 +147,8 @@ python -I -X utf8 -u tools/produce.py --template G --no-narrate 137  # 나레이
 - **산출물 파일 규칙**: 렌더링이 끝날 때마다 `patents/{출원번호}.mp4`(예: `patents/1020240012345.mp4`)와 썸네일 `patents/{출원번호}.jpg`(3초 지점 표지 프레임), 나레이션 자막 `patents/{출원번호}.srt`로 내보낸다(`tools/export.py`).
   템플릿별 작업 사본은 A `renders/<순번>-<출원번호>_nar.mp4`, 나머지 `renders_<t>/<순번>-<출원번호>_<t>_nar.mp4`로 남고, 같은 특허를 다른 템플릿으로 다시 렌더링하면 `patents/`의 파일은 최신 것으로 바뀐다.
   예전에 렌더링한 파일만 내보낼 때: `python -I tools/export.py renders_s/<파일>.mp4`. 로그는 각 폴더 `produce.log`.
-- 나레이션: 장면 파일명으로 항목을 매칭하고(엔딩 제외), 장면에 안 들어가면 빠르게(보통 속도 → +6·+12·+18%, 최대 +18%) → 뒤 문장부터 생략. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시).
-  한 문장도 안 들어가는 줄은 그 장면이 음성 없이 렌더되고, `produce.log`에 `<slug> NO-FIT f2 [narration.overview]: no fit (3.8s) - left silent, … shorten that line in data/content/<파일>.json` 경고가 남는다
+- 나레이션: 장면 파일명으로 항목을 매칭하고(엔딩 제외), 장면에 안 들어가면 빠르게(보통 속도 → +6·+12·+18%, 최대 +18%) → 뒤 문장부터 생략 → 그래도 안 들어가면 콘텐츠 필드로 만든 짧은 대체 문장(예: "강점은 공정 단순화입니다.", "쌀맥주 제조에 활용됩니다.")으로 읽는다. 결과는 `videos_<t>/<slug>/narration.txt`에서 확인(잘린 줄은 대본을 줄여 다시).
+  짧은 대체 문장까지 안 들어가는 장면만 음성 없이 렌더되고, `produce.log`에 `<slug> NO-FIT f2 [narration.overview]: no fit (3.8s) - left silent, … shorten that line in data/content/<파일>.json` 경고가 남는다
   (`[ ]` 안이 그 장면을 읽는 콘텐츠 필드, S는 `signature.narration.<장면>`) → 그 줄을 줄여 다시 돌린다. 음성 캐시 `data/voice_cache/`.
 - 검사(`hyperframes check`) 오류가 있으면 렌더링하지 않고 SKIP으로 기록한다. SKIP 원인은 대개 글자 수 초과나 도면 파일명 오류라 JSON을 고치면 된다.
 - 한 편당 약 3.2분(4코어·16GB·GPU 없음 실측: 렌더 167~187초 + 빌드·검사 약 27초, 나레이션은 처음 만들 때 조금 더). 100건이면 약 5~6시간.
