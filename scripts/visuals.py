@@ -16,6 +16,7 @@ STEP_ICONS = [
     (("배지", "균액"), "cell"),
     (("발효", "접종", "종균", "배양", "효모", "초산", "유산균", "젖산", "균주", "균사", "제국", "입국", "종초", "계대"), "cell"),
     (("추출", "여과", "농축", "분획", "흡착", "정제", "원심", "효소", "분해", "증폭", "검출", "분석", "검증", "평가"), "flask"),
+    (("배양", "배지"), "flask"),  # an alternative for culture steps (cell comes first): neighbouring culture steps can alternate
     (("열풍", "송풍", "대류", "공기", "외기", "가스", "흡입", "배기"), "fan"),
     (("건조", "증발", "탈수"), "sun"),
     (("LED", "보광", "집광", "분광", "광 ", "광원", "태양", "그림자", "음영"), "sun"),
@@ -205,10 +206,33 @@ def topic_icon(text, fallback):
     return step_icon(text, fallback)
 
 
+def _icon_choices(c, st):
+    """Every pictogram that fits a step, best first: its name's keywords, its description's, the hero, a spark."""
+    out = []
+    for text in (st.get("n", ""), st.get("d", "")):
+        out += [name for keys, name in STEP_ICONS if any(k in text for k in keys)]
+    out += [c.get("hero") or "spark", "spark"]
+    return list(dict.fromkeys(out))
+
+
+def process_icons(c, steps=None):
+    """The pictograms of a whole process, best first per step but never the same as the step before it
+    (세척→건조→분쇄 kept three different icons; 수분 응축→응축수 낙하→자동 급수 were three water drops)."""
+    out = []
+    for st in (c["process"]["steps"] if steps is None else steps):
+        ch = _icon_choices(c, st)
+        out.append(next((x for x in ch if not out or x != out[-1]), ch[0]))
+    return out
+
+
 def process_icon(c, st):
-    """A process step's pictogram: its name's keywords, then its description's, then the patent's own hero icon
-    (never a placeholder arrow)."""
-    return step_icon(st.get("n", ""), None) or step_icon(st.get("d", ""), None) or c.get("hero") or "spark"
+    """A process step's pictogram (never a placeholder arrow), chosen along the whole process so neighbouring steps
+    differ: see process_icons."""
+    steps = c.get("process", {}).get("steps") or []
+    i = next((k for k, x in enumerate(steps) if x is st), None)
+    if i is None:
+        i = next((k for k, x in enumerate(steps) if x == st), None)
+    return process_icons(c, steps)[i] if i is not None else _icon_choices(c, st)[0]
 
 
 def step_icon(text, hero="spark"):
