@@ -13,6 +13,7 @@ so a number master_list only reported (a 등록번호-looking 1020190010000) tha
 import copy
 import json
 import os
+import re
 import sys
 
 import openpyxl
@@ -72,6 +73,10 @@ def annotate(path):
     for ws in wb.worksheets:
         used = [(c.row, c.column) for row in ws.iter_rows() for c in row if c.value not in (None, "")]
         old = next((c for r, c in used if ws.cell(r, c).value == LABEL), None)  # this list was annotated before
+        if old is None:  # a sheet with no header row has no label: our column is the one holding only video file names
+            vid = re.compile(r"(?:(?:patents|renders\w*)/\S+\.mp4\n?)+")
+            old = next((c for c in sorted({c for _, c in used})
+                        if all(vid.fullmatch(str(ws.cell(r, c).value)) for r, cc in used if cc == c)), None)
         used = [(r, c) for r, c in used if c != old]
         if not used:
             continue
@@ -81,17 +86,18 @@ def annotate(path):
         first = next((r for r in rows if rows[r]), None)
         if first is None:
             continue
-        header = max(1, first - 1)
+        header = first - 1  # 0: the patents start on row 1, there is no header row to label
         files = {r: [f for f in dict.fromkeys(SLUG.get(a) for a in rows[r]) if f] for r in range(first, last_row + 1)}
         if not any(files.values()):  # no video yet for any patent of this sheet
             continue
-        col = old or free_col(ws, last_col + 1, [header] + [r for r in files if files[r]])
+        col = old or free_col(ws, last_col + 1, [header] * bool(header) + [r for r in files if files[r]])
         if old:  # refilling: clear the earlier run's names first
             for r in range(header + 1, last_row + 1):
                 if not isinstance(ws.cell(r, col), MergedCell):
                     ws.cell(r, col).value = None
-        h = ws.cell(header, col, LABEL)
-        h._style = copy.copy(ws.cell(header, last_col)._style)
+        if header:
+            h = ws.cell(header, col, LABEL)
+            h._style = copy.copy(ws.cell(header, last_col)._style)
         n = 0
         for r, fs in files.items():
             if fs:

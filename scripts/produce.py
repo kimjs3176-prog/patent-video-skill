@@ -81,6 +81,9 @@ def preflight():
         die("Node.js (node and npx) not found on PATH - HyperFrames needs Node.js 22 or newer: https://nodejs.org")
     if v < 22:  # hyperframes@0.8.207 declares engines node >=22; on 18/20 every check fails after build and narration
         die(f"Node.js {v} found - {HF} needs Node.js 22 or newer: install the current LTS from https://nodejs.org")
+    missing = [x for x in ("ffmpeg", "ffprobe") if not shutil.which(x)]
+    if missing:  # narration timing, the thumbnail and every export need them: say so now, not after the first render
+        die(f"{' and '.join(missing)} not found on PATH - install FFmpeg (https://ffmpeg.org/download.html) and open a new terminal")
     if importlib.util.find_spec("numpy") is None:  # the drawings' pen strokes (figtrace.py)
         die("python package numpy is missing for this Python (python -I does not see user-site packages): "
             "python -m pip install numpy  (or -r requirements.txt of the skill)")
@@ -151,12 +154,33 @@ def log(msg):
     print(msg, flush=True)
 
 
+def run_tree(cmd, timeout, **kw):
+    """subprocess.run for npx: on timeout the whole process tree goes (npx → node → Chrome), not only npx. Killing just the
+    child left node rendering on (POSIX: an mp4 written later, unchecked) and, on Windows, kept run() waiting on the pipes."""
+    group = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    with subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                          encoding="utf-8", errors="replace", **group, **kw) as p:
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+            else:
+                import signal
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+            p.communicate()
+            raise
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
 def check_project(out):
     """(error count, warning codes) from `hyperframes check`; a check that did not run counts as an error."""
     t0 = time.time()
     try:
-        r = subprocess.run(HYPERFRAMES + ["check", "--json"], cwd=out, env=ENV, stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=600)
+        r = run_tree(HYPERFRAMES + ["check", "--json"], 600, cwd=out, env=ENV)
     except subprocess.TimeoutExpired:
         return 1, ["check:timeout"]
     # only a report written by this run (an older clean report must not pass a project whose check crashed)
@@ -338,8 +362,7 @@ def one(path, render, want, prog):
     # to the project. Elsewhere it stays absolute: node resolves a relative one from the real directory, past a symlinked videos/
     o = os.path.relpath(mp4, out) if os.name == "nt" else mp4
     try:
-        r = subprocess.run(HYPERFRAMES + ["render", "-q", "delivery", "-o", o], cwd=out, env=ENV,
-                           stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
+        r = run_tree(HYPERFRAMES + ["render", "-q", "delivery", "-o", o], 1800, cwd=out, env=ENV)
     except subprocess.TimeoutExpired:
         log(f"{slug} RENDER FAIL {progress(prog)} timeout after {time.time() - t:.0f}s")
         return

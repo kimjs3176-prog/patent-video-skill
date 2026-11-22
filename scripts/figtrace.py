@@ -170,24 +170,27 @@ def cached(appno, fn):
     if not (appno_ok(appno) and figure_ok(fn)):  # both come from content JSON / argv and become paths
         return None
     out = os.path.join(CACHE, appno, fn + ".json")
+    d = {}
     if os.path.exists(out):
         try:
             d = json.load(open(out, encoding="utf-8"))
         except (OSError, ValueError):  # half-written by a parallel build: trace again
             d = {}
-        if d.get("v") == VERSION:
-            return None if d.get("skip") else d
     src = os.path.join(ROOT, "data", "patents", appno, fn)
     if not os.path.exists(src):
         return None
+    st = os.stat(src)
+    stamp = [st.st_size, int(st.st_mtime)]  # a figure replaced under the same name (re-fetch) is traced again
+    if os.path.exists(out) and d.get("v") == VERSION and d.get("src") == stamp:
+        return None if d.get("skip") else d
     try:
         d = trace(src)
-    except Exception:  # an odd image must never break a build
-        d = None
+    except Exception:  # an odd image must never break a build; not cached, so a passing failure (no ffmpeg) is retried
+        return None
     os.makedirs(os.path.dirname(out), exist_ok=True)
     tmp = f"{out}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(dict(d or {"skip": True}, v=VERSION), f)
+        json.dump(dict(d or {"skip": True}, v=VERSION, src=stamp), f)
     os.replace(tmp, out)  # atomic: a parallel renderer never reads half a file
     return d
 

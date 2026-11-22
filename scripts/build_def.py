@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, even_wrap, holder_line, E, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fit_bars, fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
+from visuals import nobr, fit_bars, fig_markers, bar_at, cover_figure, temp_profile, add_transitions, copy_figures, fig_boxes, pick_figures, process_icon, step_icon, clean_steps  # noqa: E402
 
 FONT = """    @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-Medium.woff2") format("woff2"); font-weight: 500; }
     @font-face { font-family: "Pretendard"; src: url("assets/fonts/pretendard/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
@@ -528,7 +528,7 @@ def e4(c, pal, d):
         <div class="eye" style="position: absolute; left: 0; right: 0; top: 110px; color: {a if dark else darken(b, 0.35)}">{E(pr.get("eyebrow", "PERFORMANCE"))}</div>
         <div class="huge gr" style="position: absolute; left: 0; right: 0; top: 170px; text-align: center; font-size: {fit(big + it.get("u", ""), 260, 1250)}px"><span id="e4-n{i}">{E(big)}</span><span style="font-size: 0.36em">{E(it.get("u", ""))}</span></div>
         <div class="h" style="position: absolute; left: 160px; right: 160px; top: {500 if bars else 560}px; font-size: 70px">{E(it["l"])}</div>
-        <div class="sub" style="position: absolute; left: 160px; right: 160px; top: {600 if bars else 670}px; font-size: 34px">{it.get("s", "").replace("<br />", " · ")}</div>
+        <div class="sub" style="position: absolute; left: 160px; right: 160px; top: {600 if bars else 670}px; font-size: 34px">{nobr(it.get("s", ""), " · ")}</div>
         <div style="position: absolute; left: 460px; right: 460px; top: 700px">{rows}</div></div>"""
         if i > 0:
             js.append(f'    tl.fromTo("#e4-k{i}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.6, ease: "power2.out" }}, {T[i]:.2f});')
@@ -614,7 +614,7 @@ def e6(c, pal, d):
     cx, cy = 960, 600
     pos = [(960, 300), (1500, 470), (1380, 840), (540, 840), (420, 470)][:len(apps)]
     lines = "".join(f'<line class="nl" pathLength="1" x1="{cx}" y1="{cy}" x2="{x}" y2="{y}" />' for x, y in pos)
-    nodes = "".join(f'<div class="node" id="e6-n{i}" style="left: {x}px; top: {y}px">{E(ap["n"])}<small>{E(ap["s"].replace("<br />", " "))}</small></div>'
+    nodes = "".join(f'<div class="node" id="e6-n{i}" style="left: {x}px; top: {y}px">{E(ap["n"])}<small>{E(nobr(ap["s"]))}</small></div>'
                     for i, ((x, y), ap) in enumerate(zip(pos, apps)))
     body = f"""
       <div class="eye" id="e6-e" style="position: absolute; left: 0; right: 0; top: 110px">기술이전 시 활용분야</div>
@@ -808,7 +808,7 @@ def f5(c, pal, d):
 
 def f6(c, pal, d):
     a, b, cc = pal
-    rows = "".join(f'<div class="ap" id="f6-a{i}" style="top: {i * 140}px"><i>{icon(ap["icon"], 56, a, 5)}</i><div><b>{E(ap["n"])}</b><span>{E(ap["s"].replace("<br />", " "))}</span></div></div>'
+    rows = "".join(f'<div class="ap" id="f6-a{i}" style="top: {i * 140}px"><i>{icon(ap["icon"], 56, a, 5)}</i><div><b>{E(ap["n"])}</b><span>{E(nobr(ap["s"]))}</span></div></div>'
                    for i, ap in enumerate(c["apps"][:5]))
     body = f"""
       <div class="t" id="f6-t" style="top: 250px; font-size: 76px">기술이전 시<br /><span class="acc">활용분야</span></div>

@@ -3,7 +3,7 @@
 Every project used to copy all fonts (10–37 MB: Noto Sans KR VF, Noto Serif KR VF, Pretendard ×4 …) and the renderer loaded them
 in every composition. subset_project(out) scans the project's HTML, subsets each referenced font from ROOT/assets to the
 characters present (+ printable ASCII, digits for count-ups), writes it in place and deletes fonts nobody references.
-Results are cached in data/font_cache by (font, charset).
+Results are cached in data/font_cache by (font file, its size and date, charset).
 
 Usage: python -I tools/fontsub.py <project dir> [...]
 """
@@ -43,7 +43,9 @@ def subset_project(out):
         src, dst = source_of(rel), os.path.join(out, rel.replace("/", os.sep))
         if not os.path.exists(src):
             continue
-        cached = os.path.join(CACHE, f"{hashlib.sha1(rel.encode()).hexdigest()[:8]}-{key}-{os.path.basename(rel)}")
+        st = os.stat(src)  # the font file itself is part of the key: an updated font is subset again
+        who = hashlib.sha1(f"{rel}|{st.st_size}|{int(st.st_mtime)}".encode()).hexdigest()[:8]
+        cached = os.path.join(CACHE, f"{who}-{key}-{os.path.basename(rel)}")
         if not os.path.exists(cached):
             opts = subset.Options()
             opts.layout_features = ["*"]
@@ -54,8 +56,9 @@ def subset_project(out):
             sub = subset.Subsetter(opts)
             sub.populate(text=chars)
             sub.subset(font)
-            subset.save_font(font, cached + ".part", opts)
-            os.replace(cached + ".part", cached)
+            part = f"{cached}.{os.getpid()}.part"  # per process: two renderers may subset the same font at once
+            subset.save_font(font, part, opts)
+            os.replace(part, cached)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy(cached, dst)
         saved += os.path.getsize(src) - os.path.getsize(dst)

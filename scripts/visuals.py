@@ -168,6 +168,7 @@ def fig_markers(c, pr, sid, box, t0, step, color=None, text="#ffffff"):
             continue
         px, py = ox + p["x"] * iw, oy + p["y"] * ih
         lab = str(p.get("ref", "")) if p.get("ref") not in (None, "") else ""
+        lab = lab.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")  # a numeral, but it is written into HTML
         w = max(48, 18 * len(lab) + 22)
         html += (f'<i id="{sid}-fr{i}" style="position: absolute; left: {px - 24:.0f}px; top: {py - 24:.0f}px; width: 48px; height: 48px; border-radius: 50%; '
                  f'border: 3px solid {col}; opacity: 0"></i>'
@@ -184,6 +185,11 @@ def fig_markers(c, pr, sid, box, t0, step, color=None, text="#ffffff"):
     layer = (f'<div id="{sid}-fm" style="position: absolute; left: {bx}px; top: {by}px; width: {bw}px; height: {bh}px; pointer-events: none" '
              f'data-layout-ignore>{draw_html}{html}</div>')
     return layer, draw_js + js
+
+
+def nobr(text, sep=" "):
+    """A content line on one line: every way of writing a break (<br />, <br/>, <br>) becomes sep."""
+    return re.sub(r"<br\s*/?>", sep, str(text or ""))
 
 
 def fit_bars(bars, n):
@@ -258,6 +264,14 @@ def step_icon(text, hero="spark"):
 
 
 def _dims(path):
+    """(width, height) of a PNG or JPEG, or None for anything else, including a truncated file."""
+    try:
+        return _dims_of(path)
+    except (OSError, struct.error):
+        return None
+
+
+def _dims_of(path):
     with open(path, "rb") as f:
         head = f.read(26)
         if head[:8] == b"\x89PNG\r\n\x1a\n":

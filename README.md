@@ -243,6 +243,16 @@ flowchart LR
 - 실행 시 받는 도구는 버전을 고정합니다: `hyperframes@0.8.207`, `edge-tts==7.3.1`, GSAP `3.14.2`, three.js `0.160.0`(jsDelivr).
 - edge-tts는 Microsoft Edge 온라인 읽기 서비스를 비공식으로 사용합니다(나레이션 문장이 외부로 전송됨). 공공 배포 전 이용 조건을 확인하세요.
 
+## 테스트
+
+나레이션 읽기 규칙(숫자·단위·범위·조사)은 정답표로 검사합니다. 네트워크와 TTS 없이 1초 안에 끝납니다.
+
+```bash
+python -I -X utf8 -m unittest discover -s tests
+```
+
+규칙을 의도적으로 바꿨다면 `tests/test_narration.py`의 기대값도 같은 커밋에서 고칩니다.
+
 ## 기록과 고지
 
 - 일일 점검 결과와 외부 도구 검토 내역: [`docs/daily-check.md`](docs/daily-check.md)

@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import contact, contact_label, disclaimer, holder_line, E, PALETTES, ROOT, fit, rgba  # noqa: E402
 from icons import icon  # noqa: E402
-from visuals import fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon, step_icon  # noqa: E402
+from visuals import nobr, fit_bars, fig_markers, bar_at, add_transitions, clean_steps, copy_figures, pick_figures, process_icon, step_icon  # noqa: E402
 
 W, H = 1080, 1920
 SLOTS = [("b1", "b1-cover", 0.0, 5.0), ("b2", "b2-summary", 4.5, 6.5), ("b3", "b3-process", 10.5, 10.0),
@@ -289,7 +289,7 @@ def b6(c, pal, d):
     for i, ap in enumerate(c["apps"][:5]):
         tag = '<em>청구항</em>' if ap.get("claim") else ""
         rows += (f'<div class="b6-r" id="b6-r{i}" style="top: {230 + i * 150}px"><div class="ib tint">{icon(ap["icon"], 72, "url(#b6-lg)", 5)}</div>'
-                 f'<div class="n">{E(ap["n"])}{tag}</div><div class="s">{E(ap["s"].replace("<br />", " "))}</div></div>')
+                 f'<div class="n">{E(ap["n"])}{tag}</div><div class="s">{E(nobr(ap["s"]))}</div></div>')
     body = f"""{grad("b6-lg", pal)}<div class="eyebrow">APPLICATIONS</div><div class="ttl">기술이전 시 <span style="color: {acc}">활용분야</span></div>{rows}"""
     extra = f""".b6-r {{ position: absolute; left: 60px; right: 60px; height: 128px; }}
     .b6-r .ib {{ position: absolute; left: 0; top: 4px; width: 116px; height: 116px; border-radius: 28px; }}

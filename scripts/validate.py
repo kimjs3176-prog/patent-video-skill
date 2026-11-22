@@ -81,6 +81,13 @@ def _check(path, template, warn):
             errs.append(f"필드 누락: {k}")
     if errs:
         return errs
+    # produce names the deliverable after the file (patents/<file's appno>.mp4) while the builders show the content's appno:
+    # a copied file with the other number left in would ship one patent's video under another's number
+    m = re.match(r"(\d+)-(\d{13})\.json$", os.path.basename(path))
+    if m and str(c["appno"]) != m.group(2):
+        errs.append(f"파일명의 출원번호 {m.group(2)}와 appno {c['appno']}가 다름")
+    if m and str(c["order"]) != str(int(m.group(1))):
+        warn.append(f"파일명의 순번 {int(m.group(1))}와 order {c['order']}가 다름")
     if c["palette"] not in PALETTES:
         errs.append(f"palette 잘못됨: {c['palette']}")
     icons = [c["hero"]] + [a["icon"] for a in c["apps"]] + [i.get("icon") for i in c["proof"].get("items", []) if i.get("icon")]
