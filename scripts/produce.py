@@ -28,7 +28,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from hfpin import HF, NPX  # noqa: E402
 
-FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render"}
+FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render", "--no-3d"}
 
 
 def die(msg):
@@ -132,6 +132,7 @@ ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 TEMPLATE = "A"
 NARRATE = True
 CAPTIONS = True
+COVER3D = True  # three.js layer behind the cover (tools/cover3d.py); --no-3d leaves it out
 VOICE = narration.VOICE
 BUILDERS = {"A": build_a, "B": build_b.build, "C": build_c.build,
             "D": lambda p: build_def.build("D", p), "E": lambda p: build_def.build("E", p), "F": lambda p: build_def.build("F", p),
@@ -234,11 +235,12 @@ def progress(prog):
 
 
 def main():
-    global TEMPLATE, NARRATE, VOICE, CAPTIONS
+    global TEMPLATE, NARRATE, VOICE, CAPTIONS, COVER3D
     o = options(sys.argv[1:])
     TEMPLATE, VOICE = o["template"], o["voice"] or VOICE
     NARRATE = "--no-narrate" not in o["flags"]  # --narrate is the default (still accepted)
     CAPTIONS = "--no-captions" not in o["flags"]
+    COVER3D = "--no-3d" not in o["flags"]
     render, want = "--no-render" not in o["flags"], o["want"]
     if NARRATE:  # again here (cheap): main() is also called on its own, without the __main__ block's voice_first()
         VOICE = voice_ready(narration, VOICE)
@@ -294,7 +296,7 @@ def one(path, render, want, prog):
     except Exception:
         pass
     out = BUILDERS[TEMPLATE](path)
-    postprocess.run(out)  # continuous pen draw-ons + per-video font subsets
+    postprocess.run(out, json.load(open(path, encoding="utf-8")) if COVER3D else None, TEMPLATE)  # pen draw-ons, 3D cover, font subsets
     if NARRATE:
         try:
             rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE, captions=CAPTIONS)
