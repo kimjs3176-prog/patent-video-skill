@@ -17,6 +17,15 @@ Templates G, H and I adapt the visual language of HyperFrames registry examples 
 nyt-graph, data-chart-nyt) as distributed in nexu-io/open-design (Apache-2.0). No source files from those templates are included.
 The particle text effect in `visuals.py` follows the technique of the HyperFrames registry component `particle-text-dissolve`.
 
+## Libraries loaded at render time (not redistributed)
+
+| Library | Version | License | Use |
+|---|---|---|---|
+| GSAP | 3.14.2 | GreenSock standard license (no-charge) | scene timelines |
+| three.js | 0.160.0 | MIT | the 3D cover layer (`scripts/cover3d.py`) |
+
+Both are fetched from jsDelivr by the rendering browser; no copy is included in this repository.
+
 ## Not included
 
 The videos carry no background music. Sound effects are not redistributed (see README). Patent data fetched from KIPRIS is not part of this
