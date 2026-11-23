@@ -170,7 +170,10 @@ def speak(text):
     t = re.sub(r"\s*[·∙⋅]\s*(kg|g|L|mL|h|min|s|d)⁻¹(?![A-Za-z])", r"/\1", t)  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
-    t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)  # 당도: 12 °Brix, °Brix 12
+    t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)
+    t = re.sub(r"(\d)\s*°(?![A-Za-z])", r"\1도", t)  # 12° (an angle, or a degree Brix written after the number)
+    t = re.sub(r"(?<![A-Za-z/])(w/v|v/v|w/w)(?![A-Za-z/%])",  # (w/v) after a concentration
+               lambda m: {"w/v": "중량 대 부피", "v/v": "부피 대 부피", "w/w": "중량 대 중량"}[m.group(1)], t)  # 당도: 12 °Brix, °Brix 12
     t = re.sub(r"(\d)\s*±\s*(\d)", r"\1 플러스마이너스 \2", t)  # 6.5±0.2
     # a dose per body weight per day: 30 mg/kg/day → 하루 체중 킬로그램당 30 밀리그램
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*(mg|g|μg|µg)\s*/\s*kg\s*/\s*(?:day|d|일)(?![A-Za-z가-힣])",
@@ -185,6 +188,7 @@ def speak(text):
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
     t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
     t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
+    t = re.sub(r"(\d)\s*w/v\s*%", r"\1 중량 대 부피 퍼센트", t)  # 0.1 w/v%
     t = re.sub(r"(\d)\s*(?:vol|v/v)\s*\.?\s*%", r"\1부피퍼센트", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*[×x]\s*g(?![A-Za-z])", r"\1 지", t)  # 1,500×g: a centrifugal force, not a product
@@ -216,7 +220,8 @@ def speak(text):
                lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
     t = re.sub(r"(pH\s*\d+(?:\.\d+)?)\s*-\s*(?=\d)", r"\1에서 ", t)  # pH 6.5-7.0 (bare hyphens elsewhere stay: numbers, dates)
-    t = re.sub(rf"(\d\s*(?:{spoken}))\s*[×xX]\s*(?=\d)", r"\1 곱하기 ", t)  # 10 mm × 20 mm: the sizes of a part
+    t = re.sub(rf"(\d\s*(?:{spoken}))\s*[×xX]\s*(?=\d)", r"\1 곱하기 ", t)
+    t = re.sub(rf"(\d\s*(?:{spoken}))\s*[~∼〜]\s*(?=\d)", r"\1에서 ", t)  # 300 nm~400 nm: a range with the unit on both ends  # 10 mm × 20 mm: the sizes of a part
     # an inequality before a figure is read after it: <5% → 5퍼센트 미만, ≤ 40℃ → 40도 이하, <5 mg/L → 리터당 5 밀리그램 미만
     t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:\s*(?:{spoken}))?)",
                lambda m: f'{m.group(2)} {dict(zip("<>≤≥＜＞", ["미만", "초과", "이하", "이상", "미만", "초과"]))[m.group(1)]}', t)
