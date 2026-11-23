@@ -8,7 +8,7 @@
 
 <p align="center">
   <img alt="Claude Code skill" src="https://img.shields.io/badge/Claude_Code-skill-d97757">
-  <img alt="HyperFrames 0.8.207" src="https://img.shields.io/badge/HyperFrames-0.8.207-111111">
+  <img alt="HyperFrames 0.9.84" src="https://img.shields.io/badge/HyperFrames-0.9.84-111111">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776ab">
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-5fa04e">
   <img alt="Templates" src="https://img.shields.io/badge/templates-10-ff9f43">
@@ -54,7 +54,7 @@ patents/1020190145266.srt   ← 자막
 - **도면을 그래픽으로** — 흑백 선 도면은 선을 자동으로 뽑아 그려 내고(`figtrace.py`), "부호의 설명" 대조표와 측정 격자(`figmap.py`)로 부품 위치에 표식을 찍습니다.
 - **한국어 나레이션** — 키가 없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`), `GOOGLE_TTS_API_KEY`가 있으면 Google Chirp 3 HD. 단위·기호(`℃`, `mg/L`, `±`, `10⁸` …)는 읽는 말로 바꿔 합성합니다.
 - **장면에 맞춘 분량** — 보통 속도로 먼저 읽고, 넘치면 최대 +18%까지 빠르게, 그래도 넘치면 뒤 문장을 줄이고, 마지막에는 콘텐츠로 만든 짧은 문장으로 대신 읽어 **무음 장면을 남기지 않습니다**.
-- **3D 표지** — 모든 템플릿 표지 뒤에 three.js 레이어가 들어가, 특허 분야에 맞춘 입자(곡물·세포·물방울·잎)가 제목 아래에서 소용돌이칩니다(`--no-3d`로 끔).
+- **발음 검사** — 완성된 나레이션을 로컬 음성인식(faster-whisper, CPU)으로 다시 받아 적어 대본과 비교하고, 숫자나 말이 다르게 들리는 장면만 `PRON`으로 알려 줍니다(`--no-stt`로 끔).
 - **자막 기본 포함** — 화면 맨 아래 전용 띠에 자막을 굽고(장면은 그만큼 위로) `.srt`도 함께 냅니다.
 - **엔딩 문구** — 기술이전 문의처·면책 문구는 `branding.json`, 특허권자는 공보의 (73) 특허권자(공개공보는 (71) 출원인)를 씁니다.
 - **키 없이도 끝까지** — KIPRIS 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 씁니다. 배경음악은 넣지 않습니다.
@@ -202,13 +202,13 @@ flowchart LR
 
 | 필요한 것 | 용도 |
 |---|---|
-| **Node.js 22+**, npx | HyperFrames 검사·렌더(`hyperframes@0.8.207`이 Node 22 이상을 요구) |
+| **Node.js 22+**, npx | HyperFrames 검사·렌더(`hyperframes@0.9.84`이 Node 22 이상을 요구) |
 | **ffmpeg** (`ffprobe` 포함) | 음성 길이 측정, 썸네일, 내보내기 |
 | **Python 3.10+** · `openpyxl` `pypdf` `fonttools` `brotli` `numpy` | 수집·빌드·검사 스크립트 (`requirements.txt`) |
 | **uv** (`uvx`) | 기본 나레이션 edge-tts 실행. Google 음성만 쓰거나 `--no-narrate`면 없어도 됨 |
 
 - `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx와 음성을 검사해 빌드 전에 멈춥니다.
-- 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 받습니다. 미리 받으려면 `npx --yes hyperframes@0.8.207 browser ensure`.
+- 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 받습니다. 미리 받으려면 `npx --yes hyperframes@0.9.84 browser ensure`.
 - edge-tts는 OS 인증서 저장소를 쓰므로 TLS 검사 프록시가 있는 기관망에서도 동작합니다.
 - Windows에서 출력을 파이프나 파일로 받을 때는 `python -I -X utf8 ...`으로 실행합니다(`PYTHONIOENCODING`은 `-I`가 무시합니다).
 
@@ -221,7 +221,7 @@ flowchart LR
 | `GOOGLE_TTS_API_KEY` | 프로젝트 `.env` | 있으면 Google Chirp 3 HD 음성. Cloud 콘솔에서 Text-to-Speech API를 켜고 발급(유료, 월 무료 한도 있음) |
 | 기술이전 문의처·면책 문구 | 프로젝트 `branding.json` | 특허마다 다르면 콘텐츠 JSON의 `branding` |
 | 음성 선택 | `produce.py --voice` | `SunHi`, `Kore`처럼 이름만 줘도 전체 ID로 바뀜 |
-| 나레이션·자막·3D 표지 끄기 | `--no-narrate`, `--no-captions`, `--no-3d` | 3D 표지는 GPU 없는 렌더에서 편당 약 30초 추가 |
+| 나레이션·자막·발음 검사 끄기 | `--no-narrate`, `--no-captions`, `--no-stt` | 발음 검사는 편당 약 30초, 첫 사용 때 모델 약 480MB |
 
 </details>
 
@@ -240,7 +240,7 @@ flowchart LR
 - KIPRIS 호출은 HTTPS만 사용하고, 공보 PDF는 KIPRIS 도메인에서만 받습니다.
 - 콘텐츠 JSON은 모델이 제3자 문서(명세서)에서 쓴 것이므로 `validate.py`가 `<br />` 외 HTML 태그, 경로가 섞인 도면 파일명,
   형식이 맞지 않는 시그니처 데이터(좌표·서열·도면 파일)를 거부합니다.
-- 실행 시 받는 도구는 버전을 고정합니다: `hyperframes@0.8.207`, `edge-tts==7.3.1`, GSAP `3.14.2`, three.js `0.160.0`(jsDelivr).
+- 실행 시 받는 도구는 버전을 고정합니다: `hyperframes@0.9.84`, `edge-tts==7.3.1`, GSAP `3.15.1`(jsDelivr).
 - edge-tts는 Microsoft Edge 온라인 읽기 서비스를 비공식으로 사용합니다(나레이션 문장이 외부로 전송됨). 공공 배포 전 이용 조건을 확인하세요.
 
 ## 테스트

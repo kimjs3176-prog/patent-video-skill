@@ -17,14 +17,20 @@ Templates G, H and I adapt the visual language of HyperFrames registry examples 
 nyt-graph, data-chart-nyt) as distributed in nexu-io/open-design (Apache-2.0). No source files from those templates are included.
 The particle text effect in `visuals.py` follows the technique of the HyperFrames registry component `particle-text-dissolve`.
 
+## Pronunciation check (installed by requirements.txt, not redistributed)
+
+| Component | Version | License | Use |
+|---|---|---|---|
+| faster-whisper (SYSTRAN) | 1.2.1 | MIT | speech recognition for `scripts/pronounce.py` |
+| Whisper "small" model (OpenAI, CTranslate2 conversion by SYSTRAN) | faster-whisper-small | MIT | downloaded once to the Hugging Face cache on first use |
+
 ## Libraries loaded at render time (not redistributed)
 
 | Library | Version | License | Use |
 |---|---|---|---|
-| GSAP | 3.14.2 | GreenSock standard license (no-charge) | scene timelines |
-| three.js | 0.160.0 | MIT | the 3D cover layer (`scripts/cover3d.py`) |
+| GSAP | 3.15.1 | GreenSock standard license (no-charge) | scene timelines |
 
-Both are fetched from jsDelivr by the rendering browser; no copy is included in this repository.
+It is fetched from jsDelivr by the rendering browser; no copy is included in this repository.
 
 ## Not included
 

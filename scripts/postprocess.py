@@ -122,16 +122,12 @@ def real_lengths(out):
 
 
 def run(out, c=None, template="A"):
-    """c: the content, to add the three.js cover layer (cover3d.py); None leaves it out (produce.py --no-3d)."""
+    """c and template are accepted for callers written for the former 3D cover layer; they change nothing."""
     gone = drop_missing_audio(out)
     real_lengths(out)
     k = pen_draw(out)
-    cover = None
-    if c is not None:
-        import cover3d
-        cover = cover3d.inject(out, c, template)
     f, saved = subset_project(out)
-    return (f"pen-draw {k}, fonts {f} (-{saved / 1e6:.1f} MB)" + (f", 3D cover {cover}" if cover else "")
+    return (f"pen-draw {k}, fonts {f} (-{saved / 1e6:.1f} MB)"
             + (f", missing audio dropped: {len(gone)}" if gone else ""))
 
 

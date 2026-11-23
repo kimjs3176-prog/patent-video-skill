@@ -130,6 +130,8 @@ def doctor(dst):
     if not shutil.which("uvx") and not has_key(dst, "GOOGLE_TTS_API_KEY"):  # narration is on by default, with edge-tts through uvx
         missing.append("uv (uvx) for the default narration voice (edge-tts) - or GOOGLE_TTS_API_KEY in .env for the Google voice, "
                        "or produce.py --no-narrate")
+    if importlib.util.find_spec("faster_whisper") is None:  # optional: produce.py then skips the pronunciation check
+        print("note: faster-whisper not installed - the pronunciation check is skipped (it comes with requirements.txt)")
     if missing:
         print("missing:", ", ".join(missing))
         print("  python -m pip install -r", os.path.join(SKILL, "requirements.txt"),

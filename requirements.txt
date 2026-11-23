@@ -3,3 +3,4 @@ pypdf>=6.17  # parses downloaded gazette PDFs: keep the decompression-bomb / par
 fonttools>=4.40
 brotli>=1.1
 numpy>=1.24
+faster-whisper==1.2.1  # pronunciation check (pronounce.py): MIT; the Whisper small model (~480 MB) downloads on first use

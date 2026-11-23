@@ -152,6 +152,25 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
 
 
+_SINO = "영일이삼사오육칠팔구"
+
+
+def sino(n):
+    """An integer in Sino-Korean words: 50 → 오십, 120 → 백이십, 3000 → 삼천."""
+    if n == 0:
+        return "영"
+    out = ""
+    for big, word in ((10 ** 8, "억"), (10 ** 4, "만")):
+        if n >= big:
+            out += ("" if word == "만" and n // big == 1 else sino(n // big)) + word  # 만 이천, not 일만
+            n %= big
+    for unit, word in ((1000, "천"), (100, "백"), (10, "십")):
+        d, n = divmod(n, unit)
+        if d:
+            out += ("" if d == 1 else _SINO[d]) + word
+    return out + (_SINO[n] if n else "")
+
+
 def speak(text):
     """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
     # only tag-shaped text goes (<br />, <b>): '수분 <5%, 순도 >99%' keeps its figures
@@ -186,6 +205,9 @@ def speak(text):
     t = re.sub(r"[Ø⌀]\s*(?=\d)", "지름 ", t)  # Ø 30 mm → 지름 30 밀리미터
     t = re.sub(r"(?<=[\d%배])\s*↑", " 증가", t)  # 2.5배↑ → 2.5배 증가 (an arrow after a figure)
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
+    # 50배 was voiced with the native numeral (쉰 배); a multiple of ten or more is said in Sino-Korean: 오십 배 (두 배 stays)
+    t = re.sub(r"(?<![\d.,])(\d{2,}|\d{1,3}(?:,\d{3})+)\s*배(?!양|지|율|수|추|아|합|출|열|치|관|송|터|선|분|포|경)",
+               lambda m: sino(int(m.group(1).replace(",", ""))) + " 배", t)  # not 10배양 / 배지 / 배율 …
     t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
     t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
     t = re.sub(r"(\d)\s*w/v\s*%", r"\1 중량 대 부피 퍼센트", t)  # 0.1 w/v%
@@ -355,6 +377,46 @@ def auto_script(c):
         "apps": f'{", ".join(a["n"] for a in c["apps"][:3])} 같은 분야에 활용할 수 있습니다.',
         "outro": f'{josa(contact_label(c), "은는")} {contact(c)}입니다.',
     }
+
+
+def auto_extra(c):
+    """A second sentence per section for the auto script, from the content: a scene of 10-13 s held one short line and was
+    half silent. fit() voices it only when it fits at a natural pace (+0/+6 %); otherwise the scene keeps the first line."""
+    def cl(xs):
+        return [_clean(x) for x in xs if x and _clean(x)]
+    out = {}
+    if c.get("title") and _clean(c["title"]) != _clean(c.get("headline")):
+        out["hook"] = f'{_clean(c["title"])}입니다.'
+    chips = [ch for ch in c.get("chips") or [] if isinstance(ch, dict) and ch.get("k") and ch.get("v")
+             and ":" not in f'{ch["k"]}{ch["v"]}']  # a ratio chip (팽화미 : 맥아 10–45 : 55–90%) reads badly as a sentence
+    if chips:
+        out["overview"] = " ".join(f'{josa(_clean(ch["k"]), "은는")} {_clean(str(ch["v"]))}{ch.get("u") or ""}입니다.' for ch in chips[:2])
+    steps = cl(st.get("n") for st in c["process"]["steps"])
+    mid = steps[1:-1]
+    if mid:
+        listed = josa(mid[0], "과와") + " " + mid[1] if len(mid) == 2 else ", ".join(mid[:3])
+        out["process"] = f'중간에 {josa(listed, "을를")} 거칩니다.' if len(mid) <= 3 else f'중간에 {", ".join(mid[:3])} 등을 거칩니다.'
+    pr = c["proof"]
+    if pr.get("kind") == "anatomy":
+        rest = cl(p.get("n") for p in (pr.get("parts") or [])[3:5])
+        if rest:
+            out["proof"] = f'그 밖에 {", ".join(rest)}도 들어갑니다.'
+    else:
+        lines = []
+        for it in (pr.get("items") or [])[1:3]:
+            val = speak(f'{it.get("big", "")}{it.get("u", "")}').rstrip(".")
+            if it.get("l") and has_words(val) or re.search(r"[0-9]", val):
+                lines.append(f'{josa(_clean(it["l"]), "은는")} {val + "입니다" if not re.search(r"[0-9]$", val) else josa(val, "을를") + " 기록했습니다"}.')
+        if lines:
+            out["proof"] = "또 " + " ".join(lines)
+    ft = c.get("features") or {}
+    feats = cl((f.get("l") or f.get("t") or f.get("n")) for f in (ft.get("tiles") or ft.get("items") or []) if isinstance(f, dict))
+    if len(feats) > 2:
+        out["features"] = f'{josa(feats[2], "과와")} {feats[3]}도 장점입니다.' if len(feats) > 3 else f'{feats[2]}도 장점입니다.'
+    apps = cl(a.get("n") for a in c.get("apps") or [])
+    if len(apps) > 3:
+        out["apps"] = f'{", ".join(apps[3:5])}에도 쓸 수 있습니다.'
+    return {k: v for k, v in out.items() if has_words(v)}
 
 
 def short_script(c):
@@ -565,9 +627,19 @@ def spoken(text):
     return " ".join(sentences(speak(text)))
 
 
-def fit(text, avail, voice):
-    """Voice text so it lasts at most avail seconds: faster first, then drop trailing sentences."""
+def fit(text, avail, voice, core=None):
+    """Voice text so it lasts at most avail seconds: faster first, then drop trailing sentences.
+    core: how many leading sentences are the line itself; any after them are optional extras (auto_extra), voiced only
+    when they fit at a natural pace (+0/+6 %) and dropped first, so an extra never speeds the line up."""
     parts = sentences(speak(text))
+    core = len(parts) if core is None else max(1, min(core, len(parts)))
+    for n in range(len(parts), core, -1):
+        t = " ".join(parts[:n])
+        for rate in ("+0%", "+6%"):
+            mp3, dur = synth(t, voice, rate)
+            if dur <= avail:
+                return t, mp3, dur, rate
+    parts = parts[:core]
     while parts:
         t = " ".join(parts)
         for rate in ("+0%", "+6%", "+12%", "+18%"):  # natural pace first; speed up only as much as the scene needs
@@ -608,7 +680,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
     html = open(ip, encoding="utf-8").read()
     html = re.sub(r'\s*<audio id="nar-[^>]*></audio>', "", html)
     slots = scenes(html)
-    shorts = {}  # template S scenes are written to fit (signature.narration, checked by --check)
+    shorts, extra = {}, {}  # template S scenes are written to fit (signature.narration, checked by --check)
     if c.get("signature") and any(scene_key(f) in SIG_SCENES for _, f, _, _ in slots):
         texts, keyof = sig_script(c), scene_key
     else:
@@ -618,6 +690,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
             script.pop("figures", None)
         texts, keyof = assign(slots, script), section_of
         shorts = short_script(c)
+        extra = {k: v for k, v in auto_extra(c).items() if k not in authored}  # only after auto lines, not the author's
     vdir = os.path.join(out, "assets", "voice")
     os.makedirs(vdir, exist_ok=True)
     clips, report, voiced = [], [], []
@@ -628,7 +701,8 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         nxt = slots[i + 1][2] if i + 1 < len(slots) else st + du
         start = st + (0.6 if st == 0 else lead)
         avail = max(1.0, nxt + 0.25 - start - tail)  # may run into the cross-fade, never past it
-        got = fit(texts[sec], avail, voice)
+        core = len(sentences(speak(texts[sec])))
+        got = fit(texts[sec] + (" " + extra[sec] if extra.get(sec) else ""), avail, voice, core)
         for alt in ([] if got else shorts.get(sec, [])):  # too long even spoken faster: a shorter line beats a silent scene
             got = fit(alt, avail, voice)
             if got:
@@ -643,7 +717,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
         voiced.append((start, dur, t))
-        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t == spoken(texts[sec]) else ' (shortened)'}: {t}")
+        report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t.startswith(spoken(texts[sec])) else ' (shortened)'}: {t}")
     block = "\n".join(clips)
     if AUDIO_MARK in html:
         html = html.replace(AUDIO_MARK, block + "\n" + AUDIO_MARK, 1)
