@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 MODEL = "small"  # base misheard about one word per line in Korean (50배 → 신배); small heard the test lines all but exactly
-MIN_RATIO = 0.9  # similarity of the spoken letters below which a line is reported
+MIN_RATIO = 0.7  # similarity below which a line is reported: the recogniser itself mishears names (쌀맥주 → 삶액죽) above it
 _model = None
 
 
@@ -36,7 +36,32 @@ def _letters(s):
     return re.sub(r"[^0-9A-Za-z가-힣]", "", s)
 
 
+_NATIVE = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8,
+           "아홉": 9, "열": 10}
+_COUNTER = r"(?=\s*(?:단계|가지|개|번|배|명|마리|곳|종|시간|살|차례))"
+_DIG = dict(zip("일이삼사오육칠팔구", range(1, 10)))
+
+
+def _sino_value(w):
+    """오십 → 50, 백이십 → 120, 만이천 → 12000."""
+    total, part, d = 0, 0, 0
+    for ch in w:
+        if ch in _DIG:
+            d = _DIG[ch]
+        elif ch in "십백천":
+            part += (d or 1) * {"십": 10, "백": 100, "천": 1000}[ch]
+            d = 0
+        elif ch == "만":
+            total += (part + d or 1) * 10000
+            part, d = 0, 0
+    return total + part + d
+
+
 def _numbers(s):
+    """The figures a line says, written in digits whichever way they were said (다섯 단계, 오십 배, 50배 → 5, 50, 50)."""
+    s = re.sub(r"(?<![가-힣])(" + "|".join(sorted(_NATIVE, key=len, reverse=True)) + r")" + _COUNTER,
+               lambda m: str(_NATIVE[m.group(1)]), s)
+    s = re.sub(r"(?<![가-힣])([일이삼사오육칠팔구십백천만]{2,})" + _COUNTER, lambda m: str(_sino_value(m.group(1))), s)
     return re.findall(r"\d+(?:\.\d+)?", s.replace(",", ""))
 
 

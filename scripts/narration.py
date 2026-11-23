@@ -152,6 +152,25 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
 
 
+_SINO = "영일이삼사오육칠팔구"
+
+
+def sino(n):
+    """An integer in Sino-Korean words: 50 → 오십, 120 → 백이십, 3000 → 삼천."""
+    if n == 0:
+        return "영"
+    out = ""
+    for big, word in ((10 ** 8, "억"), (10 ** 4, "만")):
+        if n >= big:
+            out += ("" if word == "만" and n // big == 1 else sino(n // big)) + word  # 만 이천, not 일만
+            n %= big
+    for unit, word in ((1000, "천"), (100, "백"), (10, "십")):
+        d, n = divmod(n, unit)
+        if d:
+            out += ("" if d == 1 else _SINO[d]) + word
+    return out + (_SINO[n] if n else "")
+
+
 def speak(text):
     """What the screen writes → what a narrator says. Authored lines already written for the ear pass through unchanged."""
     # only tag-shaped text goes (<br />, <b>): '수분 <5%, 순도 >99%' keeps its figures
@@ -186,6 +205,9 @@ def speak(text):
     t = re.sub(r"[Ø⌀]\s*(?=\d)", "지름 ", t)  # Ø 30 mm → 지름 30 밀리미터
     t = re.sub(r"(?<=[\d%배])\s*↑", " 증가", t)  # 2.5배↑ → 2.5배 증가 (an arrow after a figure)
     t = re.sub(r"(?<=[\d%배])\s*↓", " 감소", t)
+    # 50배 was voiced with the native numeral (쉰 배); a multiple of ten or more is said in Sino-Korean: 오십 배 (두 배 stays)
+    t = re.sub(r"(?<![\d.,])(\d{2,}|\d{1,3}(?:,\d{3})+)\s*배(?!양|지|율|수|추|아|합|출|열|치|관|송|터|선|분|포|경)",
+               lambda m: sino(int(m.group(1).replace(",", ""))) + " 배", t)  # not 10배양 / 배지 / 배율 …
     t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
     t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
     t = re.sub(r"(\d)\s*w/v\s*%", r"\1 중량 대 부피 퍼센트", t)  # 0.1 w/v%

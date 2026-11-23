@@ -184,11 +184,20 @@ def check_project(out):
         r = run_tree(HYPERFRAMES + ["check", "--json"], 600, cwd=out, env=ENV)
     except subprocess.TimeoutExpired:
         return 1, ["check:timeout"]
-    # only a report written by this run (an older clean report must not pass a project whose check crashed)
-    reports = [p for p in glob.glob(os.path.join(out, ".hyperframes", "artifacts", "checks", "*.json")) if os.path.getmtime(p) >= t0 - 1]
-    if not reports:
-        return 1, [f"check:no-report rc={r.returncode} {(r.stderr or r.stdout or '').strip()[-200:]}"]
-    d = json.load(open(max(reports, key=os.path.getmtime), encoding="utf-8"))
+    # the report printed by this run (0.9 prints it, and a cached result of an unchanged project is printed but not saved
+    # again), else the report file this run wrote. An older file must not pass a project whose check crashed
+    d = None
+    out_txt = (r.stdout or "").strip()
+    if "{" in out_txt:
+        try:
+            d = json.loads(out_txt[out_txt.index("{"):])
+        except ValueError:
+            d = None
+    if not (isinstance(d, dict) and "ok" in d):
+        reports = [p for p in glob.glob(os.path.join(out, ".hyperframes", "artifacts", "checks", "*.json")) if os.path.getmtime(p) >= t0 - 1]
+        if not reports:
+            return 1, [f"check:no-report rc={r.returncode} {(r.stderr or r.stdout or '').strip()[-200:]}"]
+        d = json.load(open(max(reports, key=os.path.getmtime), encoding="utf-8"))
     errs = sum(v.get("errorCount", 0) for v in d.values() if isinstance(v, dict) and "ok" in v)
     warns = [f'{k}:{x.get("code")}' for k, v in d.items() if isinstance(v, dict) for x in v.get("findings", []) if x.get("severity") == "warning"]
     return errs, warns

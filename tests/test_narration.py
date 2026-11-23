@@ -47,6 +47,10 @@ SPEAK = [
     ("300 nm~400 nm", "300 나노미터에서 400 나노미터."),
     ("0.05% (w/v)", "0.05퍼센트, 중량 대 부피."),
     ("Brix 12° 이상", "브릭스 12도 이상."),
+    ("약 50배입니다", "약 오십 배입니다."),
+    ("1,000배", "천 배."),
+    ("2배 증가", "2배 증가."),
+    ("10배양", "10배양."),
     ("16L:8D 조건에서 배양", "명기 16시간, 암기 8시간 조건에서 배양."),
     # percentages
     ("5%p 증가", "5퍼센트포인트 증가."),
@@ -123,6 +127,13 @@ SENTENCES = [
     ("결과는 ca. 5배 높다. 다음.", ["결과는 ca. 5배 높다.", "다음."]),
     ("농도는 2024. 다음 문장.", ["농도는 2024.", "다음 문장."]),
 ]
+
+
+class Pronounce(unittest.TestCase):
+    def test_numbers_said_either_way(self):
+        from pronounce import _numbers
+        for said, digits in (("다섯 단계입니다", "5단계입니다"), ("약 오십 배입니다", "약 50배입니다"), ("만이천 개", "12000개")):
+            self.assertEqual(_numbers(said), _numbers(digits))
 
 
 class Narration(unittest.TestCase):
