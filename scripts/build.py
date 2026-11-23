@@ -819,7 +819,7 @@ def index(c):
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/gsap.min.js"></script>
     <style>
       @font-face {{ font-family: "NotoKR"; src: url("assets/fonts/NotoSansKR-VF.ttf") format("truetype"); font-weight: 100 900; }}
       * {{ margin: 0; padding: 0; box-sizing: border-box; }}

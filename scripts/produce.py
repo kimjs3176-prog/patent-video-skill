@@ -3,7 +3,7 @@
 Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate]
        [--no-captions] [--no-render] [order | N-M | N~M ...]
 Orders pick contents by their file-name prefix (7 137 146); N-M or N~M is an inclusive range (1-100, 101~205), so two renderers
-can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.8.207).
+can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.9.84).
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Narrated videos carry burned-in captions (--no-captions to leave them out); the .srt goes beside the mp4 and to patents/,
@@ -28,7 +28,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from hfpin import HF, NPX  # noqa: E402
 
-FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render", "--no-3d"}
+FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render", "--no-stt", "--no-3d"}  # --no-3d: no effect (3D cover removed)
 
 
 def die(msg):
@@ -79,7 +79,7 @@ def preflight():
     v = node_major()
     if v is None or not shutil.which(NPX):
         die("Node.js (node and npx) not found on PATH - HyperFrames needs Node.js 22 or newer: https://nodejs.org")
-    if v < 22:  # hyperframes@0.8.207 declares engines node >=22; on 18/20 every check fails after build and narration
+    if v < 22:  # hyperframes@0.9.84 declares engines node >=22; on 18/20 every check fails after build and narration
         die(f"Node.js {v} found - {HF} needs Node.js 22 or newer: install the current LTS from https://nodejs.org")
     missing = [x for x in ("ffmpeg", "ffprobe") if not shutil.which(x)]
     if missing:  # narration timing, the thumbnail and every export need them: say so now, not after the first render
@@ -124,6 +124,7 @@ import build_sig  # noqa: E402
 from validate import check as validate  # noqa: E402
 from export import captions_of, export  # noqa: E402
 import narration  # noqa: E402
+import pronounce  # noqa: E402
 import postprocess  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -135,7 +136,7 @@ ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 TEMPLATE = "A"
 NARRATE = True
 CAPTIONS = True
-COVER3D = True  # three.js layer behind the cover (tools/cover3d.py); --no-3d leaves it out
+STT = True  # pronunciation check of every narration clip (pronounce.py, faster-whisper); --no-stt or no package skips it
 VOICE = narration.VOICE
 BUILDERS = {"A": build_a, "B": build_b.build, "C": build_c.build,
             "D": lambda p: build_def.build("D", p), "E": lambda p: build_def.build("E", p), "F": lambda p: build_def.build("F", p),
@@ -233,22 +234,12 @@ def newest_input(path):
     return max(os.path.getmtime(p) for p in srcs if os.path.exists(p))
 
 
-def opts_stamp():
-    """The render options that change the picture but not the files above (written beside each render as <mp4>.opts)."""
-    return "3d" if COVER3D else "no-3d"
-
-
 def current(path, mp4):
     """mp4 is an up-to-date render of path: newer than its content (edited content gets re-rendered), with the requested voice
     and captions (the .srt beside a narrated render is there exactly when it was made with captions). An .srt older than
     the mp4 (left by older code beside a captionless re-render) counts for neither way: the video is rendered again."""
     if not (os.path.exists(mp4) and os.path.getmtime(mp4) > newest_input(path)):
         return False
-    try:  # rendered with the other --no-3d setting (renders from before the stamp count as matching: no batch-wide redo)
-        if open(mp4[:-4] + ".opts", encoding="utf-8").read().strip() != opts_stamp():
-            return False
-    except OSError:
-        pass
     caps = bool(captions_of(mp4)) if CAPTIONS else not os.path.exists(mp4[:-4] + ".srt")
     return not NARRATE or (rendered_voice(mp4) == VOICE and caps)
 
@@ -277,12 +268,15 @@ def progress(prog):
 
 
 def main():
-    global TEMPLATE, NARRATE, VOICE, CAPTIONS, COVER3D
+    global TEMPLATE, NARRATE, VOICE, CAPTIONS, STT
     o = options(sys.argv[1:])
     TEMPLATE, VOICE = o["template"], o["voice"] or VOICE
     NARRATE = "--no-narrate" not in o["flags"]  # --narrate is the default (still accepted)
     CAPTIONS = "--no-captions" not in o["flags"]
-    COVER3D = "--no-3d" not in o["flags"]
+    STT = NARRATE and "--no-stt" not in o["flags"]
+    if STT and not pronounce.available():
+        STT = False
+        log("pronunciation check off: faster-whisper is not installed (python -m pip install faster-whisper==1.2.1)")
     render, want = "--no-render" not in o["flags"], o["want"]
     if NARRATE:  # again here (cheap): main() is also called on its own, without the __main__ block's voice_first()
         VOICE = voice_ready(narration, VOICE)
@@ -338,7 +332,7 @@ def one(path, render, want, prog):
     except Exception:
         pass
     out = BUILDERS[TEMPLATE](path)
-    postprocess.run(out, json.load(open(path, encoding="utf-8")) if COVER3D else None, TEMPLATE)  # pen draw-ons, 3D cover, font subsets
+    postprocess.run(out)  # pen draw-ons, font subsets
     if NARRATE:
         try:
             rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE, captions=CAPTIONS)
@@ -350,6 +344,12 @@ def one(path, render, want, prog):
         if nofit:  # the video still renders, but these scenes are silent: their line is too long even at the fastest rate
             log(f"{slug} NO-FIT {' | '.join(sections(out, nofit))} - left silent, too long even spoken faster: shorten that line in "
                 f"{os.path.relpath(path, ROOT)} (or write a short one where it is generated)")
+        if STT:  # listen back to every clip: a misread number or word is reported for a person to hear (never blocks)
+            try:
+                for sid, meant, heard, why in pronounce.check(out):
+                    log(f"{slug} PRON {sid}: {why} - meant '{meant}' heard '{heard}' (listen to this scene)")
+            except Exception as e:
+                log(f"{slug} pronunciation check failed: {type(e).__name__}: {str(e)[:200]}")
     errs, warns = check_project(out)
     if errs:
         log(f"{slug} SKIP check errors={errs} {warns[:5]}")
@@ -378,8 +378,6 @@ def one(path, render, want, prog):
             shutil.copyfile(srt, side)
         elif os.path.exists(side):
             os.remove(side)  # a render without captions: the old cues must not be delivered with it (export drops patents/*.srt)
-    with open(mp4[:-4] + ".opts", "w", encoding="utf-8") as f:
-        f.write(opts_stamp())
     if os.path.getmtime(path) != src_mtime:  # edited while being built or rendered: this video shows the older content
         os.utime(mp4, (src_mtime, src_mtime))  # not newer than the edit, so this run's re-scan (or the next run) renders it again
         log(f"{slug} content changed during build/render - rendering again")

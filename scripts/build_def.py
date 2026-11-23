@@ -860,7 +860,7 @@ def index(c, tpl):
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width={w}, height={h}" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/gsap.min.js"></script>
     <style>
 {FONT}
       * {{ margin: 0; padding: 0; box-sizing: border-box; }}
