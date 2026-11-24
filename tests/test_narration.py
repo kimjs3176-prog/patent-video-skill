@@ -129,6 +129,16 @@ SENTENCES = [
 ]
 
 
+class Music(unittest.TestCase):
+    def test_pick_is_fixed_per_patent_and_spread(self):
+        from music import pick
+        names = ["m1.mp3", "m2.mp3", "m3.mp3", "m4.mp3"]
+        self.assertEqual(pick("1020190145266", names), pick("1020190145266", names))
+        got = {pick(f"10202000{i:05d}", names) for i in range(40)}
+        self.assertEqual(got, set(names))
+        self.assertIsNone(pick("1020190145266", []))
+
+
 class Pronounce(unittest.TestCase):
     def test_numbers_said_either_way(self):
         from pronounce import _numbers

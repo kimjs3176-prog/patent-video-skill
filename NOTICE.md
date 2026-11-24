@@ -17,6 +17,12 @@ Templates G, H and I adapt the visual language of HyperFrames registry examples 
 nyt-graph, data-chart-nyt) as distributed in nexu-io/open-design (Apache-2.0). No source files from those templates are included.
 The particle text effect in `visuals.py` follows the technique of the HyperFrames registry component `particle-text-dissolve`.
 
+## Background music (in this repository)
+
+The four tracks in `assets/music/` were supplied by the repository owner and made with Suno (titles, ids and dates in
+`assets/music/SOURCES.md`). Their use follows the terms of the Suno account that made them: commercial use requires a paid
+Suno plan at the time of creation. Replace the files if that does not hold.
+
 ## Pronunciation check (installed by requirements.txt, not redistributed)
 
 | Component | Version | License | Use |
