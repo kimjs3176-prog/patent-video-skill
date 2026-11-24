@@ -147,7 +147,7 @@ UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", 
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
          ("kDa", "킬로달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
-         ("Pa", "파스칼"), ("mmol", "밀리몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
+         ("Pa", "파스칼"), ("mmol", "밀리몰"), ("μmol", "마이크로몰"), ("µmol", "마이크로몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
          ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰"),
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
 
@@ -186,7 +186,10 @@ def speak(text):
     t = re.sub(r"(?<![A-Za-z])FIGS?\.\s*(?=\d)|(?<![A-Za-z])Figs?\.\s*(?=\d)", "도 ", t)  # Fig. 3 → 도 3
     # a particle written after an acronym follows how it is read, letter by letter: PCR으로 → PCR로, ELISA을 → ELISA를
     t = re.sub(rf"(?<![A-Za-z])([A-Z][A-Z0-9]*[A-Z]){_PART}", lambda m: _say(m.group(1), m.group(2)), t)
-    t = re.sub(r"\s*[·∙⋅]\s*(kg|g|L|mL|h|min|s|d)⁻¹(?![A-Za-z])", r"/\1", t)  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
+    t = re.sub(r"\s*[·∙⋅]\s*(kg|g|L|mL|h|min|s|d)⁻¹(?![A-Za-z])", r"/\1", t)
+    # light intensity (PPFD): 200 μmol/m²/s → 제곱미터 초당 200 마이크로몰
+    t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*[μµ]mol\s*(?:/\s*m²\s*/\s*s|m⁻²\s*s⁻¹|·m⁻²·s⁻¹)", r"제곱미터 초당 \1 마이크로몰", t)
+    t = re.sub(r"Δ\s*(?=[\dA-Za-z가-힣])", "델타 ", t)  # ΔE 2.5, Δ 3 → 델타  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)
@@ -245,7 +248,7 @@ def speak(text):
     t = re.sub(rf"(\d\s*(?:{spoken}))\s*[×xX]\s*(?=\d)", r"\1 곱하기 ", t)
     t = re.sub(rf"(\d\s*(?:{spoken}))\s*[~∼〜]\s*(?=\d)", r"\1에서 ", t)  # 300 nm~400 nm: a range with the unit on both ends  # 10 mm × 20 mm: the sizes of a part
     # an inequality before a figure is read after it: <5% → 5퍼센트 미만, ≤ 40℃ → 40도 이하, <5 mg/L → 리터당 5 밀리그램 미만
-    t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:\s*(?:{spoken}))?)",
+    t = re.sub(rf"(?<![\w<>])([<>≤≥＜＞])\s*((?:\S+당 )?\d[\d,]*(?:\.\d+)?(?:의 (?:마이너스 )?\d+제곱)?(?:\s*(?:{spoken}|[A-Za-z]+))?)",
                lambda m: f'{m.group(2)} {dict(zip("<>≤≥＜＞", ["미만", "초과", "이하", "이상", "미만", "초과"]))[m.group(1)]}', t)
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)도", r"영하 \1도", t)  # -40도 → 영하 40도
     t = re.sub(r"(?<![\d.])-(\d+(?:\.\d+)?)에서 (?=영하)", r"영하 \1에서 ", t)
