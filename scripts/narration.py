@@ -189,7 +189,9 @@ def speak(text):
     t = re.sub(r"\s*[·∙⋅]\s*(kg|g|L|mL|h|min|s|d)⁻¹(?![A-Za-z])", r"/\1", t)
     # light intensity (PPFD): 200 μmol/m²/s → 제곱미터 초당 200 마이크로몰
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*[μµ]mol\s*(?:/\s*m²\s*/\s*s|m⁻²\s*s⁻¹|·m⁻²·s⁻¹)", r"제곱미터 초당 \1 마이크로몰", t)
-    t = re.sub(r"Δ\s*(?=[\dA-Za-z가-힣])", "델타 ", t)  # ΔE 2.5, Δ 3 → 델타  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
+    t = re.sub(r"Δ\s*(?=[\dA-Za-z가-힣])", "델타 ", t)  # ΔE 2.5, Δ 3 → 델타
+    t = re.sub(r"(\d(?:\.\d+)?)\s*N\s+(?=(?:Na|K|H|Ca|Mg|Li|NH)[A-Za-z0-9₀-₉]*(?![A-Za-z]))", r"\1 노말 ", t)  # 0.1N NaOH: normality
+    t = re.sub(r"(\d+\s*(?:분|초|시간|일))\s*/\s*회", r"회당 \1", t)  # 30분/회 → 회당 30분  # 1.5 mg·kg⁻¹ is 1.5 mg/kg (a rate below)
     t = re.sub(r"(\d+)\s*L\s*:\s*(\d+)\s*D(?![A-Za-z])", r"명기 \1시간, 암기 \2시간", t)  # photoperiod 16L:8D, not litres
     t = re.sub(r"(\d)\s*(?:℃|°C|° C)", r"\1도", t)
     t = re.sub(r"°\s*Brix|(?<![A-Za-z])Brix(?![A-Za-z])", "브릭스", t)
