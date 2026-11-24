@@ -28,7 +28,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from hfpin import HF, NPX  # noqa: E402
 
-FLAGS = {"--narrate", "--no-narrate", "--no-captions", "--no-render", "--no-stt", "--no-3d"}  # --no-3d: no effect (3D cover removed)
+FLAGS = {"--narrate", "--no-narrate", "--captions", "--no-captions", "--music", "--no-music", "--stt", "--no-stt", "--no-render",
+         "--no-3d"}  # --no-3d: no effect (3D cover removed)
 
 
 def die(msg):
@@ -36,9 +37,27 @@ def die(msg):
     sys.exit(2)
 
 
+def brief():
+    """The choices asked at the start (SKILL.md step 0), saved as PROJ/brief.json: the defaults of every run. {} if none."""
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "brief.json")  # PROJ/brief.json (read before ROOT is set)
+    try:
+        b = json.load(open(p, encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except ValueError as e:
+        die(f"brief.json is not valid JSON: {e}")
+    return b if isinstance(b, dict) else {}
+
+
 def options(argv):
-    """Flags and the orders to make. Anything unknown stops the run: a typo ('--templte', '1–100') must not mean 'everything'."""
-    o = {"template": "A", "voice": None, "flags": set(), "want": []}  # want: inclusive (first, last) order ranges
+    """Flags and the orders to make. Anything unknown stops the run: a typo ('--templte', '1–100') must not mean 'everything'.
+    brief.json gives the defaults (template, voice, narration, captions, music, stt); arguments override them."""
+    b = brief()
+    tpl = b.get("templates") or b.get("template") or "A"
+    o = {"template": tpl[0] if isinstance(tpl, list) else tpl, "voice": b.get("voice"), "flags": set(), "want": []}
+    for key in ("narration", "captions", "music", "stt"):  # a 'false' in brief.json is the --no-… flag
+        if b.get(key) is False:
+            o["flags"].add("--no-" + {"narration": "narrate"}.get(key, key))
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -51,6 +70,8 @@ def options(argv):
         m = re.fullmatch(r"([0-9]+)(?:[-~]([0-9]+))?", a)  # 137, 1-100, 101~205
         if a in FLAGS:
             o["flags"].add(a)
+            if not a.startswith("--no-"):  # --captions on the command line wins over captions: false in brief.json
+                o["flags"].discard("--no-" + a[2:])
         elif m:
             lo, hi = int(m.group(1)), int(m.group(2) or m.group(1))
             if lo > hi:
@@ -125,6 +146,7 @@ from validate import check as validate  # noqa: E402
 from export import captions_of, export  # noqa: E402
 import narration  # noqa: E402
 import pronounce  # noqa: E402
+import music  # noqa: E402
 import postprocess  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -136,6 +158,7 @@ ENV = dict(os.environ, HYPERFRAMES_SKIP_SKILLS="1")
 TEMPLATE = "A"
 NARRATE = True
 CAPTIONS = True
+MUSIC = True  # a background track from assets/music under every video (music.py); --no-music leaves it out
 STT = True  # pronunciation check of every narration clip (pronounce.py, faster-whisper); --no-stt or no package skips it
 VOICE = narration.VOICE
 BUILDERS = {"A": build_a, "B": build_b.build, "C": build_c.build,
@@ -239,7 +262,10 @@ def newest_input(path):
     """mtime of the newest file this video is made from: its content, branding.json (contact, holder and disclaimer of every
     ending) and the patent's gazette data (holder, figures). Editing any of them makes the render out of date."""
     appno = os.path.basename(path)[:-5].split("-", 1)[-1]
-    srcs = [path, os.path.join(ROOT, "branding.json"), os.path.join(ROOT, "data", "patents", appno, "biblio.json")]
+    srcs = [path, os.path.join(ROOT, "branding.json"), os.path.join(ROOT, "data", "patents", appno, "biblio.json"),
+            os.path.join(ROOT, "brief.json")]
+    if MUSIC:  # tracks added or replaced: the videos are made again with them
+        srcs += [os.path.join(ROOT, "assets", "music", t) for t in music.tracks(ROOT)]
     return max(os.path.getmtime(p) for p in srcs if os.path.exists(p))
 
 
@@ -277,11 +303,12 @@ def progress(prog):
 
 
 def main():
-    global TEMPLATE, NARRATE, VOICE, CAPTIONS, STT
+    global TEMPLATE, NARRATE, VOICE, CAPTIONS, STT, MUSIC
     o = options(sys.argv[1:])
     TEMPLATE, VOICE = o["template"], o["voice"] or VOICE
     NARRATE = "--no-narrate" not in o["flags"]  # --narrate is the default (still accepted)
     CAPTIONS = "--no-captions" not in o["flags"]
+    MUSIC = "--no-music" not in o["flags"]
     STT = NARRATE and "--no-stt" not in o["flags"]
     if STT and not pronounce.available():
         STT = False
@@ -342,6 +369,13 @@ def one(path, render, want, prog):
         pass
     out = BUILDERS[TEMPLATE](path)
     postprocess.run(out)  # pen draw-ons, font subsets
+    if MUSIC:
+        try:
+            track = music.mount(out, appno)
+            if track is None:
+                log(f"{slug} music: none mounted (no .mp3 in assets/music - run setup_project.py again)")
+        except Exception as e:  # a bad track must not cost the video: it renders without music and says so
+            log(f"{slug} music failed ({type(e).__name__}: {str(e)[:200]}) - rendering without it")
     if NARRATE:
         try:
             rep = narration.narrate(out, json.load(open(path, encoding="utf-8")), VOICE, captions=CAPTIONS)

@@ -54,10 +54,12 @@ patents/1020190145266.srt   ← 자막
 - **도면을 그래픽으로** — 흑백 선 도면은 선을 자동으로 뽑아 그려 내고(`figtrace.py`), "부호의 설명" 대조표와 측정 격자(`figmap.py`)로 부품 위치에 표식을 찍습니다.
 - **한국어 나레이션** — 키가 없으면 무료 edge-tts 선희(`ko-KR-SunHiNeural`), `GOOGLE_TTS_API_KEY`가 있으면 Google Chirp 3 HD. 단위·기호(`℃`, `mg/L`, `±`, `10⁸` …)는 읽는 말로 바꿔 합성합니다.
 - **장면에 맞춘 분량** — 보통 속도로 먼저 읽고, 넘치면 최대 +18%까지 빠르게, 그래도 넘치면 뒤 문장을 줄이고, 마지막에는 콘텐츠로 만든 짧은 문장으로 대신 읽어 **무음 장면을 남기지 않습니다**.
+- **배경음악 기본 포함** — 저장소의 4곡 중 출원번호로 한 곡을 골라 영상 길이에 맞춰 깔고, 나레이션보다 약 12dB 낮게 맞춥니다(`--no-music`로 끔).
+- **시작 질문** — 처음에 템플릿·나레이션·자막·배경음악·발명기관·문의처를 한 번에 묻고 `brief.json`에 저장해, 이후 실행의 기본값으로 씁니다.
 - **발음 검사** — 완성된 나레이션을 로컬 음성인식(faster-whisper, CPU)으로 다시 받아 적어 대본과 비교하고, 숫자나 말이 다르게 들리는 장면만 `PRON`으로 알려 줍니다(`--no-stt`로 끔).
 - **자막 기본 포함** — 화면 맨 아래 전용 띠에 자막을 굽고(장면은 그만큼 위로) `.srt`도 함께 냅니다.
 - **엔딩 문구** — 기술이전 문의처·면책 문구는 `branding.json`, 특허권자는 공보의 (73) 특허권자(공개공보는 (71) 출원인)를 씁니다.
-- **키 없이도 끝까지** — KIPRIS 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 씁니다. 배경음악은 넣지 않습니다.
+- **키 없이도 끝까지** — KIPRIS 키가 없으면 공보 PDF를 받아 `kipris.py --pdf`로 씁니다.
 
 ## 빠른 시작
 
@@ -74,7 +76,7 @@ python -m pip install -r ~/.claude/skills/patent-tech-video/requirements.txt
 python -I ~/.claude/skills/patent-tech-video/scripts/setup_project.py ~/patent-video-demo
 ```
 
-**3. Claude Code에 맡기기** — 프로젝트 폴더에서 "이 엑셀의 특허들로 기술소개영상 만들어 줘"처럼 요청하면, 스킬이 아래 [작동 방식](#작동-방식)대로 끝까지 진행합니다.
+**3. Claude Code에 맡기기** — 프로젝트 폴더에서 "이 엑셀의 특허들로 기술소개영상 만들어 줘"처럼 요청하면, 스킬이 먼저 템플릿·나레이션·자막·배경음악·발명기관·문의처를 한 번에 묻고(답은 `brief.json`), 아래 [작동 방식](#작동-방식)대로 끝까지 진행합니다.
 
 <details>
 <summary><b>직접 명령으로 돌리기</b></summary>
@@ -221,7 +223,7 @@ flowchart LR
 | `GOOGLE_TTS_API_KEY` | 프로젝트 `.env` | 있으면 Google Chirp 3 HD 음성. Cloud 콘솔에서 Text-to-Speech API를 켜고 발급(유료, 월 무료 한도 있음) |
 | 기술이전 문의처·면책 문구 | 프로젝트 `branding.json` | 특허마다 다르면 콘텐츠 JSON의 `branding` |
 | 음성 선택 | `produce.py --voice` | `SunHi`, `Kore`처럼 이름만 줘도 전체 ID로 바뀜 |
-| 나레이션·자막·발음 검사 끄기 | `--no-narrate`, `--no-captions`, `--no-stt` | 발음 검사는 편당 약 30초, 첫 사용 때 모델 약 480MB |
+| 나레이션·자막·배경음악·발음 검사 끄기 | `--no-narrate`, `--no-captions`, `--no-music`, `--no-stt` (기본값은 `brief.json`) | 발음 검사는 편당 약 30초, 첫 사용 때 모델 약 480MB |
 
 </details>
 

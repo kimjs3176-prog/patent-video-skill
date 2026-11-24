@@ -102,8 +102,8 @@ def _check(path, template, warn):
     for label, text in (("sub", c["sub"]), ("headline", c["headline"]), ("process.title", c["process"].get("title")),
                         ("features.title", c["features"].get("title"))):
         unbroken(label, text)
-    if c.get("music") is not None:  # videos carry no background music any more
-        warn.append("music 블록은 쓰이지 않음(배경음악 없음): 지워도 됨")
+    if c.get("music") is not None:  # the track comes from assets/music, picked by application number (music.py)
+        warn.append("music 블록은 쓰이지 않음(배경음악은 assets/music에서 출원번호로 자동 배정): 지워도 됨")
     # ending credits (branding.json or the content's own "branding"): the 9:16 endings are the narrowest
     lim("contact(기술이전 문의처)", contact(c), 14)
     lim("contact_label", contact_label(c), 8)

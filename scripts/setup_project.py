@@ -62,7 +62,7 @@ def main(dst):
     for doc in ("CONTENT_SPEC.md", "FIGURE_ANALYSIS.md"):  # read in the project as tools/<doc> (agents and sub-agents)
         shutil.copy(os.path.join(SKILL, "references", doc), tools)
     shutil.copytree(os.path.join(SKILL, "references", "examples"), os.path.join(tools, "examples"), dirs_exist_ok=True)
-    for sub in ("fonts", "fonts_serif", "sfx"):
+    for sub in ("fonts", "fonts_serif", "sfx", "music"):
         src = os.path.join(SKILL, "assets", sub)
         if sub == "sfx" and not os.path.isdir(src) and os.path.isdir(SFX_FALLBACK):
             src = SFX_FALLBACK
