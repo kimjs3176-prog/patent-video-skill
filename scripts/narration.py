@@ -366,6 +366,26 @@ def _seq(i, n):
     return ("이어서", "다음으로", "그다음")[(i - 1) % 3]
 
 
+def _as_written(written, said):
+    """The line as the screen writes it (50배, 2.0 mg/L) when it is voiced exactly like the spelled-out one; captions then
+    show the figures as on screen. Any difference in the voice keeps the spelled-out line."""
+    return written if speak(written) == speak(said) else said
+
+
+def _value_line(it):
+    """'<label>은 <value>입니다.' / '…을 기록했습니다.' for one proof item, written as on screen when that reads the same."""
+    val = speak(f'{it.get("big", "")}{it.get("u", "")}').rstrip(".")
+    raw = _clean(f'{it.get("big", "")}{it.get("u", "")}')
+    head = josa(_clean(it["l"]), "은는")
+    if re.search(r"[0-9]$", val):
+        said = f'{head} {josa(val, "을를")} 기록했습니다.'
+        written = f'{head} {raw}{josa(val, "을를")[len(val):]} 기록했습니다.'
+    else:
+        said = f'{head} {val}입니다.'
+        written = f'{head} {raw}입니다.'
+    return _as_written(written, said)
+
+
 def auto_script(c):
     """Fallback when the content has no authored narration: told as sentences, not read off the slide."""
     steps = c["process"]["steps"]
@@ -374,9 +394,8 @@ def auto_script(c):
         proof = f'{josa(_clean(pr.get("title", "핵심 구성")), "은는")} {", ".join(p["n"] for p in pr["parts"][:3])} 등으로 이루어집니다.'
     else:
         it = pr["items"][0]
-        val = speak(f'{it["big"]}{it.get("u", "")}').rstrip(".")
         # a plain number is 'recorded'; '²'.isdigit() is True too, so the test is for ASCII digits only
-        proof = f'그 결과 {josa(_clean(it["l"]), "은는")} {josa(val, "을를") + " 기록했습니다" if re.search(r"[0-9]$", val) else val + "입니다"}.'
+        proof = "그 결과 " + _value_line(it)
     ft = c.get("features") or {}
     feats = [f.get("l") or f.get("t") or f.get("n") for f in (ft.get("tiles") or ft.get("items") or []) if isinstance(f, dict)]
     feats = [_clean(f) for f in feats if f][:2]
@@ -421,7 +440,7 @@ def auto_extra(c):
         for it in (pr.get("items") or [])[1:3]:
             val = speak(f'{it.get("big", "")}{it.get("u", "")}').rstrip(".")
             if it.get("l") and has_words(val) or re.search(r"[0-9]", val):
-                lines.append(f'{josa(_clean(it["l"]), "은는")} {val + "입니다" if not re.search(r"[0-9]$", val) else josa(val, "을를") + " 기록했습니다"}.')
+                lines.append(_value_line(it))
         if lines:
             out["proof"] = "또 " + " ".join(lines)
     ft = c.get("features") or {}
@@ -460,7 +479,8 @@ def short_script(c):
         out["proof"] = ([f'핵심은 {parts[0]}, {parts[1]}입니다.'] if len(parts) > 1 else []) + ([f'핵심은 {parts[0]}입니다.'] if parts else [])
     elif pr.get("items"):
         it = pr["items"][0]
-        out["proof"] = [f'{_clean(it["l"])} {speak(str(it["big"]) + str(it.get("u", ""))).rstrip(".")}.']
+        sp = f'{_clean(it["l"])} {speak(str(it["big"]) + str(it.get("u", ""))).rstrip(".")}.'
+        out["proof"] = [_as_written(f'{_clean(it["l"])} {_clean(str(it["big"]) + str(it.get("u", "")))}.', sp)]
     return {k: [x for x in v if has_words(x)] for k, v in out.items()}
 
 
@@ -637,6 +657,25 @@ def sentences(text):
     return [s.replace("\u2024", ".") for s in re.split(rf"(?<=[{ENDS}])\s+", hold) if has_words(s)]
 
 
+def written_sentences(text):
+    """The sentences of a line as written (figures and units as on screen), split like sentences() splits the spoken line."""
+    t = html.unescape(re.sub(r"</?[A-Za-z][^<>]*>", " ", (text or "").replace("|", "")))
+    t = re.sub(r"\s+", " ", t).strip()
+    hold = _NOEND.sub(lambda m: m.group()[:-1] + "\u2024", t)
+    return [s.replace("\u2024", ".") for s in re.split(rf"(?<=[{ENDS}])\s+", hold) if has_words(speak(s))]
+
+
+def caption_text(source, voiced):
+    """What the captions show for a voiced clip: the same sentences as written in the script, when they line up one to one
+    with the spoken ones (the voice still says 오십 배, the caption shows 50배); otherwise exactly what was voiced."""
+    ws, ss = written_sentences(source), sentences(speak(source))
+    n = len(sentences(voiced))
+    if len(ws) == len(ss) and " ".join(ss[:n]) == voiced:
+        shown = " ".join(ws[:n]).strip()
+        return shown if shown[-1:] in ENDS else shown + "."
+    return voiced
+
+
 def spoken(text):
     """The whole line as fit() voices it when nothing has to be cut (a stray '…' piece is dropped there too)."""
     return " ".join(sentences(speak(text)))
@@ -717,10 +756,12 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
         start = st + (0.6 if st == 0 else lead)
         avail = max(1.0, nxt + 0.25 - start - tail)  # may run into the cross-fade, never past it
         core = len(sentences(speak(texts[sec])))
-        got = fit(texts[sec] + (" " + extra[sec] if extra.get(sec) else ""), avail, voice, core)
+        source = texts[sec] + (" " + extra[sec] if extra.get(sec) else "")
+        got = fit(source, avail, voice, core)
         for alt in ([] if got else shorts.get(sec, [])):  # too long even spoken faster: a shorter line beats a silent scene
             got = fit(alt, avail, voice)
             if got:
+                source = alt
                 break
         if not got:
             report.append(f"{sid}: no fit ({avail:.1f}s)")
@@ -731,7 +772,7 @@ def narrate(out, c, voice=VOICE, lead=0.45, tail=0.55, captions=True):
             b.write(a.read())
         clips.append(f'      <audio id="nar-{sid}" class="clip" src="assets/voice/{name}" data-start="{start:.2f}" data-duration="{dur:.2f}" '
                      f'data-track-index="{20 + len(clips) % 2}" data-volume="1"></audio>')
-        voiced.append((start, dur, t))
+        voiced.append((start, dur, caption_text(source, t)))  # captions in written form; narration.txt keeps what was said
         report.append(f"{sid} [{sec}] {start:.1f}s +{dur:.1f}s/{avail:.1f}s rate {rate}{'' if t.startswith(spoken(texts[sec])) else ' (shortened)'}: {t}")
     block = "\n".join(clips)
     if AUDIO_MARK in html:
