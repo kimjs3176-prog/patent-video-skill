@@ -142,6 +142,16 @@ SENTENCES = [
 ]
 
 
+class Captions(unittest.TestCase):
+    def test_captions_show_the_written_figures(self):
+        from narration import caption_text
+        src = "그 결과 로즈마린산 함량은 약 50배입니다. 또 세포 생존율 회복은 73.74%입니다."
+        said = " ".join(sentences(speak(src)))
+        self.assertEqual(caption_text(src, said), src)
+        self.assertEqual(caption_text(src, sentences(speak(src))[0]), "그 결과 로즈마린산 함량은 약 50배입니다.")
+        self.assertEqual(caption_text(src, "다른 문장."), "다른 문장.")  # not from this line: shown as voiced
+
+
 class Music(unittest.TestCase):
     def test_pick_is_fixed_per_patent_and_spread(self):
         from music import pick
