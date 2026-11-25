@@ -259,4 +259,5 @@ python -I -X utf8 -m unittest discover -s tests
 
 - 일일 점검 결과와 외부 도구 검토 내역: [`docs/daily-check.md`](docs/daily-check.md)
 - 서드파티 고지: [`NOTICE.md`](NOTICE.md). 이 저장소의 코드에 대한 라이선스는 아직 지정되지 않았습니다.
+- 아이콘은 [Tabler Icons](https://github.com/tabler/tabler-icons) 3.35.0(MIT)의 선 아이콘 40종에 옅은 채움을 더해 씁니다.
 - README 구성은 [Ublaze/github-readme-generator](https://github.com/Ublaze/github-readme-generator)(MIT)의 구조를 따랐습니다.
