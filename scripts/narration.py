@@ -135,7 +135,7 @@ _LENGTH = {"km": "킬로미터", "cm": "센티미터", "mm": "밀리미터", "dm
            "㎚": "나노미터", "㎛": "마이크로미터", "m": "미터"}  # "m" last: "nm²" must not be read n + 제곱미터
 _POWER = {"2": "제곱", "3": "세제곱"}
 DOSE = {"mg": "밀리그램", "g": "그램", "μg": "마이크로그램", "µg": "마이크로그램"}  # 30 mg/kg/day
-PER = {"s": "초", "min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "ml": "밀리리터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
+PER = {"s": "초", "min": "분", "h": "시간", "hr": "시간", "10a": "10아르", "a": "아르", "ha": "헥타르", "mL": "밀리리터", "ml": "밀리리터", "cm": "센티미터", "L": "리터", "kg": "킬로그램", "g": "그램"}  # 'per' denominators
 AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²³"] + [
     (ch, _POWER[nf[-1]] + _LENGTH[nf[:-1]]) for ch in "㎟㎠㎡㎢㎣㎤㎥㎦" for nf in [unicodedata.normalize("NFKC", ch)]]
 AREAS = "|".join(sorted({k for _, k in AREA}, key=len, reverse=True))  # 제곱미터 … after a slash: kg/m² is per square metre
@@ -146,7 +146,7 @@ FORMULAS = [(re.sub(f"[{_SUB}]", lambda m: f"[{m.group()}{_plain(m.group())}]", 
 UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
-         ("kDa", "킬로달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
+         ("kDa", "킬로달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("μS", "마이크로지멘스"), ("µS", "마이크로지멘스"), ("mS", "밀리지멘스"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
          ("Pa", "파스칼"), ("mmol", "밀리몰"), ("μmol", "마이크로몰"), ("µmol", "마이크로몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
          ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰"),
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
@@ -213,6 +213,7 @@ def speak(text):
     # 50배 was voiced with the native numeral (쉰 배); a multiple of ten or more is said in Sino-Korean: 오십 배 (두 배 stays)
     t = re.sub(r"(?<![\d.,])(\d{2,}|\d{1,3}(?:,\d{3})+)\s*배(?!양|지|율|수|추|아|합|출|열|치|관|송|터|선|분|포|경)",
                lambda m: sino(int(m.group(1).replace(",", ""))) + " 배", t)  # not 10배양 / 배지 / 배율 …
+    t = re.sub(r"(\d)\s*‰", r"\1퍼밀", t)  # 35‰ (salinity)
     t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
     t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
     t = re.sub(r"(\d)\s*w/v\s*%", r"\1 중량 대 부피 퍼센트", t)  # 0.1 w/v%
@@ -238,12 +239,17 @@ def speak(text):
     t = re.sub(rf"(\d(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?=\s*(?:{spoken}))", r"\1에서 \2", t)  # 60-80도 → 60에서 80도
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분 (before a rate)
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?\s*시간)\s*/\s*(?:day|d|일)(?![A-Za-z가-힣])", r"하루 \1", t)  # 2 h/day, 12시간/일 → 하루 2 시간
+    # a per-amount with a number below the line: 300 밀리그램/100 그램 → 100 그램당 300 밀리그램
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?\s*(?:{spoken}))\s*/\s*(\d[\d,]*\s*(?:{spoken}))(?![가-힣])", r"\2당 \1", t)
+    # a power of ten with its unit per volume: 5.0 곱하기 10의 마이너스 3제곱 몰/L → 리터당 …
+    t = re.sub(rf"((?:\d[\d,]*(?:\.\d+)?\s*곱하기\s*)?\d[\d,]*(?:\.\d+)?의 (?:마이너스 )?\d+제곱\s*(?:{spoken}))\s*/\s*(L|mL|ml|g|kg)(?![A-Za-z])",
+               lambda m: f"{PER[m.group(2)]}당 {m.group(1)}", t)
     # a count per gram or millilitre: 10⁸ CFU/g → 그램당 10의 8제곱 CFU
     t = re.sub(r"((?:\d[\d,]*(?:\.\d+)?\s*곱하기\s*)?(?:\d[\d,]*(?:\.\d+)?의 (?:마이너스 )?\d+제곱|\d[\d,]*(?:\.\d+)?)\s*"
                r"(?:CFU|cfu|PFU|pfu|cells?|개))\s*/\s*(g|mL|ml|L|well|plate)(?![A-Za-z])",
                lambda m: f"{PER.get(m.group(2), dict(well='웰', plate='플레이트').get(m.group(2)))}당 {m.group(1)}", t)
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|주|개|마리|포기|그루|평|{AREAS})(?:{_PART})?(?![A-Za-z가-힣])",
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|cm|주|개|마리|포기|그루|평|{AREAS})(?:{_PART})?(?![A-Za-z가-힣])",
                lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
     t = re.sub(r"(pH\s*\d+(?:\.\d+)?)\s*-\s*(?=\d)", r"\1에서 ", t)  # pH 6.5-7.0 (bare hyphens elsewhere stay: numbers, dates)
