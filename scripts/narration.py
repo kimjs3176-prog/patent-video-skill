@@ -482,9 +482,13 @@ def short_script(c):
         parts = first(p.get("n") for p in pr.get("parts") or [])
         out["proof"] = ([f'핵심은 {parts[0]}, {parts[1]}입니다.'] if len(parts) > 1 else []) + ([f'핵심은 {parts[0]}입니다.'] if parts else [])
     elif pr.get("items"):
-        it = pr["items"][0]
-        sp = f'{_clean(it["l"])} {speak(str(it["big"]) + str(it.get("u", ""))).rstrip(".")}.'
-        out["proof"] = [_as_written(f'{_clean(it["l"])} {_clean(str(it["big"]) + str(it.get("u", "")))}.', sp)]
+        def pair(it):  # (as written, as said) for '<label> <value>'
+            v = str(it.get("big", "")) + str(it.get("u", ""))
+            return f'{_clean(it["l"])} {_clean(v)}', f'{_clean(it["l"])} {speak(v).rstrip(".")}'
+        items = [x for x in pr["items"][:2] if x.get("l") and str(x.get("big", "")).strip()]
+        ps = [pair(x) for x in items]
+        two = [_as_written(f"{ps[0][0]}, {ps[1][0]}.", f"{ps[0][1]}, {ps[1][1]}.")] if len(ps) > 1 else []
+        out["proof"] = two + [_as_written(f"{ps[0][0]}.", f"{ps[0][1]}.")] if ps else []
     return {k: [x for x in v if has_words(x)] for k, v in out.items()}
 
 
