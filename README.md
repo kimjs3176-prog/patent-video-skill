@@ -8,7 +8,7 @@
 
 <p align="center">
   <img alt="Claude Code skill" src="https://img.shields.io/badge/Claude_Code-skill-d97757">
-  <img alt="HyperFrames 0.9.97" src="https://img.shields.io/badge/HyperFrames-0.9.97-111111">
+  <img alt="HyperFrames 0.9.99" src="https://img.shields.io/badge/HyperFrames-0.9.99-111111">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776ab">
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-5fa04e">
   <img alt="Templates" src="https://img.shields.io/badge/templates-10-ff9f43">
@@ -204,13 +204,13 @@ flowchart LR
 
 | 필요한 것 | 용도 |
 |---|---|
-| **Node.js 22+**, npx | HyperFrames 검사·렌더(`hyperframes@0.9.97`이 Node 22 이상을 요구) |
+| **Node.js 22+**, npx | HyperFrames 검사·렌더(`hyperframes@0.9.99`이 Node 22 이상을 요구) |
 | **ffmpeg** (`ffprobe` 포함) | 음성 길이 측정, 썸네일, 내보내기 |
 | **Python 3.10+** · `openpyxl` `pypdf` `fonttools` `brotli` `numpy` | 수집·빌드·검사 스크립트 (`requirements.txt`) |
 | **uv** (`uvx`) | 기본 나레이션 edge-tts 실행. Google 음성만 쓰거나 `--no-narrate`면 없어도 됨 |
 
 - `setup_project.py`가 끝나면 빠진 도구를 알려 주고, `produce.py`도 시작할 때 Node 22+·numpy·(나레이션 시) uvx와 음성을 검사해 빌드 전에 멈춥니다.
-- 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 받습니다. 미리 받으려면 `npx --yes hyperframes@0.9.97 browser ensure`.
+- 첫 검사 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB)을 받습니다. 미리 받으려면 `npx --yes hyperframes@0.9.99 browser ensure`.
 - edge-tts는 OS 인증서 저장소를 쓰므로 TLS 검사 프록시가 있는 기관망에서도 동작합니다.
 - Windows에서 출력을 파이프나 파일로 받을 때는 `python -I -X utf8 ...`으로 실행합니다(`PYTHONIOENCODING`은 `-I`가 무시합니다).
 
@@ -242,7 +242,7 @@ flowchart LR
 - KIPRIS 호출은 HTTPS만 사용하고, 공보 PDF는 KIPRIS 도메인에서만 받습니다.
 - 콘텐츠 JSON은 모델이 제3자 문서(명세서)에서 쓴 것이므로 `validate.py`가 `<br />` 외 HTML 태그, 경로가 섞인 도면 파일명,
   형식이 맞지 않는 시그니처 데이터(좌표·서열·도면 파일)를 거부합니다.
-- 실행 시 받는 도구는 버전을 고정합니다: `hyperframes@0.9.97`, `edge-tts==7.3.1`, GSAP `3.15.1`(jsDelivr).
+- 실행 시 받는 도구는 버전을 고정합니다: `hyperframes@0.9.99`, `edge-tts==7.3.1`, GSAP `3.15.1`(jsDelivr).
 - edge-tts는 Microsoft Edge 온라인 읽기 서비스를 비공식으로 사용합니다(나레이션 문장이 외부로 전송됨). 공공 배포 전 이용 조건을 확인하세요.
 
 ## 테스트

@@ -3,7 +3,7 @@
 Usage: python -I -u tools/produce.py [--template A..I|S] [--voice ko-KR-Chirp3-HD-Aoede | ko-KR-SunHiNeural] [--no-narrate]
        [--no-captions] [--no-render] [order | N-M | N~M ...]
 Orders pick contents by their file-name prefix (7 137 146); N-M or N~M is an inclusive range (1-100, 101~205), so two renderers
-can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.9.97).
+can split a batch. An unknown argument stops the run instead of being ignored. Needs Node.js 22+ (hyperframes@0.9.99).
 Template A writes renders/<order>-<appno>.mp4; template X writes renders_x/... Every video gets a voice-over (suffix _nar)
 unless --no-narrate; its narration.txt (voice + lines) is kept beside the mp4, and a different --voice re-renders.
 Narrated videos carry burned-in captions (--no-captions to leave them out); the .srt goes beside the mp4 and to patents/,
@@ -100,7 +100,7 @@ def preflight():
     v = node_major()
     if v is None or not shutil.which(NPX):
         die("Node.js (node and npx) not found on PATH - HyperFrames needs Node.js 22 or newer: https://nodejs.org")
-    if v < 22:  # hyperframes@0.9.97 declares engines node >=22; on 18/20 every check fails after build and narration
+    if v < 22:  # hyperframes@0.9.99 declares engines node >=22; on 18/20 every check fails after build and narration
         die(f"Node.js {v} found - {HF} needs Node.js 22 or newer: install the current LTS from https://nodejs.org")
     missing = [x for x in ("ffmpeg", "ffprobe") if not shutil.which(x)]
     if missing:  # narration timing, the thumbnail and every export need them: say so now, not after the first render
