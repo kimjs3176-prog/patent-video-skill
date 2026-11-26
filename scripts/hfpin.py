@@ -2,4 +2,4 @@
 import os
 
 NPX = "npx.cmd" if os.name == "nt" else "npx"
-HF = "hyperframes@0.9.95"
+HF = "hyperframes@0.9.97"
