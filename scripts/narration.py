@@ -146,7 +146,7 @@ FORMULAS = [(re.sub(f"[{_SUB}]", lambda m: f"[{m.group()}{_plain(m.group())}]", 
 UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
-         ("kDa", "킬로달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("kcal", "킬로칼로리"), ("μS", "마이크로지멘스"), ("µS", "마이크로지멘스"), ("mS", "밀리지멘스"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
+         ("kDa", "킬로달톤"), ("Da", "달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("kcal", "킬로칼로리"), ("μS", "마이크로지멘스"), ("µS", "마이크로지멘스"), ("mS", "밀리지멘스"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
          ("Pa", "파스칼"), ("mmol", "밀리몰"), ("μmol", "마이크로몰"), ("µmol", "마이크로몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
          ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰"),
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
@@ -217,6 +217,8 @@ def speak(text):
     # 3 log CFU/g → 그램당 3 로그 CFU (a log reduction of a count)
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*log\s*(CFU|cfu|PFU|pfu)\s*/\s*(g|mL|ml)(?![A-Za-z])", lambda m: f"{PER[m.group(3)]}당 {m.group(1)} 로그 {m.group(2)}", t)
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*log(?![A-Za-z])", r"\1 로그", t)
+    t = re.sub(r"(?<![A-Za-z])[Ll]og\s*(?=\d)", "로그 ", t)  # Log 3 감소
+    t = re.sub(r"(\d(?:\.\d+)?\s*배)\s*[~∼〜]\s*(?=\d)", r"\1에서 ", t)  # 1.5배~2배
     t = re.sub(r"(명|명기)\s*/\s*(?=\d)", r"\1, ", t)  # 12 h 명/12 h 암: a light/dark cycle
     t = re.sub(r"(\d)\s*%\s*p(?![A-Za-z])", r"\1퍼센트포인트", t)  # 5%p: percentage points
     t = re.sub(r"(\d)\s*(?:wt|w/w)\s*\.?\s*%", r"\1중량퍼센트", t)  # 0.1 wt%
@@ -244,7 +246,9 @@ def speak(text):
     t = re.sub(r"(\d(?:\.\d+)?)\s*[~∼〜–—]\s*(-?\d)", r"\1에서 \2", t)  # ranges: 50~90분 → 50에서 90분 (before a rate)
     t = re.sub(r"(\d[\d,]*(?:\.\d+)?\s*시간)\s*/\s*(?:day|d|일)(?![A-Za-z가-힣])", r"하루 \1", t)  # 2 h/day, 12시간/일 → 하루 2 시간
     # a per-amount with a number below the line: 300 밀리그램/100 그램 → 100 그램당 300 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?\s*(?:{spoken}))\s*/\s*(\d[\d,]*\s*(?:{spoken}))(?![가-힣])", r"\2당 \1", t)
+    t = re.sub(r"(\d[\d,]*(?:\.\d+)?\s*도)\s*/\s*(\d[\d,]*\s*(?:분|초|시간|일))", r"\1에서 \2", t)  # 65℃/30분: a heat treatment
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?\s*(?:{spoken}))\s*/\s*(\d[\d,]*\s*(?:그램|킬로그램|밀리그램|리터|밀리리터|마이크로리터))(?![가-힣])",
+               r"\2당 \1", t)  # per an amount of mass or volume only
     # a power of ten with its unit per volume: 5.0 곱하기 10의 마이너스 3제곱 몰/L → 리터당 …
     t = re.sub(rf"((?:\d[\d,]*(?:\.\d+)?\s*곱하기\s*)?\d[\d,]*(?:\.\d+)?의 (?:마이너스 )?\d+제곱\s*(?:{spoken}))\s*/\s*(L|mL|ml|g|kg)(?![A-Za-z])",
                lambda m: f"{PER[m.group(2)]}당 {m.group(1)}", t)
