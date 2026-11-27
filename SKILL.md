@@ -87,10 +87,10 @@ Windows에서 파이프·파일로 받는 한글 출력이 깨지지 않게 파�
   대본은 합성 직전에 말하는 꼴로 다듬어진다(`50~90분`→"50에서 90분", `℃`→"도", `가열·가압`→"가열, 가압", `3 mL을`→"3 밀리리터를"). 엔딩(outro) 장면은 항상 음성 없이 화면만.
   edge-tts는 마이크로소프트 Edge 온라인 읽기 서비스를 비공식으로 쓰므로(Google은 유료 공식 API, 월 무료 한도 있음) 네트워크가 필요하고, 공공 배포 전 이용 조건을 사용자가 확인하도록 한 줄 알린다.
   edge-tts는 `uvx`로 실행되며 OS 인증서 저장소를 쓰므로(`pip-system-certs`, uv의 native TLS) 기관망의 TLS 검사 프록시 뒤에서도 동작한다.
-- 사전 조건: Node.js **22+**(`npx hyperframes@0.9.99`이 Node 22 이상을 요구한다), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
+- 사전 조건: Node.js **22+**(`npx hyperframes@0.9.102`이 Node 22 이상을 요구한다), ffmpeg(`ffprobe` 포함), Python 3.10+ 와
   `python -m pip install -r $SKILL_DIR/requirements.txt`(openpyxl, pypdf, fonttools, brotli, numpy), `uv`(기본 나레이션 edge-tts를 `uvx`로 실행하므로 필수.
   `GOOGLE_TTS_API_KEY`로 Google 음성만 쓰거나 `--no-narrate`면 없어도 됨). 첫 검사(check) 때 hyperframes(약 120MB)와 렌더용 Chrome(약 330MB),
-  합쳐 약 450MB를 화면 출력 없이 몇 분간 내려받는다. 미리 받아 두려면 `npx --yes hyperframes@0.9.99 browser ensure`.
+  합쳐 약 450MB를 화면 출력 없이 몇 분간 내려받는다. 미리 받아 두려면 `npx --yes hyperframes@0.9.102 browser ensure`.
   처음이면 `python -I $SKILL_DIR/scripts/setup_project.py PROJ`가 끝난 뒤 빠진 도구가 있는지 알려 주고, `produce.py`도 시작할 때
   Node 22+·numpy·(나레이션 시) `uvx`와 음성을 검사해, 빠진 것이 있으면 영상을 빌드하기 전에 멈춘다.
 
@@ -192,7 +192,7 @@ python -I -X utf8 -u tools/produce.py --template G --no-narrate 137  # 나레이
   RAM 8GB 이하 PC는 hyperframes가 렌더 worker를 1개로 고정해 훨씬 느리다. 파일럿 1편의 RENDERED 초를 보고 계획한다.
   `produce.log`의 RENDERED 줄에는 `[i/N ~1h05m left]`(이번 실행에서 만들 N편 중 몇 번째인지, 지금까지의 속도로 남은 시간)가 붙는다.
   수백 건이면 백그라운드로 돌리고, 위처럼 겹치지 않는 구간으로 나눠(`1-100`, `101-200`) 렌더러 2개까지 병렬 실행한다.
-- 파일럿이나 템플릿 변경 뒤에는 `npx --yes hyperframes@0.9.99 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
+- 파일럿이나 템플릿 변경 뒤에는 `npx --yes hyperframes@0.9.102 snapshot --at ...`(각 `videos*/<slug>/`에서) 또는 ffmpeg 타일로 프레임을 직접 보고 글자 잘림·겹침·줄바꿈을 확인한다.
 
 ## 5. 마무리
 ```bash

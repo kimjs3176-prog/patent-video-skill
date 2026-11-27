@@ -257,8 +257,9 @@ def speak(text):
                r"(?:CFU|cfu|PFU|pfu|cells?|개))\s*/\s*(g|mL|ml|L|well|plate)(?![A-Za-z])",
                lambda m: f"{PER.get(m.group(2), dict(well='웰', plate='플레이트').get(m.group(2)))}당 {m.group(1)}", t)
     # a rate after a spoken unit: 3,250 킬로그램/10a → 10아르당 3,250 킬로그램, 2 밀리그램/L → 리터당 2 밀리그램
-    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|cm|주|개|마리|포기|그루|평|{AREAS})(?:{_PART})?(?![A-Za-z가-힣])",
-               lambda m: _say(f"{PER.get(m.group(2), m.group(2))}당 {m.group(1)}", m.group(3)), t)  # 2.5 g/L을 → 리터당 2.5 그램을
+    t = re.sub(rf"(\d[\d,]*(?:\.\d+)?(?:에서 \d[\d,]*(?:\.\d+)?)?\s*(?:{spoken}))\s*/\s*(10a|ha|a|mL|L|kg|g|min|hr|h|s|cm|주|개|마리|포기|그루|평|분|초|시간|일|{AREAS})(?:{_PART})?(?![A-Za-z가-힣])",
+               lambda m: _say(("하루 " if m.group(2) == "일" else f"{PER.get(m.group(2), m.group(2))}당 ") + m.group(1), m.group(3)), t)
+    # 2.5 g/L을 → 리터당 2.5 그램을, 2 L/분 → 분당 2 리터, 3 kg/일 → 하루 3 킬로그램
     t = re.sub(r"(\d(?:\.\d+)?)\s+-\s*(\d)", r"\1에서 \2", t)
     t = re.sub(r"(pH\s*\d+(?:\.\d+)?)\s*-\s*(?=\d)", r"\1에서 ", t)  # pH 6.5-7.0 (bare hyphens elsewhere stay: numbers, dates)
     t = re.sub(rf"(\d\s*(?:{spoken}))\s*[×xX]\s*(?=\d)", r"\1 곱하기 ", t)
