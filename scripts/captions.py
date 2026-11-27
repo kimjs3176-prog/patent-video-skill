@@ -30,6 +30,15 @@ def _units(s):
     return len(re.sub(r"\s", "", s))
 
 
+# A dependent noun leans on the word before it (낮출 수, 높은 것이, 낮을 때), and 수 on 있다/없다: no line break between them.
+_DEP = re.compile(r"(?:수|것|거|때|데|뿐|줄|듯|채|만큼|적)(?:이|가|은|는|을|를|도|만|에|에서|으로|로|과|와|이다|입니다)?[.,!?]?")
+
+
+def _bound(before, after):
+    """True when a caption line must not break between these two words."""
+    return bool(_DEP.fullmatch(after) and not re.search(r"[.,!?]$", before)) or (before == "수" and after[:1] in "있없")
+
+
 def chunks(text, maxlen):
     """Caption-sized pieces of one voiced line, in reading order."""
     out = []
@@ -53,7 +62,8 @@ def chunks(text, maxlen):
                     out.append(q)
                     continue
                 words = q.split(" ")
-                best = min(range(1, len(words)), key=lambda k: abs(_units(" ".join(words[:k])) - _units(q) / 2))
+                best = min(range(1, len(words)), key=lambda k: (_bound(words[k - 1], words[k]),
+                                                                abs(_units(" ".join(words[:k])) - _units(q) / 2)))
                 stack[:0] = [" ".join(words[:best]), " ".join(words[best:])]
     merged = []  # no orphans: a scrap of a few syllables ("추출,") joins its neighbour when the pair still fits
     for piece in out:

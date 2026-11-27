@@ -96,6 +96,9 @@ SPEAK = [
     ("2.0 L/분 유량", "분당 2.0 리터 유량."),
     ("3 kg/일 급여", "하루 3 킬로그램 급여."),
     ("5 g/시간으로", "시간당 5 그램으로."),
+    ("3 g/개체 투여", "개체당 3 그램 투여."),
+    ("10 μL/웰 분주", "웰당 10 마이크로리터 분주."),
+    ("5 mL/회 살포", "회당 5 밀리리터 살포."),
     ("30 mg/kg/day 투여", "하루 체중 킬로그램당 30 밀리그램 투여."),
     ("1회/일 투여", "하루 1회 투여."),
     # ratios, fractions, comparisons, arrows
@@ -158,6 +161,14 @@ class Captions(unittest.TestCase):
         self.assertEqual(caption_text(src, said), src)
         self.assertEqual(caption_text(src, sentences(speak(src))[0]), "그 결과 로즈마린산 함량은 약 50배입니다.")
         self.assertEqual(caption_text(src, "다른 문장."), "다른 문장.")  # not from this line: shown as voiced
+
+    def test_caption_lines_keep_dependent_nouns_with_their_word(self):
+        from captions import chunks
+        self.assertEqual(chunks("이슬점 이하로 낮출 수 있는 장치입니다.", 12), ["이슬점 이하로", "낮출 수 있는 장치입니다."])
+        self.assertEqual(chunks("품종 대비 함량이 높은 것이 특징입니다.", 12), ["품종 대비 함량이", "높은 것이 특징입니다."])
+        self.assertEqual(chunks("결빙을 막을 수 있는 구조입니다.", 12), ["결빙을 막을 수 있는", "구조입니다."])
+        self.assertEqual(chunks("부풀린 쌀, 팽화미를 맥아와 함께 바로 당화합니다.", 16),
+                         ["부풀린 쌀, 팽화미를 맥아와 함께", "바로 당화합니다."])  # 바로 is an adverb, not 바 + 로
 
 
 class Music(unittest.TestCase):
