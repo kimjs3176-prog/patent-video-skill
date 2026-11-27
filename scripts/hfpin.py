@@ -2,4 +2,7 @@
 import os
 
 NPX = "npx.cmd" if os.name == "nt" else "npx"
-HF = "hyperframes@0.9.99"
+HF = "hyperframes@0.9.102"
+# The HyperFrames CLI reports usage to PostHog unless this is set; the skill's runs (check, render) leave it off.
+# A value the user set themselves is kept.
+os.environ.setdefault("HYPERFRAMES_NO_TELEMETRY", "1")

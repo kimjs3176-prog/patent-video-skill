@@ -93,6 +93,9 @@ SPEAK = [
     ("5 m/s", "초당 5 미터."),
     ("2 h/day", "하루 2 시간."),
     ("12시간/일 조명", "하루 12시간 조명."),
+    ("2.0 L/분 유량", "분당 2.0 리터 유량."),
+    ("3 kg/일 급여", "하루 3 킬로그램 급여."),
+    ("5 g/시간으로", "시간당 5 그램으로."),
     ("30 mg/kg/day 투여", "하루 체중 킬로그램당 30 밀리그램 투여."),
     ("1회/일 투여", "하루 1회 투여."),
     # ratios, fractions, comparisons, arrows
@@ -172,6 +175,15 @@ class Pronounce(unittest.TestCase):
         from pronounce import _numbers
         for said, digits in (("다섯 단계입니다", "5단계입니다"), ("약 오십 배입니다", "약 50배입니다"), ("만이천 개", "12000개")):
             self.assertEqual(_numbers(said), _numbers(digits))
+
+
+class Telemetry(unittest.TestCase):
+    def test_hyperframes_telemetry_off_by_default(self):
+        import importlib
+        import hfpin
+        os.environ.pop("HYPERFRAMES_NO_TELEMETRY", None)
+        importlib.reload(hfpin)
+        self.assertEqual(os.environ.get("HYPERFRAMES_NO_TELEMETRY"), "1")
 
 
 class Narration(unittest.TestCase):
