@@ -141,13 +141,14 @@ AREA = [(u + p, _POWER[_plain(p)] + k) for u, k in _LENGTH.items() for p in "²�
 AREAS = "|".join(sorted({k for _, k in AREA}, key=len, reverse=True))  # 제곱미터 … after a slash: kg/m² is per square metre
 # formulas a narrator reads by name; with plain digits too (CO2) only for three or more symbols, since N2 or O2 can label a plot
 _CHEM = {"H₂O₂": "과산화수소", "CO₂": "이산화탄소", "H₂O": "물", "CH₄": "메탄", "NH₃": "암모니아", "N₂O": "아산화질소", "NO₂": "이산화질소",
-         "SO₂": "이산화황", "O₂": "산소", "N₂": "질소", "H₂": "수소", "O₃": "오존"}
+         "SO₂": "이산화황", "O₂": "산소", "N₂": "질소", "H₂": "수소", "O₃": "오존",
+         "CaCO₃": "탄산칼슘", "CaCl₂": "염화칼슘"}
 FORMULAS = [(re.sub(f"[{_SUB}]", lambda m: f"[{m.group()}{_plain(m.group())}]", f) if len(f) > 2 else f, k) for f, k in _CHEM.items()]
 UNITS = AREA + [("MPa", "메가파스칼"), ("kPa", "킬로파스칼"), ("rpm", "알피엠"), ("mL", "밀리리터"), ("ml", "밀리리터"), ("μL", "마이크로리터"),
          ("µL", "마이크로리터"), ("mg", "밀리그램"), ("kg", "킬로그램"), ("μg", "마이크로그램"), ("µg", "마이크로그램"), ("μm", "마이크로미터"),
          ("µm", "마이크로미터"), ("㎛", "마이크로미터"), ("nm", "나노미터"), ("mm", "밀리미터"), ("cm", "센티미터"), ("bp", "염기쌍"),
          ("kDa", "킬로달톤"), ("Da", "달톤"), ("dS/m", "데시지멘스 퍼 미터"), ("kcal", "킬로칼로리"), ("μS", "마이크로지멘스"), ("µS", "마이크로지멘스"), ("mS", "밀리지멘스"), ("mPa·s", "밀리파스칼초"), ("N·m", "뉴턴미터"), ("GPa", "기가파스칼"), ("mPa", "밀리파스칼"),
-         ("Pa", "파스칼"), ("mmol", "밀리몰"), ("μmol", "마이크로몰"), ("µmol", "마이크로몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
+         ("Pa", "파스칼"), ("mmol", "밀리몰"), ("μmol", "마이크로몰"), ("µmol", "마이크로몰"), ("mol", "몰"), ("cc", "시시"), ("ha", "헥타르"), ("kHz", "킬로헤르츠"), ("Hz", "헤르츠"), ("kWh", "킬로와트시"), ("Wh", "와트시"), ("kW", "킬로와트"), ("W", "와트"), ("V", "볼트"), ("min", "분"),
          ("hr", "시간"), ("h", "시간"), ("kGy", "킬로그레이"), ("Gy", "그레이"), ("lux", "럭스"), ("lx", "럭스"), ("kV", "킬로볼트"), ("GHz", "기가헤르츠"), ("MHz", "메가헤르츠"), ("dB", "데시벨"), ("ppm", "피피엠"), ("ppb", "피피비"), ("t", "톤"), ("g", "그램"), ("L", "리터"), ("mM", "밀리몰"), ("μM", "마이크로몰"), ("µM", "마이크로몰"), ("M", "몰"),
          ("s", "초"), ("m", "미터")]  # s and m last: every longer unit starting with them (min, mL, mg …) is read before
 
@@ -182,6 +183,9 @@ def speak(text):
         # 이산화탄소(CO₂)를: the name once, not twice. Only the bare name: 부산물(H₂O) keeps its aside (부산물, 물)
         t = re.sub(rf"(?<![가-힣]){k}\s*\(\s*{f}\s*\)|(?<![A-Za-z0-9{_SUB}]){f}\s*\(\s*{k}\s*\)", k, t)
         t = re.sub(rf"(?<![A-Za-z0-9{_SUB}]){f}(?![A-Za-z0-9{_SUB}])(?:{_PART})?", lambda m, k=k: _say(k, m.group(1)), t)
+    t = re.sub(r"(?<![A-Za-z])(OD|IC|EC|LD|ED|LC)([₀-₉]+)", lambda m: f"{m.group(1)} {_plain(m.group(2))}", t)  # OD₆₀₀, IC₅₀
+    t = re.sub(r"(?<=\d)\s*(k?)W\s*[·∙⋅]\s*h(?![A-Za-z])", r" \1Wh", t)  # 30 W·h → 30 Wh (와트시), not 와트, h
+    t = re.sub(r"(?<![\d/.])([1-9])\s*/\s*([2-9])(?=\s*(?:MS|B5|N6|WPM|LS)(?![A-Za-z]))", r"\2분의 \1", t)  # 1/2 MS 배지
     t = re.sub(r"(?<![A-Za-z])(?:ca|approx)\.\s*(?=\d)|~\s*약\s*", "약 ", t)  # ca. 5배, ~약 30 → 약
     t = re.sub(r"(?<![A-Za-z])FIGS?\.\s*(?=\d)|(?<![A-Za-z])Figs?\.\s*(?=\d)", "도 ", t)  # Fig. 3 → 도 3
     # a particle written after an acronym follows how it is read, letter by letter: PCR으로 → PCR로, ELISA을 → ELISA를
@@ -226,6 +230,8 @@ def speak(text):
     t = re.sub(r"(\d)\s*(?:vol|v/v)\s*\.?\s*%", r"\1부피퍼센트", t)
     t = re.sub(r"(\d)\s*%", r"\1퍼센트", t)
     t = re.sub(r"(\d)\s*[×x]\s*g(?![A-Za-z])", r"\1 지", t)  # 1,500×g: a centrifugal force, not a product
+    t = re.sub(r"(\d)\s*(rpm|지)\s*/\s*(\d[\d,]*\s*(?:초|분|시간))",  # 12,000 rpm/10분 → 12,000 알피엠으로 10분
+               lambda m: f"{m.group(1)} {m.group(2)}{'로' if m.group(2) == '지' else '으로'} {m.group(3)}", t)
     t = re.sub(r"(\d)\s*×\s*(\d)", r"\1 곱하기 \2", t)
     t = re.sub(r"(\d)\s*[xX]\s*(?=10⁻?[{_SUP}])".replace("{_SUP}", _SUP), r"\1 곱하기 ", t)  # 1x10⁸ written with a letter x
     t = re.sub(rf"(\d)(⁻?)([{_SUP}]+)(?:{_PART})?", lambda m: _say(  # 10⁸ → 10의 8제곱, 10⁻³ → 10의 마이너스 3제곱
