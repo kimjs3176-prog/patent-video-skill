@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx --yes hyperframes@0.9.103 preview",
-    "check": "npx --yes hyperframes@0.9.103 check",
-    "render": "npx --yes hyperframes@0.9.103 render",
-    "publish": "npx --yes hyperframes@0.9.103 publish"
+    "dev": "npx --yes hyperframes@0.9.104 preview",
+    "check": "npx --yes hyperframes@0.9.104 check",
+    "render": "npx --yes hyperframes@0.9.104 render",
+    "publish": "npx --yes hyperframes@0.9.104 publish"
   }
 }
